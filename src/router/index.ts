@@ -115,19 +115,15 @@ const routes: RouteRecordRaw[] = [
     // 取消以下页面的注释
     {
         path: '/login',
-        meta: {
-            title: '登录',
-            noAuth: true,
-        },
-        component: () => import(/* webpackChunkName: "login" */ '../views/pages/login.vue'),
+        name: 'login',
+        component: () => import('../views/pages/login.vue'),
+        meta: { hideHeader: true } // 添加这一行
     },
     {
         path: '/register',
-        meta: {
-            title: '注册',
-            noAuth: true,
-        },
-        component: () => import(/* webpackChunkName: "register" */ '../views/pages/register.vue'),
+        name: 'register',
+        component: () => import('../views/pages/register.vue'),
+        meta: { hideHeader: true } // 添加这一行
     },
     {
         path: '/reset-pwd',

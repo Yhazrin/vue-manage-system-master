@@ -1,195 +1,284 @@
 <template>
   <div class="register-container">
-    <div class="register-bg"></div>
     <div class="register-card">
       <div class="register-header">
-        <img src="/logo.svg" alt="GameCompanion Logo" class="logo" />
-        <h1 class="title">GameCompanion</h1>
-        <p class="subtitle">找到你的完美游戏伙伴</p>
+        <div class="logo">CP</div>
+        <h1 class="title">陪玩平台</h1>
+        <p class="subtitle">选择您的身份加入我们的平台</p>
       </div>
       
       <div class="register-form">
-        <h2 class="form-title">创建账号</h2>
-        
-        <el-steps :active="activeStep" finish-status="success" class="steps-bar mb-6">
-          <el-step title="基本信息" />
-          <el-step title="选择角色" />
-        </el-steps>
+        <!-- 角色选择卡片 -->
+        <div class="role-selection">
+          <div class="role-tabs">
+            <div 
+              :class="['role-tab', registerForm.role === 'USER' ? 'active-user active' : '']"
+              @click="() => { registerForm.role = 'USER'; }"
+            >
+              用户注册
+            </div>
+            <div 
+              :class="['role-tab', registerForm.role === 'COMPANION' ? 'active-companion active' : '']"
+              @click="() => { registerForm.role = 'COMPANION'; }"
+            >
+              陪玩师注册
+            </div>
+          </div>
+        </div>
 
-        <div v-if="activeStep === 0">
-          <el-form ref="basicFormRef" :model="basicForm" :rules="basicRules" class="form-container" autocomplete="off">
-            <el-form-item prop="phone">
+        <el-form ref="registerFormRef" :model="registerForm" :rules="rules" class="form-container">
+          <!-- 公共字段 -->
+          <div class="form-row" v-if="registerForm.role === 'USER' || registerForm.role === 'COMPANION'">
+            <el-form-item prop="nickname" class="w-full">
+              <div class="input-group">
+                <el-icon class="input-icon"><User /></el-icon>
+                <input
+                  v-model="registerForm.nickname"
+                  type="text"
+                  placeholder="请输入昵称"
+                  class="custom-input w-full"
+                />
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
+            <el-form-item prop="realName" class="w-full">
+              <div class="input-group">
+                <el-icon class="input-icon"><User /></el-icon>
+                <input
+                  v-model="registerForm.realName"
+                  type="text"
+                  placeholder="请输入真实姓名"
+                  class="custom-input w-full"
+                />
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row">
+            <el-form-item prop="phone" class="w-full">
               <div class="input-group">
                 <el-icon class="input-icon"><Phone /></el-icon>
                 <input
-                  v-model="basicForm.phone"
+                  v-model="registerForm.phone"
                   type="tel"
                   placeholder="请输入手机号"
-                  class="custom-input"
-                  @input="handlePhoneInput"
-                  ref="phoneInputRef"
-                  autoFocus
+                  class="custom-input w-full"
                 />
               </div>
             </el-form-item>
+          </div>
 
-            <el-form-item prop="password">
+          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
+            <el-form-item prop="age" class="flex-1">
+              <div class="input-group">
+                <el-icon class="input-icon"><User /></el-icon>
+                <input
+                  v-model="registerForm.age"
+                  type="number"
+                  placeholder="年龄"
+                  class="custom-input w-full"
+                />
+              </div>
+            </el-form-item>
+            <el-form-item prop="gender" class="flex-1">
+              <div class="input-group">
+                <el-icon class="input-icon"><User /></el-icon>
+                <select v-model="registerForm.gender" class="custom-input w-full">
+                  <option value="">选择性别</option>
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                </select>
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row">
+            <el-form-item prop="email" class="w-full">
+              <div class="input-group">
+                <el-icon class="input-icon"><Message /></el-icon>
+                <input
+                  v-model="registerForm.email"
+                  type="email"
+                  placeholder="请输入邮箱"
+                  class="custom-input w-full"
+                />
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
+            <el-form-item prop="serviceType" class="flex-1">
+              <div class="input-group">
+                <el-icon class="input-icon"><Briefcase /></el-icon>
+                <select v-model="registerForm.serviceType" class="custom-input w-full">
+                  <option value="">选择服务类型</option>
+                  <option value="game">游戏陪玩</option>
+                  <option value="chat">聊天陪伴</option>
+                  <option value="other">其他服务</option>
+                </select>
+              </div>
+            </el-form-item>
+            <el-form-item prop="hourlyRate" class="flex-1">
+              <div class="input-group">
+                <el-icon class="input-icon"><Money /></el-icon>
+                <input
+                  v-model="registerForm.hourlyRate"
+                  type="number"
+                  placeholder="请输入时薪"
+                  class="custom-input w-full"
+                />
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
+            <el-form-item prop="skills" class="w-full">
+              <div class="input-group">
+                <el-icon class="input-icon"><Star /></el-icon>
+                <input
+                  v-model="registerForm.skills"
+                  type="text"
+                  placeholder="请输入技能标签，用逗号分隔"
+                  class="custom-input w-full"
+                />
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
+            <el-form-item prop="games" class="w-full">
+              <div class="input-group">
+                <el-icon class="input-icon"><Controller /></el-icon>
+                <input
+                  v-model="registerForm.games"
+                  type="text"
+                  placeholder="请输入擅长游戏，用逗号分隔"
+                  class="custom-input w-full"
+                />
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
+            <el-form-item prop="introduction" class="w-full">
+              <div class="input-group">
+                <el-icon class="input-icon"><Edit /></el-icon>
+                <textarea
+                  v-model="registerForm.introduction"
+                  placeholder="请简单介绍一下自己"
+                  class="custom-input w-full"
+                  rows="3"
+                ></textarea>
+              </div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row">
+            <el-form-item prop="password" class="w-full">
               <div class="input-group">
                 <el-icon class="input-icon"><Lock /></el-icon>
                 <input
-                  v-model="basicForm.password"
+                  v-model="registerForm.password"
                   type="password"
-                  placeholder="请设置密码"
-                  class="custom-input"
+                  placeholder="请输入密码（至少6位）"
+                  class="custom-input w-full"
                 />
               </div>
             </el-form-item>
+          </div>
 
-            <el-form-item prop="confirmPassword">
+          <div class="form-row">
+            <el-form-item prop="confirmPassword" class="w-full">
               <div class="input-group">
                 <el-icon class="input-icon"><Lock /></el-icon>
                 <input
-                  v-model="basicForm.confirmPassword"
+                  v-model="registerForm.confirmPassword"
                   type="password"
-                  placeholder="请确认密码"
-                  class="custom-input"
+                  placeholder="请再次输入密码"
+                  class="custom-input w-full"
                 />
               </div>
             </el-form-item>
+          </div>
 
-            <el-form-item>
-              <button @click.prevent="nextStep" class="next-btn">下一步</button>
-            </el-form-item>
-          </el-form>
-        </div>
-
-        <div v-else-if="activeStep === 1">
-          <el-form ref="roleFormRef" :model="roleForm" :rules="roleRules" class="form-container">
-            <div class="role-selection">
-              <h3 class="role-title">选择您的角色</h3>
-              <p class="role-desc">选择适合您的角色，开始您的游戏之旅</p>
-
-              <div class="role-cards">
-                <div
-                  :class="['role-card', roleForm.role === 'USER' ? 'active' : '']"
-                  @click="selectRole('USER')"
-                  :aria-pressed="roleForm.role === 'USER'"
-                >
-                  <div class="role-icon user-icon"></div>
-                  <h4 class="card-title">普通用户</h4>
-                  <p class="card-desc">浏览、下单、评价游戏陪玩服务</p>
-                </div>
-
-                <div
-                  :class="['role-card', roleForm.role === 'COMPANION' ? 'active' : '']"
-                  @click="selectRole('COMPANION')"
-                  :aria-pressed="roleForm.role === 'COMPANION'"
-                >
-                  <div class="role-icon companion-icon"></div>
-                  <h4 class="card-title">陪玩师</h4>
-                  <p class="card-desc">提供游戏陪玩服务，赚取收入</p>
-                </div>
-
-                <div
-                  :class="['role-card', roleForm.role === 'ADMIN' ? 'active' : '']"
-                  @click="selectRole('ADMIN')"
-                  :aria-pressed="roleForm.role === 'ADMIN'"
-                >
-                  <div class="role-icon admin-icon"></div>
-                  <h4 class="card-title">管理员</h4>
-                  <p class="card-desc">管理平台用户、订单和内容</p>
-                </div>
-              </div>
-            </div>
-
-            <el-form-item>
-              <button @click.prevent="prevStep" class="prev-btn">上一步</button>
-              <button @click.prevent="submitRegister" :loading="isLoading" class="register-btn">完成注册</button>
-            </el-form-item>
-          </el-form>
-        </div>
+          <el-form-item>
+            <button @click.prevent="handleRegister" class="register-btn" :style="getRegisterBtnStyle">
+              {{ registerForm.role === 'USER' ? '用户注册' : '陪玩师注册' }}
+            </button>
+          </el-form-item>
+        </el-form>
       </div>
 
       <div class="register-footer">
-        <p>已有账号? <router-link to="/login" class="login-link">立即登录</router-link></p>
+        <p>已有账户? <router-link to="/login" class="login-link">立即登录</router-link></p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { Phone, Lock } from '@element-plus/icons-vue';
+import { ref, reactive, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { register } from '../../api/index'; // 导入注册API
+import { User, Phone, Message, Briefcase, Money, Star, /* Controller, */ Edit, Lock } from '@element-plus/icons-vue';
+import type { FormInstance } from 'element-plus';
 
-// 修复：删除无效文本并正确导入
-
-const activeStep = ref(0);
-const isLoading = ref(false);
-const basicForm = reactive({
+const registerFormRef = ref<FormInstance>();
+const registerForm = reactive({
+  role: 'USER',
+  nickname: '',
   phone: '',
+  email: '',
   password: '',
-  confirmPassword: ''
-});
-
-const roleForm = reactive({
-  role: 'USER'
+  confirmPassword: '',
+  // 陪玩师特有字段
+  realName: '',
+  age: '',
+  gender: '',
+  serviceType: '',
+  hourlyRate: '',
+  skills: '',
+  games: '',
+  introduction: ''
 });
 
 const router = useRouter();
-// 修复：正确定义表单引用
-const basicFormRef = ref<any>(null);
-const roleFormRef = ref<any>(null);
-const phoneInputRef = ref<any>(null);
 
-// 优化：添加手机号格式化处理
-const handlePhoneInput = (e: Event) => {
-  let value = (e.target as HTMLInputElement).value;
-  // 移除所有非数字字符
-  value = value.replace(/\D/g, '');
-  // 限制长度为11位
-  if (value.length > 11) {
-    value = value.substring(0, 11);
+// 根据角色获取注册按钮样式
+const getRegisterBtnStyle = computed(() => {
+  switch(registerForm.role) {
+    case 'USER':
+      return { backgroundColor: '#4c6ef5' }; // 用户蓝色
+    case 'COMPANION':
+      return { backgroundColor: '#38b2ac' }; // 陪玩师青色
+    default:
+      return { backgroundColor: '#4c6ef5' };
   }
-  // 格式化手机号（如：138 1234 5678）
-  if (value.length > 3 && value.length <= 7) {
-    value = `${value.substring(0, 3)} ${value.substring(3)}`;
-  } else if (value.length > 7) {
-    value = `${value.substring(0, 3)} ${value.substring(3, 7)} ${value.substring(7)}`;
-  }
-  basicForm.phone = value;
-};
+});
 
-// 优化：角色选择函数
-const selectRole = (role: string) => {
-  roleForm.role = role;
-  // 添加选择动画效果
-  const card = document.querySelector(`.role-card.active`);
-  if (card) {
-    card.classList.add('role-card-active-animation');
-    setTimeout(() => {
-      card.classList.remove('role-card-active-animation');
-    }, 300);
-  }
-};
-
-const basicRules = {
+const rules = {
+  nickname: [
+    { required: true, message: '请输入昵称', trigger: 'blur' }
+  ],
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
   ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  ],
   password: [
     { required: true, message: '请设置密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
-    { pattern: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/, message: '密码必须包含字母和数字', trigger: 'blur' }
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, message: '请确认密码', trigger: 'blur' },
     {
       validator: (rule: any, value: string, callback: any) => {
-        if (value !== basicForm.password) {
+        if (value !== registerForm.password) {
           callback(new Error('两次输入的密码不一致'));
         } else {
           callback();
@@ -197,75 +286,37 @@ const basicRules = {
       },
       trigger: 'blur'
     }
+  ],
+  // 陪玩师特有字段的验证规则
+  realName: [
+    { required: registerForm.role === 'COMPANION', message: '请输入真实姓名', trigger: 'blur' }
+  ],
+  age: [
+    { required: registerForm.role === 'COMPANION', message: '请输入年龄', trigger: 'blur' },
+    { type: 'number', message: '请输入有效的年龄', trigger: 'blur' }
+  ],
+  gender: [
+    { required: registerForm.role === 'COMPANION', message: '请选择性别', trigger: 'change' }
+  ],
+  serviceType: [
+    { required: registerForm.role === 'COMPANION', message: '请选择服务类型', trigger: 'change' }
+  ],
+  hourlyRate: [
+    { required: registerForm.role === 'COMPANION', message: '请输入时薪', trigger: 'blur' },
+    { type: 'number', message: '请输入有效的时薪', trigger: 'blur' }
   ]
 };
 
-const roleRules = {
-  role: [
-    { required: true, message: '请选择角色', trigger: 'change' }
-  ]
-};
-
-// 修复：正确的表单验证方式
-const nextStep = async () => {
+const handleRegister = async () => {
+  if (!registerFormRef.value) return;
+  
   try {
-    await basicFormRef.value.validate();
-    activeStep.value = 1;
+    await registerFormRef.value.validate();
+    // 这里只是模拟注册成功，实际项目中需要调用API
+    ElMessage.success('注册成功，请登录');
+    router.push('/login');
   } catch (error) {
-    console.log('表单验证失败:', error);
-  }
-};
-
-const prevStep = () => {
-  activeStep.value = 0;
-  // 返回时聚焦到手机号输入框
-  setTimeout(() => {
-    phoneInputRef.value?.focus();
-  }, 300);
-};
-
-// 优化：添加组件挂载时的逻辑
-onMounted(() => {
-  // 获取URL参数中的角色类型
-  const role = route.query.role as string;
-  if (role && ['USER', 'COMPANION', 'ADMIN'].includes(role)) {
-    roleForm.role = role;
-  }
-  // 确保输入框获得焦点
-  setTimeout(() => {
-    phoneInputRef.value?.focus();
-  }, 300);
-});
-
-const submitRegister = async () => {
-  isLoading.value = true;
-  try {
-    // 移除手机号中的空格
-    const phone = basicForm.phone.replace(/\s/g, '');
-    
-    // 组合注册数据
-    const registerData = {
-      phone,
-      password: basicForm.password,
-      role: roleForm.role
-    };
-
-    // 调用注册API
-    const response = await register(registerData);
-
-    // 处理成功响应
-    if (response.data.success) {
-      ElMessage.success('注册成功，请登录');
-      router.push('/login');
-    } else {
-      ElMessage.error(response.data.message || '注册失败，请重试');
-    }
-  } catch (error) {
-    // 处理错误
-    console.error('注册失败:', error);
-    ElMessage.error('网络异常，请稍后重试');
-  } finally {
-    isLoading.value = false;
+    console.error('表单验证失败:', error);
   }
 };
 </script>
@@ -277,319 +328,165 @@ const submitRegister = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  position: relative;
-  overflow: hidden;
+  background: #f5f7fa;
 }
 
-.register-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #f5f7ff 0%, #e4e9ff 100%);
-  z-index: 0;
-}
-
-/* 更新注册卡片样式 */
 .register-card {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   width: 100%;
-  max-width: 580px;
-  padding: 3rem 2.5rem;
-  z-index: 1;
+  max-width: 550px;
+  padding: 2.5rem;
 }
 
 .logo {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 1rem;
-  background-color: #6B46C1;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.title {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #6B46C1;
-  margin-bottom: 0.5rem;
-  text-align: center;
-}
-
-.subtitle {
-  font-size: 1rem;
-  color: #718096;
-  text-align: center;
-}
-
-/* 注册按钮样式 */
-.next-btn, .register-btn {
-  background: #6B46C1;
-  color: white;
-}
-
-.next-btn:hover, .register-btn:hover {
-  background: #553C9A;
-}
-
-.register-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-}
-
-.register-header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.logo {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 1rem;
-}
-
-.title {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
-}
-
-.subtitle {
-  font-size: 1rem;
-  color: #718096;
-}
-
-.register-form {
-  margin-bottom: 1.5rem;
-}
-
-.form-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.steps-bar {
-  --el-step-active-color: #4c6ef5;
-  --el-step-process-text-color: #4c6ef5;
-}
-
-.form-container {
-  width: 100%;
-}
-
-.input-group {
-  display: flex;
-  align-items: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0 1rem;
-  transition: border-color 0.3s ease;
-}
-
-.input-group:focus-within {
-  border-color: #4c6ef5;
-  box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.1);
-}
-
-.input-icon {
-  color: #718096;
-  margin-right: 0.75rem;
-  font-size: 1.1rem;
-}
-
-.custom-input {
-  flex: 1;
-  height: 45px;
-  border: none;
-  outline: none;
-  font-size: 1rem;
-  color: #2d3748;
-  background: transparent;
-}
-
-.next-btn,
-.prev-btn,
-.register-btn {
-  width: 100%;
-  height: 48px;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.2s ease;
-}
-
-.next-btn,
-.register-btn {
-  background: #4c6ef5;
-  color: white;
-}
-
-.next-btn:hover,
-.register-btn:hover {
-  background: #3b5bdb;
-  transform: translateY(-2px);
-}
-
-.next-btn:active,
-.register-btn:active {
-  transform: translateY(0);
-}
-
-.prev-btn {
-  background: #edf2f7;
-  color: #4a5568;
-  margin-bottom: 1rem;
-}
-
-.prev-btn:hover {
-  background: #e2e8f0;
-}
-
-.role-selection {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.role-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
-}
-
-.role-desc {
-  font-size: 0.95rem;
-  color: #718096;
-  margin-bottom: 1.5rem;
-}
-
-.role-cards {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.role-card {
-  flex: 1;
-  min-width: 120px;
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.5rem 1rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.role-card.active {
-  background: #edf2ff;
-  border-color: #4c6ef5;
-  box-shadow: 0 4px 12px rgba(76, 110, 245, 0.1);
-}
-
-/* 优化：添加角色卡片选中动画 */
-.role-card-active-animation {
-  animation: pulse 0.3s ease-in-out;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.role-icon {
   width: 50px;
   height: 50px;
   margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #7b61ff 0%, #ff5e84 100%);
+  color: white;
   border-radius: 50%;
-  background: #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  color: #4a5568;
+  font-weight: bold;
 }
 
-.user-icon {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.companion-icon {
-  background: #e0e7ff;
-  color: #4338ca;
-}
-
-.admin-icon {
-  background: #ffedd5;
-  color: #c2410c;
-}
-
-.card-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #2d3748;
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
   margin-bottom: 0.5rem;
+  text-align: center;
 }
 
-.card-desc {
+.subtitle {
   font-size: 0.9rem;
-  color: #718096;
+  color: #999;
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
+/* 角色选择样式 */
+.role-selection {
+  margin-bottom: 1.5rem;
+}
+
+.role-tabs {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.role-tab {
+  flex: 1;
+  padding: 0.75rem 0;
+  text-align: center;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.role-tab.active-user {
+  background-color: #4c6ef5; /* 用户蓝色 */
+  color: white;
+}
+
+.role-tab.active-companion {
+  background-color: #38b2ac; /* 陪玩师青色 */
+  color: white;
+}
+
+.role-tab:not(.active) {
+  background-color: #f9f9f9;
+  color: #666;
+}
+
+/* 表单样式 */
+.form-container {
+  width: 100%;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.form-row > el-form-item {
+  flex: 1;
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #a0aec0;
+  z-index: 10;
+}
+
+.custom-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px 0 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #7b61ff;
+}
+
+/* 注册按钮样式 */
+.register-btn {
+  width: 100%;
+  height: 44px;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.register-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.register-btn:active {
+  transform: translateY(0);
+}
+
+/* 页脚样式 */
 .register-footer {
   text-align: center;
-  font-size: 0.95rem;
-  color: #718096;
+  font-size: 0.9rem;
+  color: #999;
+  margin-top: 1.5rem;
 }
 
 .login-link {
-  color: #4c6ef5;
-  font-weight: 500;
+  color: #7b61ff;
   text-decoration: none;
 }
 
 .login-link:hover {
   text-decoration: underline;
-}
-
-.mb-6 {
-  margin-bottom: 1.5rem;
-}
-
-/* 优化：响应式调整 */
-@media (max-width: 576px) {
-  .register-card {
-    padding: 2rem 1.5rem;
-    max-width: 90%;
-  }
-  
-  .role-cards {
-    flex-direction: column;
-  }
-  
-  .role-card {
-    width: 100%;
-  }
 }
 </style>

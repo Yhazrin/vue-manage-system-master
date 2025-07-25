@@ -11,32 +11,34 @@
       <div class="login-form">
         <h2 class="form-title">账号登录</h2>
         
-        <!-- 角色选择卡片 - 替换原有下拉框 -->
+        <!-- 角色选择卡片 -->
         <div class="role-selection">
           <div class="role-tabs">
             <div 
-              :class="['role-tab', loginForm.role === 'USER' ? 'active user' : '']"
-              @click="() => { loginForm.role = 'USER'; console.log('选择普通用户'); }"
+              class="role-tab" 
+              :class="{ 'active-user': loginForm.role === 'USER', 'active': loginForm.role === 'USER' }"
+              @click="selectRole('USER')"
             >
               普通用户
             </div>
             <div 
-              :class="['role-tab', loginForm.role === 'COMPANION' ? 'active companion' : '']"
-              @click="() => { loginForm.role = 'COMPANION'; console.log('选择陪玩师'); }"
+              class="role-tab"
+              :class="{ 'active-companion': loginForm.role === 'COMPANION', 'active': loginForm.role === 'COMPANION' }"
+              @click="selectRole('COMPANION')"
             >
               陪玩师
             </div>
             <div 
-              :class="['role-tab', loginForm.role === 'ADMIN' ? 'active admin' : '']"
-              @click="() => { loginForm.role = 'ADMIN'; console.log('选择管理员'); }"
+              class="role-tab"
+              :class="{ 'active-admin': loginForm.role === 'ADMIN', 'active': loginForm.role === 'ADMIN' }"
+              @click="selectRole('ADMIN')"
             >
               管理员
             </div>
           </div>
         </div>
-
-        <el-form ref="loginForm" :model="loginForm" :rules="rules" class="form-container">
-          <!-- 删除角色选择下拉框 -->
+        
+        <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="form-container">
           <el-form-item prop="phone">
             <div class="input-group">
               <el-icon class="input-icon"><User /></el-icon>
@@ -44,11 +46,10 @@
                 v-model="loginForm.phone"
                 type="tel"
                 placeholder="请输入手机号"
-                class="custom-input"
+                class="custom-input w-full"
               />
             </div>
           </el-form-item>
-
           <el-form-item prop="password">
             <div class="input-group">
               <el-icon class="input-icon"><Lock /></el-icon>
@@ -56,11 +57,10 @@
                 v-model="loginForm.password"
                 type="password"
                 placeholder="请输入密码"
-                class="custom-input"
+                class="custom-input w-full"
               />
             </div>
           </el-form-item>
-
           <div class="form-options">
             <label class="remember-me">
               <input type="checkbox" v-model="rememberMe" class="checkbox" />
@@ -68,13 +68,11 @@
             </label>
             <a href="#" class="forgot-password">忘记密码?</a>
           </div>
-
           <el-form-item>
             <button @click.prevent="handleLogin" class="login-btn" :style="getLoginBtnStyle">登录</button>
           </el-form-item>
         </el-form>
       </div>
-
       <div class="login-footer">
         <p>还没有账号? <router-link to="/register" class="register-link">立即注册</router-link></p>
       </div>
@@ -86,18 +84,28 @@
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { User, Lock } from '@element-plus/icons-vue';
+import type { FormInstance } from 'element-plus';
 
+const loginFormRef = ref<FormInstance>();
 const loginForm = reactive({
   role: 'USER',
-  phone: '', // 将email改为phone
+  phone: '',
   password: ''
 });
 
 const rememberMe = ref(false);
 const router = useRouter();
 
+// 角色选择方法
+const selectRole = (role: string) => {
+  console.log('选择角色:', role);
+  loginForm.role = role;
+  console.log('当前角色:', loginForm.role);
+};
+
 // 根据角色获取登录按钮样式
 const getLoginBtnStyle = computed(() => {
+  console.log('计算按钮样式，当前角色:', loginForm.role);
   switch(loginForm.role) {
     case 'USER':
       return { backgroundColor: '#4c6ef5' };
@@ -111,10 +119,9 @@ const getLoginBtnStyle = computed(() => {
 });
 
 const rules = {
-  // 移除角色验证规则
-  phone: [ // 将email改为phone
+  phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' } // 手机号验证规则
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -122,17 +129,26 @@ const rules = {
   ]
 };
 
-const handleLogin = () => {
-  // 这里可以添加表单验证逻辑
-  // 保存角色到本地存储
-  localStorage.setItem('role', loginForm.role);
-  // 根据角色跳转到不同主页
-  if (loginForm.role === 'USER') {
-    router.push('/user'); // 修正普通用户主页路径
-  } else if (loginForm.role === 'COMPANION') {
-    router.push('/companion'); // 陪玩师主页
-  } else if (loginForm.role === 'ADMIN') {
-    router.push('/admin'); // 管理员主页
+const handleLogin = async () => {
+  if (!loginFormRef.value) return;
+  
+  try {
+    await loginFormRef.value.validate();
+    console.log('表单验证通过，准备登录，角色:', loginForm.role);
+    
+    // 保存角色到本地存储
+    localStorage.setItem('role', loginForm.role);
+    
+    // 根据角色跳转到不同主页
+    if (loginForm.role === 'USER') {
+      router.push('/user');
+    } else if (loginForm.role === 'COMPANION') {
+      router.push('/companion');
+    } else if (loginForm.role === 'ADMIN') {
+      router.push('/admin');
+    }
+  } catch (error) {
+    console.error('表单验证失败:', error);
   }
 };
 </script>
@@ -197,46 +213,7 @@ const handleLogin = () => {
   text-align: center;
 }
 
-/* 登录按钮样式 */
-.login-btn {
-  width: 100%;
-  height: 48px;
-  background: #6B46C1;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.2s ease;
-}
-
-.login-btn:hover {
-  background: #3b5bdb;
-  transform: translateY(-2px);
-}
-
-.login-btn:active {
-  transform: translateY(0);
-}
-
-.login-footer {
-  text-align: center;
-  font-size: 0.95rem;
-  color: #718096;
-}
-
-.register-link {
-  color: #4c6ef5;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.register-link:hover {
-  text-decoration: underline;
-}
-
-/* 新增角色选择卡片样式 */
+/* 角色选择卡片样式 */
 .role-selection {
   margin-bottom: 1.5rem;
 }
@@ -278,21 +255,117 @@ const handleLogin = () => {
 }
 
 /* 不同角色的颜色 */
-.role-tab.active.user {
-  background-color: #4c6ef5;
+.role-tab.active-user {
+  background-color: #4c6ef5; /* 普通用户蓝色 */
 }
 
-.role-tab.active.companion {
-  background-color: #38b2ac;
+.role-tab.active-companion {
+  background-color: #38b2ac; /* 陪玩师青色 */
 }
 
-.role-tab.active.admin {
-  background-color: #805ad5;
+.role-tab.active-admin {
+  background-color: #805ad5; /* 管理员紫色 */
 }
 
-/* 调整表单容器的margin-top */
+/* 表单样式 */
 .form-container {
   width: 100%;
   margin-top: 1rem;
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #a0aec0;
+  z-index: 10;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 12px 12px 12px 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #4c6ef5;
+  box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.1);
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #4a5568;
+  cursor: pointer;
+}
+
+.checkbox {
+  margin-right: 8px;
+}
+
+.forgot-password {
+  font-size: 0.9rem;
+  color: #4c6ef5;
+  text-decoration: none;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+/* 登录按钮样式 */
+.login-btn {
+  width: 100%;
+  height: 48px;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+}
+
+.login-footer {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #718096;
+  margin-top: 1.5rem;
+}
+
+.register-link {
+  color: #4c6ef5;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.register-link:hover {
+  text-decoration: underline;
 }
 </style>
