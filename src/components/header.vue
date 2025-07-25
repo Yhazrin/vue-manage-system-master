@@ -1,9 +1,12 @@
 <template>
     <div class="header">
-        <!-- 折叠按钮 -->
+        <!-- 固定的左侧图标和名称 -->
         <div class="header-left">
-            <img class="logo" src="../assets/img/logo.svg" alt="" />
-            <div class="web-title">后台管理系统</div>
+            <div class="logo-container">
+                <span class="logo-text">CP</span>
+            </div>
+            <div class="web-title">陪玩平台</div>
+            <!-- 保留折叠按钮 -->
             <div class="collapse-btn" @click="collapseChage">
                 <el-icon v-if="sidebar.collapse">
                     <Expand />
@@ -15,6 +18,24 @@
         </div>
         <div class="header-right">
             <div class="header-user-con">
+                <!-- 根据用户角色动态显示的导航 -->
+                <div v-if="userRole === 'user'" class="role-nav">
+                    <div class="nav-item" @click="router.push('/user/dashboard')">首页</div>
+                    <div class="nav-item" @click="router.push('/user/orders')">我的订单</div>
+                    <div class="nav-item" @click="router.push('/user/booking')">预约陪玩</div>
+                </div>
+                <div v-if="userRole === 'companion'" class="role-nav">
+                    <div class="nav-item" @click="router.push('/companion/dashboard')">工作台</div>
+                    <div class="nav-item" @click="router.push('/companion/orders')">订单管理</div>
+                    <div class="nav-item" @click="router.push('/companion/profile')">个人资料</div>
+                </div>
+                <div v-if="userRole === 'admin'" class="role-nav">
+                    <div class="nav-item" @click="router.push('/admin/dashboard')">管理首页</div>
+                    <div class="nav-item" @click="router.push('/admin/users')">用户管理</div>
+                    <div class="nav-item" @click="router.push('/admin/companions')">陪玩师管理</div>
+                    <div class="nav-item" @click="router.push('/admin/orders')">订单管理</div>
+                </div>
+                <!-- 保留原有功能按钮 -->
                 <div class="btn-icon" @click="router.push('/theme')">
                     <el-tooltip effect="dark" content="设置主题" placement="bottom">
                         <i class="el-icon-lx-skin"></i>
@@ -30,14 +51,8 @@
                     </el-tooltip>
                     <span class="btn-bell-badge" v-if="message"></span>
                 </div>
-                <div class="btn-icon" @click="setFullScreen">
-                    <el-tooltip effect="dark" content="全屏" placement="bottom">
-                        <i class="el-icon-lx-full"></i>
-                    </el-tooltip>
-                </div>
-                <!-- 用户头像 -->
+                <!-- 用户头像和下拉菜单 -->
                 <el-avatar class="user-avator" :size="30" :src="imgurl" />
-                <!-- 用户名下拉菜单 -->
                 <el-dropdown class="user-name" trigger="click" @command="handleCommand">
                     <span class="el-dropdown-link">
                         {{ username }}
@@ -47,12 +62,6 @@
                     </span>
                     <template #dropdown>
                         <el-dropdown-menu>
-                            <a href="https://github.com/lin-xin/vue-manage-system" target="_blank">
-                                <el-dropdown-item>项目仓库</el-dropdown-item>
-                            </a>
-                            <a href="https://lin-xin.gitee.io/example/vuems-doc/" target="_blank">
-                                <el-dropdown-item>官方文档</el-dropdown-item>
-                            </a>
                             <el-dropdown-item command="user">个人中心</el-dropdown-item>
                             <el-dropdown-item divided command="loginout">退出登录</el-dropdown-item>
                         </el-dropdown-menu>
@@ -67,11 +76,17 @@ import { onMounted } from 'vue';
 import { useSidebarStore } from '../store/sidebar';
 import { useRouter } from 'vue-router';
 import imgurl from '../assets/img/img.jpg';
+// 导入需要的图标
+import { Expand, Fold, ArrowDown } from '@element-plus/icons-vue';
 
+// 获取用户信息和角色
 const username: string | null = localStorage.getItem('vuems_name');
+const userRole: string | null = localStorage.getItem('vuems_role') || 'user'; // 默认普通用户
 const message: number = 2;
 
 const sidebar = useSidebarStore();
+const router = useRouter();
+
 // 侧边栏折叠
 const collapseChage = () => {
     sidebar.handleCollapse();
@@ -84,21 +99,13 @@ onMounted(() => {
 });
 
 // 用户名下拉菜单选择事件
-const router = useRouter();
 const handleCommand = (command: string) => {
     if (command == 'loginout') {
         localStorage.removeItem('vuems_name');
+        localStorage.removeItem('vuems_role');
         router.push('/login');
     } else if (command == 'user') {
         router.push('/ucenter');
-    }
-};
-
-const setFullScreen = () => {
-    if (document.fullscreenElement) {
-        document.exitFullscreen();
-    } else {
-        document.body.requestFullscreen.call(document.body);
     }
 };
 </script>
@@ -113,6 +120,10 @@ const setFullScreen = () => {
     color: var(--header-text-color);
     background-color: var(--header-bg-color);
     border-bottom: 1px solid #ddd;
+    position: fixed; /* 固定在顶部 */
+    top: 0; /* 顶部对齐 */
+    left: 0; /* 左侧对齐 */
+    z-index: 1000; /* 确保在其他内容之上 */
 }
 
 .header-left {
@@ -122,13 +133,24 @@ const setFullScreen = () => {
     height: 100%;
 }
 
-.logo {
-    width: 35px;
+.logo-container {
+    width: 40px;
+    height: 40px;
+    background-color: #9c27b0;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
 }
 
 .web-title {
     margin: 0 40px 0 10px;
     font-size: 22px;
+    color: #9c27b0;
+    font-weight: bold;
 }
 
 .collapse-btn {
@@ -148,7 +170,7 @@ const setFullScreen = () => {
 
 .header-right {
     float: right;
-    padding-right: 50px;
+    padding-right: 20px;
 }
 
 .header-user-con {
@@ -157,10 +179,22 @@ const setFullScreen = () => {
     align-items: center;
 }
 
-.btn-fullscreen {
-    transform: rotate(45deg);
-    margin-right: 5px;
-    font-size: 24px;
+.role-nav {
+    display: flex;
+    margin-right: 20px;
+}
+
+.nav-item {
+    margin: 0 15px;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.nav-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
 }
 
 .btn-icon {
@@ -196,9 +230,5 @@ const setFullScreen = () => {
     cursor: pointer;
     display: flex;
     align-items: center;
-}
-
-.el-dropdown-menu__item {
-    text-align: center;
 }
 </style>
