@@ -48,6 +48,7 @@ router.post('/login', async (req, res, next) => {
         if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });
         const match = await bcrypt.compare(passwd, player.passwd);
         if (!match) return res.status(401).json({ success: false, error: '密码错误' });
+        // Chat建议，留存，可加
         // TODO: 签发 JWT Token
         res.json({ success: true, player });
     } catch (err) {

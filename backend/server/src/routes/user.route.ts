@@ -46,6 +46,7 @@ router.post('/login', async (req, res, next) => {
         const match = await bcrypt.compare(passwd, user.passwd);
         // 若密码不匹配，返回 401 错误
         if (!match) return res.status(401).json({ success: false, error: '密码错误' });
+        // Chat建议，留存，可加
         // TODO: 此处预留签发 JWT Token 的逻辑（用于后续身份验证）
         // 返回登录成功信息和用户数据
         res.json({ success: true, user });
