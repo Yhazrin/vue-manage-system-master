@@ -6,7 +6,14 @@
   <a href="https://github.com/ElemeFE/element">
     <img src="https://img.shields.io/badge/element--ui-2.8.2-brightgreen.svg" alt="element-ui">
   </a>
-  <a href="https://github.com/lin-xin/vue-manage-system/blob/master/LICENSE">
+  1: # Vita
+  9: <a href="https://github.com/lin-xin/vue-manage-system/blob/master/LICENSE">
+  12: <a href="https://github.com/lin-xin/vue-manage-system/releases">
+  13: <img src="https://img.shields.io/github/release/lin-xin/vue-manage-system.svg" alt="GitHub release">
+  21: Please check the version of vue2 in [tag V4.2.0](https://github.com/lin-xin/vue-manage-system/tree/V4.2.0)
+  49: git clone https://github.com/lin-xin/vue-manage-system.git		// Clone templates
+  50: cd vue-manage-system						// Enter template directory
+  119: [MIT](https://github.com/lin-xin/vue-manage-system/blob/master/LICENSE)
     <img src="https://img.shields.io/github/license/mashape/apistatus.svg" alt="license">
   </a>
   <a href="https://github.com/lin-xin/vue-manage-system/releases">

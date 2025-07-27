@@ -5,7 +5,7 @@ import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 export default defineConfig({
-	base: './',
+	base: process.env.VITE_BASE_URL || './', // 使用环境变量
 	plugins: [
 		vue(),
 		VueSetupExtend(),

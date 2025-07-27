@@ -49,7 +49,7 @@
 import { reactive } from 'vue'
 
 const config = reactive({
-    content: 'vue-manage-system',
+    content: 'Vita',
     font: {
         fontSize: 16,
         color: 'rgba(0, 0, 0, 0.15)',

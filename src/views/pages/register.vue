@@ -27,29 +27,15 @@
         </div>
 
         <el-form ref="registerFormRef" :model="registerForm" :rules="rules" class="form-container">
-          <!-- 公共字段 -->
-          <div class="form-row" v-if="registerForm.role === 'USER' || registerForm.role === 'COMPANION'">
-            <el-form-item prop="nickname" class="w-full">
+          <!-- 删除所有陪玩师特有字段的条件渲染 -->
+          <div class="form-row">
+            <el-form-item prop="nickname" class="full-width-item">
               <div class="input-group">
                 <el-icon class="input-icon"><User /></el-icon>
                 <input
                   v-model="registerForm.nickname"
                   type="text"
                   placeholder="请输入昵称"
-                  class="custom-input w-full"
-                />
-              </div>
-            </el-form-item>
-          </div>
-
-          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
-            <el-form-item prop="realName" class="w-full">
-              <div class="input-group">
-                <el-icon class="input-icon"><User /></el-icon>
-                <input
-                  v-model="registerForm.realName"
-                  type="text"
-                  placeholder="请输入真实姓名"
                   class="custom-input w-full"
                 />
               </div>
@@ -70,30 +56,6 @@
             </el-form-item>
           </div>
 
-          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
-            <el-form-item prop="age" class="flex-1">
-              <div class="input-group">
-                <el-icon class="input-icon"><User /></el-icon>
-                <input
-                  v-model="registerForm.age"
-                  type="number"
-                  placeholder="年龄"
-                  class="custom-input w-full"
-                />
-              </div>
-            </el-form-item>
-            <el-form-item prop="gender" class="flex-1">
-              <div class="input-group">
-                <el-icon class="input-icon"><User /></el-icon>
-                <select v-model="registerForm.gender" class="custom-input w-full">
-                  <option value="">选择性别</option>
-                  <option value="male">男</option>
-                  <option value="female">女</option>
-                </select>
-              </div>
-            </el-form-item>
-          </div>
-
           <div class="form-row">
             <el-form-item prop="email" class="w-full">
               <div class="input-group">
@@ -104,73 +66,6 @@
                   placeholder="请输入邮箱"
                   class="custom-input w-full"
                 />
-              </div>
-            </el-form-item>
-          </div>
-
-          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
-            <el-form-item prop="serviceType" class="flex-1">
-              <div class="input-group">
-                <el-icon class="input-icon"><Briefcase /></el-icon>
-                <select v-model="registerForm.serviceType" class="custom-input w-full">
-                  <option value="">选择服务类型</option>
-                  <option value="game">游戏陪玩</option>
-                  <option value="chat">聊天陪伴</option>
-                  <option value="other">其他服务</option>
-                </select>
-              </div>
-            </el-form-item>
-            <el-form-item prop="hourlyRate" class="flex-1">
-              <div class="input-group">
-                <el-icon class="input-icon"><Money /></el-icon>
-                <input
-                  v-model="registerForm.hourlyRate"
-                  type="number"
-                  placeholder="请输入时薪"
-                  class="custom-input w-full"
-                />
-              </div>
-            </el-form-item>
-          </div>
-
-          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
-            <el-form-item prop="skills" class="w-full">
-              <div class="input-group">
-                <el-icon class="input-icon"><Star /></el-icon>
-                <input
-                  v-model="registerForm.skills"
-                  type="text"
-                  placeholder="请输入技能标签，用逗号分隔"
-                  class="custom-input w-full"
-                />
-              </div>
-            </el-form-item>
-          </div>
-
-          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
-            <el-form-item prop="games" class="w-full">
-              <div class="input-group">
-                <el-icon class="input-icon"><Controller /></el-icon>
-                <input
-                  v-model="registerForm.games"
-                  type="text"
-                  placeholder="请输入擅长游戏，用逗号分隔"
-                  class="custom-input w-full"
-                />
-              </div>
-            </el-form-item>
-          </div>
-
-          <div class="form-row" v-if="registerForm.role === 'COMPANION'">
-            <el-form-item prop="introduction" class="w-full">
-              <div class="input-group">
-                <el-icon class="input-icon"><Edit /></el-icon>
-                <textarea
-                  v-model="registerForm.introduction"
-                  placeholder="请简单介绍一下自己"
-                  class="custom-input w-full"
-                  rows="3"
-                ></textarea>
               </div>
             </el-form-item>
           </div>
@@ -222,7 +117,8 @@
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { User, Phone, Message, Briefcase, Money, Star, /* Controller, */ Edit, Lock } from '@element-plus/icons-vue';
+// 删除陪玩师特有图标导入
+import { User, Phone, Message, Lock } from '@element-plus/icons-vue';
 import type { FormInstance } from 'element-plus';
 
 const registerFormRef = ref<FormInstance>();
@@ -233,15 +129,7 @@ const registerForm = reactive({
   email: '',
   password: '',
   confirmPassword: '',
-  // 陪玩师特有字段
-  realName: '',
-  age: '',
-  gender: '',
-  serviceType: '',
-  hourlyRate: '',
-  skills: '',
-  games: '',
-  introduction: ''
+  // 删除陪玩师特有字段
 });
 
 const router = useRouter();
@@ -287,24 +175,7 @@ const rules = {
       trigger: 'blur'
     }
   ],
-  // 陪玩师特有字段的验证规则
-  realName: [
-    { required: registerForm.role === 'COMPANION', message: '请输入真实姓名', trigger: 'blur' }
-  ],
-  age: [
-    { required: registerForm.role === 'COMPANION', message: '请输入年龄', trigger: 'blur' },
-    { type: 'number', message: '请输入有效的年龄', trigger: 'blur' }
-  ],
-  gender: [
-    { required: registerForm.role === 'COMPANION', message: '请选择性别', trigger: 'change' }
-  ],
-  serviceType: [
-    { required: registerForm.role === 'COMPANION', message: '请选择服务类型', trigger: 'change' }
-  ],
-  hourlyRate: [
-    { required: registerForm.role === 'COMPANION', message: '请输入时薪', trigger: 'blur' },
-    { type: 'number', message: '请输入有效的时薪', trigger: 'blur' }
-  ]
+  // 删除陪玩师特有字段的验证规则
 };
 
 const handleRegister = async () => {
@@ -329,6 +200,31 @@ const handleRegister = async () => {
   justify-content: center;
   align-items: center;
   background: #f5f7fa;
+  margin: 0; /* 移除默认margin */
+  padding: 0; /* 移除默认padding */
+  overflow: hidden; /* 禁止页面滚动 */
+}
+
+.form-container {
+  width: 100%;
+  padding: 0 10px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column; /* 默认单列布局 */
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+/* 陪玩师特定行使用双列布局 */
+.companion-row {
+  flex-direction: row;
+  gap: 1rem;
+}
+
+.half-width-item {
+  width: 50%;
 }
 
 .register-card {

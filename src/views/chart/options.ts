@@ -134,7 +134,7 @@ export const wordOptions = {
                     value: 9000,
                 },
                 {
-                    name: '图表',
+                    name: 'Vita',
                     value: 4000,
                 },
                 {

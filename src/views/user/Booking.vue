@@ -73,7 +73,7 @@ const companionId = route.params.id as string;
 const companion = ref({
   id: 1,
   name: '游戏高手小王',
-  avatar: '/assets/img/companion1.jpg',
+  avatar: '/src/assets/img/companion1.jpg',
   rating: 4.9,
   reviewCount: 128,
   price: 90,

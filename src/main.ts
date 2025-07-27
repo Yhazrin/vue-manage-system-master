@@ -1,28 +1,37 @@
-import { createApp } from 'vue';
-import { createPinia } from 'pinia';
-import * as ElementPlusIconsVue from '@element-plus/icons-vue';
-import App from './App.vue';
-import router from './router';
-import { usePermissStore } from './store/permiss';
-import 'element-plus/dist/index.css';
-import './assets/css/icon.css';
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import { createPinia } from 'pinia'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
-const app = createApp(App);
-app.use(createPinia());
-app.use(router);
+// 导入工具函数
+import { setProperty } from './utils'
 
-// 注册elementplus图标
+// 初始化pinia
+const pinia = createPinia()
+const app = createApp(App)
+
+// 注册所有图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-    app.component(key, component);
+  app.component(key, component)
 }
-// 自定义权限指令
-const permiss = usePermissStore();
-app.directive('permiss', {
-    mounted(el, binding) {
-        if (binding.value && !permiss.key.includes(String(binding.value))) {
-            el['hidden'] = true;
-        }
-    },
+
+// 初始化主题样式
+import { useThemeStore } from './store/theme';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const themeStore = useThemeStore(pinia); // 传入pinia实例
+    themeStore.initTheme();
+    // 设置初始背景颜色
+    document.body.style.backgroundColor = themeStore.bodyBgColor;
 });
 
-app.mount('#app');
+// 按正确顺序注册插件
+app.use(ElementPlus)
+app.use(router)
+app.use(pinia)
+
+// 只保留一次挂载
+app.mount('#app')
