@@ -9,16 +9,16 @@ dotenv.config();
 
 // 导入路由
 import userRouter from './routes/user.route';
-// import playerRouter from './routes/player.route';
-// import managerRouter from './routes/manager.route';
-// import roleRouter from './routes/role.route';
-// import gameRouter from './routes/game.route';
-// import orderRouter from './routes/order.route';
-// import commentRouter from './routes/comment.route';
-// import giftRouter from './routes/gift.route';
-// import giftRecordRouter from './routes/giftRecord.route';
-// import withdrawalRouter from './routes/withdrawal.route';
-// import statisticsRouter from './routes/statistics.route';
+import playerRouter from './routes/player.route';
+import managerRouter from './routes/manager.route';
+import gameRouter from './routes/game.route';
+import orderRouter from './routes/order.route';
+import commentRouter from './routes/comment.route';
+import giftRouter from './routes/gift.route';
+import giftRecordRouter from './routes/giftRecord.route';
+import withdrawalRouter from './routes/withdrawal.route';
+import statisticsRouter from './routes/statistics.route';
+import serviceRouter from './routes/service.route';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,16 +29,16 @@ app.use(bodyParser.json());
 
 // 路由挂载
 app.use('/api/users', userRouter);
-// app.use('/api/players', playerRouter);
-// app.use('/api/managers', managerRouter);
-// app.use('/api/roles', roleRouter);
-// app.use('/api/games', gameRouter);
-// app.use('/api/orders', orderRouter);
-// app.use('/api/comments', commentRouter);
-// app.use('/api/gifts', giftRouter);
-// app.use('/api/gift-records', giftRecordRouter);
-// app.use('/api/withdrawals', withdrawalRouter);
-// app.use('/api/statistics', statisticsRouter);
+app.use('/api/players', playerRouter);
+app.use('/api/managers', managerRouter);
+app.use('/api/games', gameRouter);
+app.use('/api/orders', orderRouter);
+app.use('/api/comments', commentRouter);
+app.use('/api/gifts', giftRouter);
+app.use('/api/gift-records', giftRecordRouter);
+app.use('/api/withdrawals', withdrawalRouter);
+app.use('/api/statistics', statisticsRouter);
+app.use('/api/services', serviceRouter);
 
 // 全局错误处理
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

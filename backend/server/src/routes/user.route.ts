@@ -162,4 +162,19 @@ router.delete('/:id', async (req, res, next) => {
     }
 });
 
+/**
+ * @route   GET /api/users/count
+ * @desc    获取用户总数
+ */
+router.get('/count', async (req, res, next) => {
+    try {
+        // 调用 DAO 获取用户总数
+        const count = await UserDAO.countAll();
+        // 返回总数
+        res.json({success: true, count});
+    } catch (err) {
+        next(err);
+    }
+});
+
 export default router;

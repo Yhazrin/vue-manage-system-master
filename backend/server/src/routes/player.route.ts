@@ -13,7 +13,7 @@ const router = Router();
  * @return  { success: boolean, id: number, name: string }
  * // 返回：创建成功标识与新玩家ID 和姓名
  */
-router.post('/', async (req, res, next) => {
+router.post('/register', async (req, res, next) => {
     try {
         const { name, passwd, phone_num, game_id, QR_img, intro } = req.body;
         // 密码哈希
@@ -30,6 +30,26 @@ router.post('/', async (req, res, next) => {
         const newPlayer = await PlayerDAO.findById(id);
         // 响应 201（创建成功），返回ID和姓名
         res.status(201).json({ success: true, id, name: newPlayer?.name });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   POST /api/players/login
+ * @desc    玩家登录
+ * @body    { phone_num, passwd }
+ */
+router.post('/login', async (req, res, next) => {
+    try {
+        const { phone_num, passwd } = req.body;
+        const player = await PlayerDAO.findByName(phone_num)   // 或者建 findByPhone
+            .then(list => list.find(p => p.phone_num === phone_num));
+        if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });
+        const match = await bcrypt.compare(passwd, player.passwd);
+        if (!match) return res.status(401).json({ success: false, error: '密码错误' });
+        // TODO: 签发 JWT Token
+        res.json({ success: true, player });
     } catch (err) {
         next(err);
     }
@@ -152,6 +172,39 @@ router.patch('/:id/voice', async (req, res, next) => {
 });
 
 /**
+ * @route   PATCH /api/players/:id/qr
+ * @desc    更新二维码图片路径
+ * @body    { QR_img: string }
+ */
+router.patch('/:id/qr', async (req, res, next) => {
+    try {
+        const id = Number(req.params.id);  // 获取玩家ID
+        const {QR_img} = req.body;  // 获取二维码图片路径
+        await PlayerDAO.updateQR(id, QR_img);  // 调用 DAO 更新二维码图片路径
+        res.json({success: true});
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   PATCH /api/players/:id/password
+ * @desc    修改密码
+ * @body    { passwd: string }
+ */
+router.patch('/:id/password', async (req, res, next) => {
+    try {
+        const id = Number(req.params.id);  // 获取用户 ID
+        // 加密新密码后更新到数据库
+        const hash = await bcrypt.hash(req.body.passwd, 10);
+        await PlayerDAO.updatePassword(id, hash);
+        res.json({ success: true });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
  * @route   DELETE /api/players/:id
  * @desc    删除玩家
  */
@@ -160,6 +213,19 @@ router.delete('/:id', async (req, res, next) => {
         const id = Number(req.params.id);  // 获取玩家ID
         await PlayerDAO.deleteById(id);  // 调用 DAO 删除玩家记录
         res.json({ success: true });  // 返回删除成功标识
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   GET /api/players/count
+ * @desc    获取玩家总数
+ */
+router.get('/count', async (req, res, next) => {
+    try {
+        const count = await PlayerDAO.countAll();  // 调用 DAO 获取玩家总数
+        res.json({success: true, count});  // 返回总数
     } catch (err) {
         next(err);
     }

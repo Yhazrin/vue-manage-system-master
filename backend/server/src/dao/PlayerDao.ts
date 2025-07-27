@@ -130,6 +130,18 @@ export class PlayerDAO {
         await pool.execute(sql, [voicePath, id]);
     }
 
+    /** 更新二维码图片路径 */
+    static async updateQR(id: number, QR_img: string): Promise<void> {
+        const sql = `UPDATE players SET QR_img = ? WHERE id = ?`;
+        await pool.execute(sql, [QR_img, id]);
+    }
+
+    /** 更新密码 */
+    static async updatePassword(id: number, newPassword: string): Promise<void> {
+        const sql = `UPDATE players SET passwd = ? WHERE id = ?`;
+        await pool.execute(sql, [newPassword, id]);
+    }
+
     /** 删除玩家 */
     static async deleteById(id: number): Promise<void> {
         const sql = `DELETE FROM players WHERE id = ?`;

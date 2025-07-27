@@ -20,6 +20,13 @@ export class GameDAO {
         return rows;
     }
 
+    /** 根据 ID 查询单个游戏 */
+    static async findById(id: number): Promise<Game | null> {
+        const sql = `SELECT * FROM games WHERE id = ?`;
+        const [[row]]: any = await pool.execute(sql, [id]);
+        return row || null;
+    }
+
     /** 查询所有游戏 */
     static async findAll(): Promise<Game[]> {
         const sql = `SELECT * FROM games ORDER BY name ASC`;
