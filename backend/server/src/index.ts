@@ -3,6 +3,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
+import listEndpoints from 'express-list-endpoints';
+
+console.log('🔥 载入了最新的 index.ts')
 
 // 加载 .env 配置
 dotenv.config();
@@ -19,6 +22,33 @@ import giftRecordRouter from './routes/giftRecord.route';
 import withdrawalRouter from './routes/withdrawal.route';
 import statisticsRouter from './routes/statistics.route';
 import serviceRouter from './routes/service.route';
+
+// 检查路由是否正确导入
+const routes = [
+    { name: 'userRouter', router: userRouter },
+    { name: 'playerRouter', router: playerRouter },
+    { name: 'managerRouter', router: managerRouter },
+    { name: 'gameRouter', router: gameRouter },
+    { name: 'orderRouter', router: orderRouter },
+    { name: 'commentRouter', router: commentRouter },
+    { name: 'giftRouter', router: giftRouter },
+    { name: 'giftRecordRouter', router: giftRecordRouter },
+    { name: 'withdrawalRouter', router: withdrawalRouter },
+    { name: 'statisticsRouter', router: statisticsRouter },
+    { name: 'serviceRouter', router: serviceRouter },
+];
+
+routes.forEach(({ name, router }) => {
+    if (!router) {
+        console.error(`❌ 路由 ${name} 未正确导入，请检查文件是否存在和导出是否正确`);
+    } else { // @ts-ignore
+        if (typeof router !== 'function' && !router.stack) {
+                console.error(`❌ 路由 ${name} 导出格式不正确，应该导出 express.Router() 实例`);
+            } else {
+                console.log(`✅ 路由 ${name} 已正确导入`);
+            }
+    }
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +69,10 @@ app.use('/api/gift-records', giftRecordRouter);
 app.use('/api/withdrawals', withdrawalRouter);
 app.use('/api/statistics', statisticsRouter);
 app.use('/api/services', serviceRouter);
+
+app.get('/api/test', (req, res) => {
+    res.send('测试路由');
+});
 
 // 全局错误处理
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

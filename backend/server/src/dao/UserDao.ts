@@ -17,7 +17,7 @@ export class UserDAO {
         name: string,
         passwd: string,
         phone_num: string,
-        photo_img?: string
+        photo_img?: string | null
     ): Promise<number> {
         const sql = `
             INSERT INTO users (name, passwd, phone_num, photo_img)

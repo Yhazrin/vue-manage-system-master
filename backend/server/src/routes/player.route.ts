@@ -2,20 +2,39 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { PlayerDAO } from '../dao/PlayerDao';
+import { signToken } from '../middleware/auth';  // 如果需要身份验证，可以启用
+import { auth } from '../middleware/auth';  // 引入身份验证中间件
+import multer from 'multer'; // 引入 multer 用于处理文件上传
+import { body, validationResult } from 'express-validator';
+import { Request, Response, NextFunction } from 'express'; // 导入类型定义
 
 const router = Router();
+
+// ---------- multer 配置（头像上传） ----------
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        // 判断是用户还是玩家，分别存储不同的目录
+        const directory = req.body.type === 'player' ? 'players/' : 'users/';
+        cb(null, `uploads/${directory}`);  // 上传到不同的目录：uploads/players 或 uploads/users
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`); // 文件名加时间戳防重名
+    }
+});
+
+const upload = multer({ storage });
 
 /**
  * @route   POST /api/players
  * @desc    创建新玩家（注册）
- * @body    { name, passwd, phone_num, game_id?, QR_img?, intro? }
+ * @body    { name, passwd, phone_num, game_id?, QR_img?, intro?, photo_img? }
  * // 请求体：姓名、密码、手机号、可选游戏ID、二维码图片、简介
  * @return  { success: boolean, id: number, name: string }
  * // 返回：创建成功标识与新玩家ID 和姓名
  */
 router.post('/register', async (req, res, next) => {
     try {
-        const { name, passwd, phone_num, game_id, QR_img, intro } = req.body;
+        const { name, passwd, phone_num, game_id, QR_img, intro, photo_img } = req.body;
         // 密码哈希
         const hash = await bcrypt.hash(passwd, 10);
         // 调用 PlayerDAO 创建玩家，返回新玩家ID
@@ -25,7 +44,8 @@ router.post('/register', async (req, res, next) => {
             phone_num,
             game_id,
             QR_img,
-            intro
+            intro,
+            photo_img
         );
         const newPlayer = await PlayerDAO.findById(id);
         // 响应 201（创建成功），返回ID和姓名
@@ -43,14 +63,14 @@ router.post('/register', async (req, res, next) => {
 router.post('/login', async (req, res, next) => {
     try {
         const { phone_num, passwd } = req.body;
-        const player = await PlayerDAO.findByName(phone_num)   // 或者建 findByPhone
-            .then(list => list.find(p => p.phone_num === phone_num));
+        const player = await PlayerDAO.findByPhoneNum(phone_num);
         if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });
         const match = await bcrypt.compare(passwd, player.passwd);
         if (!match) return res.status(401).json({ success: false, error: '密码错误' });
-        // Chat建议，留存，可加
-        // TODO: 签发 JWT Token
-        res.json({ success: true, player });
+        // 签发JWT Token，角色可以传'player'
+        const token = signToken(player.id, player.phone_num, 'player');
+        // 返回token（和player信息，如果需要也可以一并返回）
+        res.json({ success: true, token }); // 或者 { success: true, token, player }
     } catch (err) {
         next(err);
     }
