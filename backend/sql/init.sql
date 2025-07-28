@@ -217,6 +217,7 @@ CREATE TABLE `players` (
   `voice` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `intro` text COLLATE utf8mb4_general_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `photo_img` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_game_id` (`game_id`),
   CONSTRAINT `fk_game_id` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
@@ -365,4 +366,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-25 23:29:53
+-- Dump completed on 2025-07-28 22:34:37

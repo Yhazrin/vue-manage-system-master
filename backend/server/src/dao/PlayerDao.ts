@@ -24,11 +24,12 @@ export class PlayerDAO {
         phone_num: string,
         game_id?: number,
         QR_img?: string,
-        intro?: string
+        intro?: string,
+        photo_img?: string
     ): Promise<number> {
         const sql = `
-            INSERT INTO players (name, passwd, phone_num, game_id, QR_img, intro)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO players (name, passwd, phone_num, game_id, QR_img, intro, photo_img)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         const [result]: any = await pool.execute(sql, [
             name,
@@ -36,7 +37,8 @@ export class PlayerDAO {
             phone_num,
             game_id || null,
             QR_img || null,
-            intro || null
+            intro || null,
+            photo_img || null
         ]);
         return result.insertId;
     }
@@ -60,6 +62,13 @@ export class PlayerDAO {
         const sql = `SELECT * FROM players WHERE name LIKE ?`;
         const [rows]: any = await pool.execute(sql, [`%${name}%`]);
         return rows;
+    }
+
+    /** 根据手机号查询玩家 */
+    static async findByPhoneNum(phoneNum: string): Promise<Player | null> {
+        const sql = `SELECT * FROM players WHERE phone_num = ? LIMIT 1`;
+        const [rows]: any = await pool.execute(sql, [phoneNum]);
+        return rows[0] ?? null;
     }
 
     /** 分页查询玩家，可选按在线状态和关键词过滤 */

@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { ManagerDAO } from '../dao/ManagerDao';
+import { signToken } from '../middleware/auth'; // 如果需要身份验证，可以启用
 
 const router = Router();
 
@@ -36,13 +37,14 @@ router.post('/login', async (req, res, next) => {
     try {
         const { phone_num, passwd } = req.body;
         // 假设 ManagerDAO 有 findByPhone 方法，否则可用 findAll 模糊查
-        const mgr = await ManagerDAO.findByName(phone_num)
-            .then(list => list.find(m => m.phone_num === phone_num));
+        const mgr = await ManagerDAO.findByPhone(phone_num);
         if (!mgr) return res.status(404).json({ success: false, error: '管理员不存在' });
         const match = await bcrypt.compare(passwd, mgr.passwd);
         if (!match) return res.status(401).json({ success: false, error: '密码错误' });
-        // TODO: 签发 JWT
-        res.json({ success: true, manager: mgr });
+        // 签发 JWT Token
+        const token = signToken(mgr.id, mgr.phone_num, 'manager');
+        // 返回 token 和管理员信息
+        res.json({ success: true, token, manager: { id: mgr.id, name: mgr.name, authority: mgr.authority } });
     } catch (err) {
         next(err);
     }
