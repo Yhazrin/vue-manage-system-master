@@ -1,28 +1,22 @@
 // server/src/routes/player.route.ts
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
+import { Request, Response, NextFunction } from 'express';
+import { validationResult } from 'express-validator';
+// 导入共享工具
+import { playerUpload } from '../utils/upload'; // 复用共享multer配置（玩家专用）
+import {
+    phoneValidator,
+    phoneUniqueValidator,
+    passwordValidator,
+    nameValidator
+} from '../utils/validators'; // 复用验证规则
+import { createLoginHandler } from '../utils/loginHandler'; // 复用登录逻辑
+// 导入业务依赖
 import { PlayerDAO } from '../dao/PlayerDao';
-import { signToken } from '../middleware/auth';  // 如果需要身份验证，可以启用
-import { auth } from '../middleware/auth';  // 引入身份验证中间件
-import multer from 'multer'; // 引入 multer 用于处理文件上传
-import { body, validationResult } from 'express-validator';
-import { Request, Response, NextFunction } from 'express'; // 导入类型定义
+import { auth, AuthRequest } from '../middleware/auth'; // 权限中间件（带类型）
 
 const router = Router();
-
-// ---------- multer 配置（头像上传） ----------
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // 判断是用户还是玩家，分别存储不同的目录
-        const directory = req.body.type === 'player' ? 'players/' : 'users/';
-        cb(null, `uploads/${directory}`);  // 上传到不同的目录：uploads/players 或 uploads/users
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`); // 文件名加时间戳防重名
-    }
-});
-
-const upload = multer({ storage });
 
 /**
  * @route   POST /api/players
@@ -32,60 +26,87 @@ const upload = multer({ storage });
  * @return  { success: boolean, id: number, name: string }
  * // 返回：创建成功标识与新玩家ID 和姓名
  */
-router.post('/register', async (req, res, next) => {
-    try {
-        const { name, passwd, phone_num, game_id, QR_img, intro, photo_img } = req.body;
-        // 密码哈希
-        const hash = await bcrypt.hash(passwd, 10);
-        // 调用 PlayerDAO 创建玩家，返回新玩家ID
-        const id = await PlayerDAO.create(
-            name,
-            hash,
-            phone_num,
-            game_id,
-            QR_img,
-            intro,
-            photo_img
-        );
-        const newPlayer = await PlayerDAO.findById(id);
-        // 响应 201（创建成功），返回ID和姓名
-        res.status(201).json({ success: true, id, name: newPlayer?.name });
-    } catch (err) {
-        next(err);
+router.post(
+    '/register',
+    [
+        // 手机号验证：格式+唯一性（玩家角色）
+        phoneValidator,
+        phoneUniqueValidator('player'),
+        // 密码验证：长度+复杂度
+        passwordValidator,
+        // 姓名验证
+        nameValidator
+    ],
+    // 处理多文件上传（头像和二维码）
+    playerUpload.fields([
+        { name: 'photo_img', maxCount: 1 }, // 头像（可选）
+        { name: 'QR_img', maxCount: 1 }     // 二维码（可选）
+    ]),
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            // 验证请求数据
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ success: false, errors: errors.array() });
+            }
+
+            // 提取请求数据（包含文件路径）
+            const { name, passwd, phone_num, game_id, intro } = req.body;
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+            const photo_img = files?.['photo_img']?.[0]?.path || null; // 头像路径
+            const QR_img = files?.['QR_img']?.[0]?.path || null;       // 二维码路径
+
+            // 密码加密
+            const hash = await bcrypt.hash(passwd, 10);
+
+            // 创建玩家
+            const id = await PlayerDAO.create(
+                name, hash, phone_num, game_id, QR_img, intro, photo_img
+            );
+            const newPlayer = await PlayerDAO.findById(id);
+
+            res.status(201).json({ success: true, id, name: newPlayer?.name });
+        } catch (err) {
+            next(err);
+        }
     }
-});
+);
 
 /**
  * @route   POST /api/players/login
  * @desc    玩家登录
  * @body    { phone_num, passwd }
  */
-router.post('/login', async (req, res, next) => {
-    try {
-        const { phone_num, passwd } = req.body;
-        const player = await PlayerDAO.findByPhoneNum(phone_num);
-        if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });
-        const match = await bcrypt.compare(passwd, player.passwd);
-        if (!match) return res.status(401).json({ success: false, error: '密码错误' });
-        // 签发JWT Token，角色可以传'player'
-        const token = signToken(player.id, player.phone_num, 'player');
-        // 返回token（和player信息，如果需要也可以一并返回）
-        res.json({ success: true, token }); // 或者 { success: true, token, player }
-    } catch (err) {
-        next(err);
-    }
-});
+router.post(
+    '/login',
+    [
+        phoneValidator, // 复用手机号格式验证
+        passwordValidator // 复用密码验证
+    ],
+    // 复用通用登录逻辑（传入玩家DAO和角色）
+    createLoginHandler(PlayerDAO.findByPhoneNum, 'player')
+);
 
 /**
  * @route   GET /api/players/:id
  * @desc    查询单个玩家
+ * @access  本人或管理员可访问
  */
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 从 URL 参数获取玩家ID并转为数字（与用户路由一致）
-        const player = await PlayerDAO.findById(id);  // 调用 DAO 查询玩家
-        if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });  // 未找到时返回404
-        res.json({ success: true, player });  // 返回玩家信息
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+        const currentRole = req.user?.role;
+
+        // 权限判断：仅本人或管理员可访问
+        if (currentRole !== 'manager' && currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限访问该玩家资料' });
+        }
+
+        const player = await PlayerDAO.findById(targetId);
+        if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });
+
+        res.json({ success: true, player });
     } catch (err) {
         next(err);
     }
@@ -94,10 +115,16 @@ router.get('/:id', async (req, res, next) => {
 /**
  * @route   GET /api/players
  * @desc    分页查询玩家列表
+ * @access  仅管理员可访问
  * @query   page, pageSize, status?, keyword?
  */
-router.get('/', async (req, res, next) => {
+router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+        // 权限判断：仅管理员可访问
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可查看玩家列表' });
+        }
+
         // 解析分页参数（默认页码1，每页20条，与用户路由一致）
         const page = Number(req.query.page) || 1;
         const pageSize = Number(req.query.pageSize) || 20;
@@ -119,11 +146,21 @@ router.get('/', async (req, res, next) => {
  * @route   GET /api/players/game/:gameId
  * @desc    查询某游戏下的所有玩家
  */
-router.get('/game/:gameId', async (req, res, next) => {
+router.get('/game/:gameId', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const gameId = Number(req.params.gameId);  // 解析游戏ID
         const players = await PlayerDAO.findByGameId(gameId);  // 调用 DAO 查询该游戏下的玩家
-        res.json({ success: true, players });  // 返回玩家列表
+        const safePlayers = players.map(player => ({
+            id: player.id,
+            name: player.name,
+            photo_img: player.photo_img,
+            intro: player.intro,
+            status: player.status,
+            voice: player.voice,
+            game_id: player.game_id,
+            // 隐藏敏感字段：如手机号、财务信息等
+        }));
+        res.json({ success: true, count: safePlayers.length, players: safePlayers  });  // 返回玩家列表
     } catch (err) {
         next(err);
     }
@@ -131,14 +168,30 @@ router.get('/game/:gameId', async (req, res, next) => {
 
 /**
  * @route   PATCH /api/players/:id
- * @desc    更新玩家基础信息（name, phone_num, intro）
- * @body    Partial<{ name, phone_num, intro }>
+ * @desc    更新玩家基础信息（name, phone_num, intro, photo_img, voice）
+ * @access  本人可访问
+ * @body    Partial<{ name, phone_num, intro, photo_img, voice }>
  */
-router.patch('/:id', async (req, res, next) => {
+router.patch(
+    '/:id',
+    auth,
+    playerUpload.single('photo_img'),
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 获取玩家ID
-        await PlayerDAO.updateById(id, req.body);  // 调用 DAO 更新基础信息（部分更新）
-        res.json({ success: true });  // 返回更新成功标识
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+
+        // 权限判断：仅本人可更新
+        if (currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限更新该玩家信息' });
+        }
+
+        const updateData: any = { ...req.body };
+        // 处理头像更新
+        if (req.file) updateData.photo_img = req.file.path;
+
+        await PlayerDAO.updateById(targetId, req.body);
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
@@ -147,13 +200,20 @@ router.patch('/:id', async (req, res, next) => {
 /**
  * @route   PATCH /api/players/:id/status
  * @desc    更新在线状态
+ * @access  本人可访问
  * @body    { status: boolean }
  */
-router.patch('/:id/status', async (req, res, next) => {
+router.patch('/:id/status', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 获取玩家ID
-        const { status } = req.body;  // 获取状态参数
-        await PlayerDAO.updateStatus(id, status);  // 调用 DAO 更新状态
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+
+        if (currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限更新该玩家状态' });
+        }
+
+        const { status } = req.body;
+        await PlayerDAO.updateStatus(targetId, status);
         res.json({ success: true });
     } catch (err) {
         next(err);
@@ -179,46 +239,90 @@ router.patch('/:id/financials', async (req, res, next) => {
 /**
  * @route   PATCH /api/players/:id/voice
  * @desc    更新录音文件路径
- * @body    { voice: string }
+ * @access  本人可访问
  */
-router.patch('/:id/voice', async (req, res, next) => {
-    try {
-        const id = Number(req.params.id);  // 获取玩家ID
-        const { voice } = req.body;  // 获取录音路径
-        await PlayerDAO.updateVoice(id, voice);  // 调用 DAO 更新录音路径
-        res.json({ success: true });
-    } catch (err) {
-        next(err);
+router.patch(
+    '/:id/voice',
+    auth,
+    playerUpload.single('voice'), // 处理录音文件上传
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const targetId = Number(req.params.id);
+            const currentUserId = req.user?.id;
+
+            if (currentUserId !== targetId) {
+                return res.status(403).json({ success: false, error: '无权限更新录音信息' });
+            }
+
+            // 获取上传的录音文件路径
+            const voicePath = req.file?.path || null;
+            if (!voicePath) {
+                return res.status(400).json({ success: false, error: '请上传录音文件' });
+            }
+
+            await PlayerDAO.updateVoice(targetId, voicePath);
+            res.json({ success: true });
+        } catch (err) {
+            next(err);
+        }
     }
-});
+);
 
 /**
  * @route   PATCH /api/players/:id/qr
- * @desc    更新二维码图片路径
- * @body    { QR_img: string }
+ * @desc    更新二维码图片路径（支持文件上传或直接传路径）
+ * @access  本人可访问
  */
-router.patch('/:id/qr', async (req, res, next) => {
-    try {
-        const id = Number(req.params.id);  // 获取玩家ID
-        const {QR_img} = req.body;  // 获取二维码图片路径
-        await PlayerDAO.updateQR(id, QR_img);  // 调用 DAO 更新二维码图片路径
-        res.json({success: true});
-    } catch (err) {
-        next(err);
+router.patch(
+    '/:id/qr',
+    auth,
+    playerUpload.single('QR_img'), // 支持上传新二维码图片
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const targetId = Number(req.params.id);
+            const currentUserId = req.user?.id;
+
+            if (currentUserId !== targetId) {
+                return res.status(403).json({ success: false, error: '无权限更新二维码' });
+            }
+
+            // 优先使用上传的文件路径，其次使用body中的路径
+            const QR_img = req.file?.path || req.body.QR_img;
+            await PlayerDAO.updateQR(targetId, QR_img);
+            res.json({ success: true });
+        } catch (err) {
+            next(err);
+        }
     }
-});
+);
 
 /**
  * @route   PATCH /api/players/:id/password
  * @desc    修改密码
+ * @access  仅本人可访问
  * @body    { passwd: string }
  */
-router.patch('/:id/password', async (req, res, next) => {
+router.patch('/:id/password', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 获取用户 ID
-        // 加密新密码后更新到数据库
-        const hash = await bcrypt.hash(req.body.passwd, 10);
-        await PlayerDAO.updatePassword(id, hash);
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+
+        // 仅本人可修改密码
+        if (currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限修改该玩家密码' });
+        }
+
+        // 验证新密码格式
+        const passwd = req.body.passwd;
+        if (!passwd || passwd.length < 6 || !/^(?=.*[a-zA-Z])(?=.*\d)/.test(passwd)) {
+            return res.status(400).json({
+                success: false,
+                error: '密码必须包含字母和数字，且长度至少6个字符'
+            });
+        }
+
+        const hash = await bcrypt.hash(passwd, 10);
+        await PlayerDAO.updatePassword(targetId, hash);
         res.json({ success: true });
     } catch (err) {
         next(err);
@@ -226,14 +330,63 @@ router.patch('/:id/password', async (req, res, next) => {
 });
 
 /**
+ * @route   DELETE /api/players/:id/voice
+ * @desc    删除玩家录音文件
+ * @access  本人可访问
+ */
+router.delete('/:id/voice', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+
+        // 权限判断
+        if (currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限删除录音' });
+        }
+
+        // 1. 查询数据库获取旧录音路径
+        const player = await PlayerDAO.findById(targetId);
+        if (!player || !player.voice) {
+            return res.status(404).json({ success: false, error: '录音文件不存在' });
+        }
+
+        // 2. 删除本地文件
+        const fs = require('fs');
+        const path = require('path');
+        const uploadsDir = path.join(__dirname, '../../../../uploads/players/voices'); // 确定上传目录
+        const fullPath = path.join(uploadsDir, player.voice); // 拼接完整的录音文件路径
+
+        // 检查文件是否存在
+        if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath); // 删除文件
+        } else {
+            return res.status(404).json({ success: false, error: '文件未找到' });
+        }
+
+        // 3. 清空数据库中的录音路径
+        await PlayerDAO.updateVoice(targetId, null);
+
+        res.json({ success: true, message: '录音已删除' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+
+/**
  * @route   DELETE /api/players/:id
  * @desc    删除玩家
+ * @access  仅管理员可访问
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 获取玩家ID
-        await PlayerDAO.deleteById(id);  // 调用 DAO 删除玩家记录
-        res.json({ success: true });  // 返回删除成功标识
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可删除玩家' });
+        }
+
+        const id = Number(req.params.id);
+        await PlayerDAO.deleteById(id);
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
@@ -242,11 +395,16 @@ router.delete('/:id', async (req, res, next) => {
 /**
  * @route   GET /api/players/count
  * @desc    获取玩家总数
+ * @access  仅管理员可访问
  */
-router.get('/count', async (req, res, next) => {
+router.get('/count', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const count = await PlayerDAO.countAll();  // 调用 DAO 获取玩家总数
-        res.json({success: true, count});  // 返回总数
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可查看玩家总数' });
+        }
+
+        const count = await PlayerDAO.countAll();
+        res.json({ success: true, count });
     } catch (err) {
         next(err);
     }

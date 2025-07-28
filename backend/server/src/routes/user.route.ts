@@ -1,28 +1,23 @@
 // backend/server/src/routes/user.route.ts
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
+import { Request, Response, NextFunction } from 'express';
+import { validationResult } from 'express-validator';
+// 导入共享工具
+import { userUpload } from '../utils/upload'; // 复用共享multer配置
+import {
+    phoneValidator,
+    phoneUniqueValidator,
+    passwordValidator,
+    nameValidator
+} from '../utils/validators'; // 复用验证规则
+import { createLoginHandler } from '../utils/loginHandler'; // 复用登录逻辑
+// 导入业务依赖
 import { UserDAO } from '../dao/UserDao';
-import { signToken } from '../middleware/auth'; // auth.ts 中签发 JWT 的方法
-import { auth } from "../middleware/auth"; // 引入auth中间件
-import { body, validationResult } from 'express-validator';
-import { Request, Response, NextFunction } from 'express'; // 导入类型定义
-import multer from 'multer';
+import { auth } from '../middleware/auth'; // 权限中间件
+import { signToken } from '../middleware/auth'; // 签发token
 
 const router = Router();
-
-// 配置multer
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // 判断是用户还是玩家，分别存储不同的目录
-        const directory = req.body.type === 'user' ? 'users/' : 'players/';
-        cb(null, `uploads/${directory}`);  // 上传到不同的目录：uploads/players 或 uploads/users
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`); // 文件名加时间戳防重名
-    }
-});
-
-const upload = multer({ storage });
 
 /**
  * @route   POST /api/users/register
@@ -31,32 +26,15 @@ const upload = multer({ storage });
  * @return  { success: boolean, id: number }  // 返回：注册成功标识与用户 ID
  */
 // ---------- 用户注册 ----------
-router.post('/register', [
-    // 手机号验证 - 与登录保持一致
-    body('phone_num')
-        .isMobilePhone('zh-CN')
-        .withMessage('手机号格式不正确')
-        .custom(async (value) => {
-            // 额外验证：检查手机号是否已被注册
-            const existingUser = await UserDAO.findByPhone(value);
-            if (existingUser) {
-                throw new Error('该手机号已被注册');
-            }
-            return true;
-        }),
-    // 密码验证 - 与登录保持一致且可以更严格
-    body('passwd')
-        .isLength({ min: 6 })
-        .withMessage('密码长度至少6个字符')
-        .matches(/^(?=.*[a-zA-Z])(?=.*\d)/)
-        .withMessage('密码必须包含字母和数字'),
-    // 用户名验证
-    body('name')
-        .notEmpty()
-        .withMessage('用户名不能为空')
-        .isLength({ min: 2, max: 20 })
-        .withMessage('用户名长度必须在2-20个字符之间')
-], upload.single('photo_img'), async (req: Request, res: Response, next: NextFunction) => {
+router.post(
+    '/register',
+    [
+        phoneValidator, // 复用手机号格式验证
+        phoneUniqueValidator('user'), // 复用手机号唯一性验证（用户角色）
+        passwordValidator, // 复用密码验证
+        nameValidator, // 复用用户名验证
+    ],userUpload.single('photo_img'),
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         // 验证请求数据
         const errors = validationResult(req);
@@ -93,50 +71,31 @@ router.post('/register', [
 router.post(
     '/login',
     [
-        body('phone_num').isMobilePhone('zh-CN').withMessage('手机号格式不正确'),
-        body('passwd').isLength({ min: 6 }).withMessage('密码长度至少6个字符')
+        phoneValidator, // 复用手机号验证
+        passwordValidator // 复用密码验证
     ],
-    // 明确指定请求、响应和next函数的类型
-    async (req: Request, res: Response, next: NextFunction) => {
-        // 校验请求体
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ success: false, errors: errors.array() });
-        }
-
-        try {
-            const { phone_num, passwd } = req.body;
-            const user = await UserDAO.findByPhone(phone_num);
-            if (!user) {
-                return res.status(404).json({ success: false, error: '用户不存在' });
-            }
-
-            const match = await bcrypt.compare(passwd, user.passwd);
-            if (!match) {
-                return res.status(401).json({ success: false, error: '密码错误' });
-            }
-
-            const token = signToken(user.id, user.phone_num, 'user');
-            res.json({ success: true, token });
-        } catch (err) {
-            next(err);
-        }
-    }
+    // 复用通用登录逻辑（传入用户DAO和角色）
+    createLoginHandler(UserDAO.findByPhone, 'user')
 );
 
 /**
  * @route   GET /api/users/:id
  * @desc    获取用户资料
  */
-router.get('/:id', auth, async (req, res, next) => {
+router.get('/:id', auth, async (req: Request & {user?: any}, res: Response, next: NextFunction) => {
     try {
-        // 从 URL 参数中获取用户 ID 并转为数字
-        const id = Number(req.params.id);
-        // 通过 ID 查询用户
-        const user = await UserDAO.findById(id);
-        // 若用户不存在，返回 404 错误
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+        const currentRole = req.user?.role;
+
+        // 权限判断：仅本人或管理员可访问
+        if (currentRole !== 'manager' && currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限访问该用户资料' });
+        }
+
+        const user = await UserDAO.findById(targetId);
         if (!user) return res.status(404).json({ success: false, error: '用户不存在' });
-        // 返回用户资料
+
         res.json({ success: true, user });
     } catch (err) {
         next(err);
@@ -146,20 +105,22 @@ router.get('/:id', auth, async (req, res, next) => {
 /**
  * @route   GET /api/users
  * @desc    分页查询用户列表
+ * @access  仅管理员可访问
  * @query   page, pageSize, status?, keyword?
  */
-router.get('/', async (req, res, next) => {
+router.get('/', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        // 解析查询参数（默认页码 1，每页 20 条）
+        // 权限判断：仅管理员可访问
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可查看用户列表' });
+        }
+
         const page = Number(req.query.page) || 1;
         const pageSize = Number(req.query.pageSize) || 20;
-        // 解析状态参数（将字符串转为布尔值，未提供则为 undefined）
         const status = req.query.status !== undefined ? req.query.status === 'true' : undefined;
-        // 解析搜索关键词（可选）
         const keyword = req.query.keyword as string | undefined;
-        // 调用 DAO 分页查询用户列表（带筛选条件）
+
         const result = await UserDAO.findAll(page, pageSize, status, keyword);
-        // 返回查询结果（包含总数和用户列表）
         res.json({ success: true, ...result });
     } catch (err) {
         next(err);
@@ -169,36 +130,52 @@ router.get('/', async (req, res, next) => {
 /**
  * @route   PATCH /api/users/:id
  * @desc    更新用户基本信息（除密码）
+ * @access  仅本人可访问
  * @body    Partial<{ name, phone_num, photo_img }>
  */
-router.patch('/:id', async (req, res, next) => {
-    try {
-        const id = Number(req.params.id);  // 获取用户 ID
-        const updateData: any = { ...req.body }
+router.patch(
+    '/:id',
+    auth,
+    userUpload.single('photo_img'), // 复用文件上传配置
+    async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
+        try {
+            const targetId = Number(req.params.id);
+            const currentUserId = req.user?.id;
 
-        // 如果上传了新头像，则更新头像路径
-        if (req.file) updateData.photo_img = req.file.path;
+            // 权限判断：仅本人可更新
+            if (currentUserId !== targetId) {
+                return res.status(403).json({ success: false, error: '无权限更新该用户信息' });
+            }
 
-        // 调用 DAO 更新用户信息（请求体中的字段会被部分更新）
-        await UserDAO.updateById(id, updateData);
-        // 返回更新成功标识
-        res.json({ success: true });
-    } catch (err) {
-        next(err);
+            const updateData: any = { ...req.body };
+            // 处理头像更新
+            if (req.file) updateData.photo_img = req.file.path;
+
+            await UserDAO.updateById(targetId, updateData);
+            res.json({ success: true });
+        } catch (err) {
+            next(err);
+        }
     }
-});
+);
 
 /**
  * @route   PATCH /api/users/:id/status
  * @desc    更新在线状态
+ * @access  仅本人可访问
  * @body    { status: boolean }
  */
-router.patch('/:id/status', async (req, res, next) => {
+router.patch('/:id/status', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 获取用户 ID
-        const { status } = req.body;       // 获取状态参数
-        // 调用 DAO 更新用户状态
-        await UserDAO.updateStatus(id, status);
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+
+        if (currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限更新状态' });
+        }
+
+        const { status } = req.body;
+        await UserDAO.updateStatus(targetId, status);
         res.json({ success: true });
     } catch (err) {
         next(err);
@@ -208,14 +185,30 @@ router.patch('/:id/status', async (req, res, next) => {
 /**
  * @route   PATCH /api/users/:id/password
  * @desc    修改密码
+ * @access  仅本人可修改
  * @body    { passwd: string }
  */
-router.patch('/:id/password', async (req, res, next) => {
+router.patch('/:id/password', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 获取用户 ID
-        // 加密新密码后更新到数据库
-        const hash = await bcrypt.hash(req.body.passwd, 10);
-        await UserDAO.updatePassword(id, hash);
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+
+        // 权限判断：仅本人可修改密码
+        if (currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限修改该用户密码' });
+        }
+
+        // 验证新密码格式
+        const passwd = req.body.passwd;
+        if (!passwd || passwd.length < 6 || !/^(?=.*[a-zA-Z])(?=.*\d)/.test(passwd)) {
+            return res.status(400).json({
+                success: false,
+                error: '密码必须包含字母和数字，且长度至少6个字符'
+            });
+        }
+
+        const hash = await bcrypt.hash(passwd, 10);
+        await UserDAO.updatePassword(targetId, hash);
         res.json({ success: true });
     } catch (err) {
         next(err);
@@ -225,11 +218,16 @@ router.patch('/:id/password', async (req, res, next) => {
 /**
  * @route   DELETE /api/users/:id
  * @desc    删除用户
+ * @access  仅管理员可操作
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        const id = Number(req.params.id);  // 获取用户 ID
-        // 调用 DAO 删除用户
+        // 权限判断：仅管理员可删除
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可删除用户' });
+        }
+
+        const id = Number(req.params.id);
         await UserDAO.deleteById(id);
         res.json({ success: true });
     } catch (err) {
@@ -240,13 +238,16 @@ router.delete('/:id', async (req, res, next) => {
 /**
  * @route   GET /api/users/count
  * @desc    获取用户总数
+ * @access  仅管理员可访问
  */
-router.get('/count', async (req, res, next) => {
+router.get('/count', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        // 调用 DAO 获取用户总数
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可查看用户总数' });
+        }
+
         const count = await UserDAO.countAll();
-        // 返回总数
-        res.json({success: true, count});
+        res.json({ success: true, count });
     } catch (err) {
         next(err);
     }

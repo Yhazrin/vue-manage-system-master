@@ -14,6 +14,7 @@ export interface Player {
     voice: string | null;
     intro: string | null;
     created_at: string;
+    photo_img: string | null;
 }
 
 export class PlayerDAO {
@@ -23,9 +24,9 @@ export class PlayerDAO {
         passwd: string,
         phone_num: string,
         game_id?: number,
-        QR_img?: string,
+        QR_img?: string | null,
         intro?: string,
-        photo_img?: string
+        photo_img?: string | null
     ): Promise<number> {
         const sql = `
             INSERT INTO players (name, passwd, phone_num, game_id, QR_img, intro, photo_img)
@@ -134,7 +135,7 @@ export class PlayerDAO {
     }
 
     /** 更新录音路径 */
-    static async updateVoice(id: number, voicePath: string): Promise<void> {
+    static async updateVoice(id: number, voicePath: string | null): Promise<void> {
         const sql = `UPDATE players SET voice = ? WHERE id = ?`;
         await pool.execute(sql, [voicePath, id]);
     }

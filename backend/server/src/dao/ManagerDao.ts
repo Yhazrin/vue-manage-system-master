@@ -21,7 +21,7 @@ export class ManagerDAO {
         passwd: string,
         phone_num: string,
         authority: number,
-        photo_img?: string
+        photo_img?: string | null
     ): Promise<number> {
         const sql = `
             INSERT INTO managers

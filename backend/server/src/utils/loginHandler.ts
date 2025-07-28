@@ -35,8 +35,8 @@ export const createLoginHandler = (
             }
 
             // 签发对应角色的token
-            const token = signToken(user.id, user.phone_num, role);
-            res.json({ success: true, token });
+            const token = signToken(user.id, user.phone_num, role, user.authority);
+            res.json({ success: true, token, manager: user });
         } catch (err) {
             next(err);
         }
