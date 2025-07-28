@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Theme variables */
+  --theme-primary: #9333ea;
+  --theme-secondary: #6366f1;
+  --theme-accent: #ec4899;
+  --theme-background: #ffffff;
+  --theme-surface: #f9fafb;
+  --theme-text: #111827;
+  --theme-border: #e5e7eb;
+}
+
+/* Apply theme variables to Tailwind classes */
+.bg-theme-background {
+  background-color: var(--theme-background);
+}
+
+.bg-theme-surface {
+  background-color: var(--theme-surface);
+}
+
+.text-theme-text {
+  color: var(--theme-text);
+}
+
+.border-theme-border {
+  border-color: var(--theme-border);
+}
+
+.bg-theme-primary {
+  background-color: var(--theme-primary);
+}
+
+.text-theme-primary {
+  color: var(--theme-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--theme-secondary);
+}
+
+.text-theme-secondary {
+  color: var(--theme-secondary);
+}
+
+.bg-theme-accent {
+  background-color: var(--theme-accent);
+}
+
+.text-theme-accent {
+  color: var(--theme-accent);
+ }
+
+/* 文本可读性优化 */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* 增强文本对比度和可读性 */
+body {
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+p {
+  line-height: 1.7;
+}

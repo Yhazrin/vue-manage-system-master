@@ -1,47 +1,37 @@
 {
-	"name": "Vita",
-	"version": "5.5.0",
-	"private": true,
-	"scripts": {
-		"dev": "vite --mode development",
-		"build": "vite build --mode production",
-		"preview": "vite preview --mode production"
-	},
-	"dependencies": {
-		"@element-plus/icons-vue": "*",
-		"@types/chart.js": "^4.0.1",
-		"@wangeditor/editor": "^5.1.23",
-		"@wangeditor/editor-for-vue": "^5.1.12",
-		"axios": "1.8.2",
-		"chart.js": "^4.5.0",
-		"countup.js": "^2.8.0",
-		"echarts": "^5.5.0",
-		"echarts-wordcloud": "^2.1.0",
-		"element-plus": "^2.6.3",
-		"md-editor-v3": "^2.11.2",
-		"nprogress": "^0.2.0",
-		"pinia": "^2.1.7",
-		"vue": "^3.4.5",
-		"vue-cropper": "1.1.1",
-		"vue-echarts": "^6.6.9",
-		"vue-router": "^4.2.5",
-		"vue-schart": "^2.0.0",
-		"xlsx": "^0.18.5"
-	},
-	"devDependencies": {
-		"@vitejs/plugin-vue": "^3.0.0",
-		"@vue/compiler-sfc": "^3.1.2",
-		"sass": "^1.89.2",
-		"typescript": "^4.6.4",
-		"unplugin-auto-import": "^0.11.2",
-		"unplugin-vue-components": "^0.22.4",
-		"vite": "^3.0.0",
-		"vite-plugin-vue-setup-extend": "^0.4.0",
-		"vue-tsc": "^0.38.4"
-	},
-	"browserslist": [
-		"> 1%",
-		"last 2 versions",
-		"not dead"
-	]
+  "name": "project_template_react",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev:client": "vite --host --port 3000",
+    "dev": "pnpm dev:client",
+    "build:client": "vite build --outDir dist/static",
+    "build": "rm -rf dist && pnpm build:client && cp package.json dist && touch dist/build.flag"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.9.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.3.0",
+    "recharts": "^2.15.1",
+    "sonner": "^2.0.2",
+    "tailwind-merge": "^3.0.2",
+  "zod": "^3.24.2",
+  "react-hook-form": "^7.53.0",
+  "@hookform/resolvers": "^3.9.0",
+  "date-fns": "^2.30.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0",
+    "vite-tsconfig-paths": "^5.1.4"
+  }
 }
