@@ -1,31 +1,16 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import VueSetupExtend from 'vite-plugin-vue-setup-extend';
-import AutoImport from 'unplugin-auto-import/vite';
-import Components from 'unplugin-vue-components/vite';
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
+/** WARNING: DON'T EDIT THIS FILE */
+/** WARNING: DON'T EDIT THIS FILE */
+/** WARNING: DON'T EDIT THIS FILE */
+
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tsconfigPaths from "vite-tsconfig-paths";
+
+function getPlugins() {
+  const plugins = [react(), tsconfigPaths()];
+  return plugins;
+}
+
 export default defineConfig({
-	base: process.env.VITE_BASE_URL || './', // 使用环境变量
-	plugins: [
-		vue(),
-		VueSetupExtend(),
-		AutoImport({
-			resolvers: [ElementPlusResolver()]
-		}),
-		Components({
-			resolvers: [ElementPlusResolver()]
-		})
-	],
-	optimizeDeps: {
-		include: ['schart.js']
-	},
-	resolve: {
-		alias: {
-			'@': '/src',
-			'~': '/src/assets'
-		}
-	},
-	define: {
-		__VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "true",
-	},
+  plugins: getPlugins(),
 });
