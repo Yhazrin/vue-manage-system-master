@@ -3,7 +3,7 @@
     <div class="login-bg"></div>
     <div class="login-card">
       <div class="login-header">
-        <img src="/logo.svg" alt="GameCompanion Logo" class="logo" />
+        <img src="/src/assets/img/logo.svg" alt="GameCompanion Logo" class="logo" />
         <h1 class="title">GameCompanion</h1>
         <p class="subtitle">找到你的完美游戏伙伴</p>
       </div>
@@ -161,8 +161,10 @@ const handleLogin = async () => {
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* 禁止页面滚动 */
   background: linear-gradient(135deg, #F6F9FC 0%, #EDF2F7 100%);
+  margin: 0; /* 移除默认margin */
+  padding: 0; /* 移除默认padding */
 }
 
 .login-bg {

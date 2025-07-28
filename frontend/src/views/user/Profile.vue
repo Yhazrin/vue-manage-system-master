@@ -82,7 +82,7 @@ const userProfile = reactive({
   username: '游戏爱好者',
   phone: '13800138000',
   email: 'user@example.com',
-  avatar: '/assets/img/avatar-default.png',
+  avatar: '/src/assets/img/avatar-default.png',
   gender: 'male',
   birthday: '1990-01-01',
   bio: '热爱游戏的玩家，喜欢各种类型的游戏。'

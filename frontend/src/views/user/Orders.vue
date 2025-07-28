@@ -78,7 +78,7 @@
     </div>
 
     <div class="no-orders" v-else>
-      <img src="/assets/img/no-orders.png" alt="暂无订单">
+      <img src="/src/assets/img/img.jpg" alt="暂无订单">
       <p>暂无订单，快去预约陪玩师吧！</p>
       <el-button type="primary" @click="goToHome">去首页</el-button>
     </div>

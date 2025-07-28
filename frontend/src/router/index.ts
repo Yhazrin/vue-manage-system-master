@@ -1,6 +1,5 @@
-import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import { usePermissStore } from '../store/permiss';
-import Home from '../views/home.vue';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 
@@ -29,6 +28,12 @@ const userRoutes = [
                 name: 'Booking',
                 component: () => import('@/views/user/Booking.vue'),
                 meta: { title: '预约陪玩师', requiresAuth: true }
+            },
+            {
+                path: 'notifications',
+                name: 'UserNotifications',
+                component: () => import('@/views/user/Notifications.vue'),
+                meta: { title: '消息中心' }
             }
         ]
     }
@@ -106,24 +111,23 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/',
         name: 'HomePage',
-        component: () => import('../views/HomePage.vue'), // 直接导入首页组件
+        component: () => import('../views/HomePage.vue'),
         meta: {
             title: '首页',
             noAuth: true
         }
     },
-    // 取消以下页面的注释
     {
         path: '/login',
         name: 'login',
         component: () => import('../views/pages/login.vue'),
-        meta: { hideHeader: true } // 添加这一行
+        meta: { hideHeader: true, noAuth: true }
     },
     {
         path: '/register',
         name: 'register',
         component: () => import('../views/pages/register.vue'),
-        meta: { hideHeader: true } // 添加这一行
+        meta: { hideHeader: true, noAuth: true }
     },
     {
         path: '/reset-pwd',
@@ -150,32 +154,31 @@ const routes: RouteRecordRaw[] = [
         component: () => import(/* webpackChunkName: "404" */ '../views/pages/404.vue'),
     },
     { path: '/:path(.*)', redirect: '/404' },
-    ];
-    
-    const router = createRouter({
-        history: createWebHashHistory(),
-        routes,
-    });
-    
-    router.beforeEach((to, from, next) => {
-      NProgress.start();
-      const userRole = localStorage.getItem('role');
-      const permiss = usePermissStore();
-    
-      if (!userRole && to.meta.noAuth !== true) {
+];
+
+const router = createRouter({
+    history: createWebHistory(import.meta.env.VITE_BASE_URL),
+    routes,
+});
+
+router.beforeEach((to, from, next) => {
+    NProgress.start();
+    const userRole = localStorage.getItem('role');
+    const permiss = usePermissStore();
+
+    if (!userRole && to.meta.noAuth !== true) {
         next('/login');
-      } else if (to.meta.role && to.meta.role !== userRole) {
-        // 验证路由所需角色与用户角色是否匹配
+    } else if (to.meta.role && to.meta.role !== userRole) {
         next('/403');
-      } else if (typeof to.meta.permiss == 'string' && !permiss.key.includes(to.meta.permiss)) {
+    } else if (to.meta.permiss && typeof to.meta.permiss === 'string' && !permiss.key.includes(to.meta.permiss)) {
         next('/403');
-      } else {
+    } else {
         next();
-      }
-    });
-    
-    router.afterEach(() => {
-        NProgress.done();
-    });
-    
-    export default router;
+    }
+});
+
+router.afterEach(() => {
+    NProgress.done();
+});
+
+export default router;

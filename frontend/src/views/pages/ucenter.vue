@@ -79,8 +79,8 @@
                     <el-tab-pane name="label4" label="赞赏作者" class="user-tabpane">
                         <div class="plugins-tips">
                             如果该框架
-                            <el-link href="https://github.com/lin-xin/vue-manage-system" target="_blank"
-                                >vue-manage-system</el-link
+                            82: <el-link href="https://github.com/lin-xin/vue-manage-system" target="_blank"
+                            83: >Vita</el-link
                             >
                             对你有帮助，那就请作者喝杯饮料吧！<el-icon>
                                 <ColdDrink />
@@ -153,7 +153,7 @@ const saveAvatar = () => {
 .user-profile-bg {
     width: 100%;
     height: 200px;
-    background-image: url('../../assets/img/ucenter-bg.jpg');
+    background-image: url('/src/assets/img/ucenter-bg.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

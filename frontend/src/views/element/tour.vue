@@ -12,7 +12,7 @@
 
         <el-tour v-model="open">
             <el-tour-step :target="ref1?.$el" title="上传文件">
-                <img style="width: 120px" src="../../assets/img/img.jpg" alt="tour.png" />
+                <img style="width: 120px" src="/src/assets/img/img.jpg" alt="tour.png" />
                 <div>点击这里选择文件</div>
             </el-tour-step>
             <el-tour-step :target="ref2?.$el" title="保存" description="点击进行上传" />
