@@ -3,7 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
-import listEndpoints from 'express-list-endpoints';
+import path from "path";
 
 console.log('🔥 载入了最新的 index.ts')
 
@@ -56,6 +56,9 @@ const PORT = process.env.PORT || 3000;
 // 中间件：跨域 & 解析 JSON
 app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+// 在路由挂载之前
+app.use('/uploads', express.static(path.join(__dirname, '../../../uploads')));
 
 // 路由挂载
 app.use('/api/users', userRouter);
