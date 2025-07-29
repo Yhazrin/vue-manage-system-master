@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import { Link } from 'react-router-dom';
 import Header from "@/components/Header";
 import { cn } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -14,6 +15,7 @@ import {
   RecentEarning
 } from '@/services/fundsService';
 import { toast } from 'sonner';
+import { AuthContext } from '@/contexts/authContext';
 
 // 获取提现状态样式
 const getWithdrawalStatusStyle = (status: WithdrawalRecord['status']) => {
@@ -47,6 +49,7 @@ const getWithdrawalStatusStyle = (status: WithdrawalRecord['status']) => {
 };
 
 export default function PlayerFunds() {
+  const { isAuthenticated, userRole } = useContext(AuthContext);
   const [fundsOverview, setFundsOverview] = useState<FundsOverview | null>(null);
   const [earningsTrend, setEarningsTrend] = useState<EarningsData[]>([]);
   const [withdrawalRecords, setWithdrawalRecords] = useState<WithdrawalRecord[]>([]);
@@ -57,10 +60,18 @@ export default function PlayerFunds() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 检查是否有认证token
+  const hasToken = localStorage.getItem('token');
+
   // 加载数据
   useEffect(() => {
-    loadData();
-  }, []);
+    // 只有在有token的情况下才加载数据
+    if (hasToken) {
+      loadData();
+    } else {
+      setLoading(false);
+    }
+  }, [hasToken]);
 
   const loadData = async () => {
     try {
@@ -169,6 +180,42 @@ export default function PlayerFunds() {
             >
               重试
             </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 检查登录状态
+  if (!hasToken) {
+    return (
+      <div className="bg-theme-background min-h-screen text-theme-text">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <div className="text-center py-20">
+            <div className="max-w-md mx-auto">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-purple-100 flex items-center justify-center">
+                <i className="fa-solid fa-lock text-2xl text-purple-600"></i>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">需要登录</h2>
+              <p className="text-gray-500 mb-8">
+                您需要登录后才能查看资金信息和进行提现操作
+              </p>
+              <div className="space-y-3">
+                <Link 
+                  to="/login"
+                  className="block w-full py-3 px-6 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  立即登录
+                </Link>
+                <Link 
+                  to="/register"
+                  className="block w-full py-3 px-6 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  注册账号
+                </Link>
+              </div>
+            </div>
           </div>
         </main>
       </div>

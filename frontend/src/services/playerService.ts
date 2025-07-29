@@ -10,7 +10,7 @@ export const getPlayers = async (params?: any): Promise<Player[]> => {
   if (params?.maxPrice) queryParams.append('maxPrice', params.maxPrice.toString());
   
   const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-  return get<Player[]>(`/players${queryString}`);
+  return get<Player[]>(`/players/public${queryString}`);
 }
 
 

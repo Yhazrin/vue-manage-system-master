@@ -88,25 +88,40 @@ router.post(
 );
 
 /**
- * @route   GET /api/players/:id
- * @desc    查询单个玩家
- * @access  本人或管理员可访问
+ * @route   GET /api/players/public
+ * @desc    公开的陪玩列表（用于用户浏览，不需要认证）
+ * @access  公开访问
  */
-router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/public', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const targetId = Number(req.params.id);
-        const currentUserId = req.user?.id;
-        const currentRole = req.user?.role;
-
-        // 权限判断：仅本人或管理员可访问
-        if (currentRole !== 'manager' && currentUserId !== targetId) {
-            return res.status(403).json({ success: false, error: '无权限访问该玩家资料' });
-        }
-
-        const player = await PlayerDAO.findById(targetId);
-        if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });
-
-        res.json({ success: true, player });
+        // 解析分页参数
+        const page = Number(req.query.page) || 1;
+        const pageSize = Number(req.query.pageSize) || 20;
+        // 只显示在线的陪玩
+        const status = true;
+        // 解析搜索关键词（可选）
+        const keyword = req.query.keyword as string | undefined;
+        
+        // 调用 DAO 分页查询玩家列表
+        const result = await PlayerDAO.findAll(page, pageSize, status, keyword);
+        
+        // 过滤敏感信息，只返回公开信息
+        const safePlayers = result.players.map(player => ({
+            id: player.id,
+            name: player.name,
+            photo_img: player.photo_img,
+            intro: player.intro,
+            status: player.status,
+            voice: player.voice,
+            game_id: player.game_id,
+            // 隐藏敏感字段：如手机号、财务信息等
+        }));
+        
+        res.json({ 
+            success: true, 
+            total: result.total, 
+            players: safePlayers 
+        });
     } catch (err) {
         next(err);
     }
@@ -114,17 +129,44 @@ router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunct
 
 /**
  * @route   GET /api/players
- * @desc    分页查询玩家列表
+ * @desc    查询玩家列表（分页+筛选）- 管理员完整访问
  * @access  仅管理员可访问
- * @query   page, pageSize, status?, keyword?
  */
 router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
+        // 如果是普通用户或陪玩，重定向到公开接口
         if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看玩家列表' });
+            // 解析分页参数
+            const page = Number(req.query.page) || 1;
+            const pageSize = Number(req.query.pageSize) || 20;
+            // 只显示在线的陪玩
+            const status = true;
+            // 解析搜索关键词（可选）
+            const keyword = req.query.keyword as string | undefined;
+            
+            // 调用 DAO 分页查询玩家列表
+            const result = await PlayerDAO.findAll(page, pageSize, status, keyword);
+            
+            // 过滤敏感信息，只返回公开信息
+            const safePlayers = result.players.map(player => ({
+                id: player.id,
+                name: player.name,
+                photo_img: player.photo_img,
+                intro: player.intro,
+                status: player.status,
+                voice: player.voice,
+                game_id: player.game_id,
+                // 隐藏敏感字段：如手机号、财务信息等
+            }));
+            
+            return res.json({ 
+                success: true, 
+                total: result.total, 
+                players: safePlayers 
+            });
         }
 
+        // 管理员完整访问
         // 解析分页参数（默认页码1，每页20条，与用户路由一致）
         const page = Number(req.query.page) || 1;
         const pageSize = Number(req.query.pageSize) || 20;
@@ -161,6 +203,31 @@ router.get('/game/:gameId', auth, async (req: AuthRequest, res: Response, next: 
             // 隐藏敏感字段：如手机号、财务信息等
         }));
         res.json({ success: true, count: safePlayers.length, players: safePlayers  });  // 返回玩家列表
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   GET /api/players/:id
+ * @desc    查询单个玩家
+ * @access  本人或管理员可访问
+ */
+router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+        const currentRole = req.user?.role;
+
+        // 权限判断：仅本人或管理员可访问
+        if (currentRole !== 'manager' && currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限访问该玩家资料' });
+        }
+
+        const player = await PlayerDAO.findById(targetId);
+        if (!player) return res.status(404).json({ success: false, error: '玩家不存在' });
+
+        res.json({ success: true, player });
     } catch (err) {
         next(err);
     }

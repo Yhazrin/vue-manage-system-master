@@ -51,28 +51,31 @@ export class WithdrawalDAO {
         pageSize: number = 20,
         status?: string
     ): Promise<{ list: Withdrawal[], total: number }> {
-        // 计算偏移量
-        const offset = (page - 1) * pageSize;
+        // 确保参数是有效的整数
+        const validPage = Math.max(1, Math.floor(Number(page) || 1));
+        const validPageSize = Math.max(1, Math.min(100, Math.floor(Number(pageSize) || 20)));
+        const offset = (validPage - 1) * validPageSize;
 
         // 基础 SQL 和参数
         let sql = `SELECT * FROM withdrawals WHERE player_id = ?`;
         let countSql = `SELECT COUNT(*) as total FROM withdrawals WHERE player_id = ?`;
         const params: any[] = [player_id];
+        const countParams: any[] = [player_id];
 
         // 如果有状态筛选，添加条件
         if (status) {
             sql += ` AND status = ?`;
             countSql += ` AND status = ?`;
             params.push(status);
+            countParams.push(status);
         }
 
-        // 添加排序和分页
-        sql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-        params.push(pageSize, offset);
+        // 添加排序和分页 - 使用字符串拼接而不是参数化查询
+        sql += ` ORDER BY created_at DESC LIMIT ${validPageSize} OFFSET ${offset}`;
 
         // 执行查询
         const [rows]: any = await pool.execute(sql, params);
-        const [countResult]: any = await pool.execute(countSql, params.slice(0, status ? 2 : 1));
+        const [countResult]: any = await pool.execute(countSql, countParams);
 
         return {
             list: rows,
@@ -86,7 +89,11 @@ export class WithdrawalDAO {
         pageSize: number = 20,
         status?: Withdrawal['status']
     ): Promise<{ total: number; withdrawals: Withdrawal[] }> {
-        const offset = (page - 1) * pageSize;
+        // 确保参数是有效的整数
+        const validPage = Math.max(1, Math.floor(Number(page) || 1));
+        const validPageSize = Math.max(1, Math.min(100, Math.floor(Number(pageSize) || 20)));
+        const offset = (validPage - 1) * validPageSize;
+        
         let where = '';
         const params: any[] = [];
         if (status) {
@@ -98,9 +105,8 @@ export class WithdrawalDAO {
 
         const dataSql = `
       SELECT * FROM withdrawals${where}
-      ORDER BY created_at DESC LIMIT ?, ?
+      ORDER BY created_at DESC LIMIT ${validPageSize} OFFSET ${offset}
     `;
-        params.push(offset, pageSize);
         const [rows]: any = await pool.execute(dataSql, params);
         return { total: cnt, withdrawals: rows };
     }

@@ -79,9 +79,14 @@ export class PlayerDAO {
         status?: boolean,
         keyword?: string
     ): Promise<{ total: number; players: Player[] }> {
-        const offset = (page - 1) * pageSize;
+        // 确保参数是有效的整数
+        const validPage = Math.max(1, Math.floor(Number(page) || 1));
+        const validPageSize = Math.max(1, Math.min(100, Math.floor(Number(pageSize) || 20)));
+        const offset = (validPage - 1) * validPageSize;
+        
         let where = '';
         const params: any[] = [];
+        
         if (status !== undefined) {
             where += ` AND status = ?`;
             params.push(status ? 1 : 0);
@@ -90,17 +95,19 @@ export class PlayerDAO {
             where += ` AND name LIKE ?`;
             params.push(`%${keyword}%`);
         }
-        // 总数
+        
+        // 总数查询
         const countSql = `SELECT COUNT(*) as cnt FROM players WHERE 1=1 ${where}`;
         const [[{ cnt }]]: any = await pool.execute(countSql, params);
-        // 数据
+        
+        // 数据查询 - 直接拼接LIMIT和OFFSET到SQL字符串中
         const dataSql = `
-      SELECT * FROM players WHERE 1=1 ${where}
-      ORDER BY created_at DESC
-      LIMIT ?, ?
-    `;
-        params.push(offset, pageSize);
+            SELECT * FROM players WHERE 1=1 ${where}
+            ORDER BY created_at DESC
+            LIMIT ${validPageSize} OFFSET ${offset}
+        `;
         const [rows]: any = await pool.execute(dataSql, params);
+        
         return { total: cnt, players: rows };
     }
 
