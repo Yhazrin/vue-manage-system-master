@@ -5,7 +5,7 @@ export interface Gift {
     id: number;
     name: string;
     price: number;
-    image_url: string;
+    image_url?: string | null;
 }
 
 export class GiftDAO {
@@ -31,6 +31,39 @@ export class GiftDAO {
     static async findAll(): Promise<Gift[]> {
         const sql = `SELECT * FROM gifts ORDER BY id ASC`;
         const [rows]: any = await pool.execute(sql);
+        return rows;
+    }
+
+    /** 更新礼物（可部分更新） */
+    static async update(id: number, g: Partial<Omit<Gift, 'id'>>): Promise<void> {
+        const fields: string[] = [];
+        const params: any[] = [];
+
+        if (g.name !== undefined) {
+            fields.push('name = ?');
+            params.push(g.name);
+        }
+        if (g.price !== undefined) {
+            fields.push('price = ?');
+            params.push(g.price);
+        }
+        if (g.image_url !== undefined) {
+            fields.push('image_url = ?');
+            params.push(g.image_url);
+        }
+        if (fields.length === 0) {
+            return;
+        }
+
+        const sql = `UPDATE gifts SET ${fields.join(', ')} WHERE id = ?`;
+        params.push(id);
+        await pool.execute(sql, params);
+    }
+
+    /** 按名称模糊查询礼物 */
+    static async findByNameLike(keyword: string): Promise<Gift[]> {
+        const sql = `SELECT * FROM gifts WHERE name LIKE ? ORDER BY id ASC`;
+        const [rows]: any = await pool.execute(sql, [`%${keyword}%`]);
         return rows;
     }
 

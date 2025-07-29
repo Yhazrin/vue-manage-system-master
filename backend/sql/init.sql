@@ -87,15 +87,14 @@ CREATE TABLE `gift_records` (
   `gift_id` int NOT NULL,
   `quantity` int NOT NULL DEFAULT '1',
   `total_price` decimal(10,2) NOT NULL,
-  `order_id` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `platform_fee` decimal(10,2) DEFAULT '0.00' COMMENT '打赏抽成',
+  `final_amount` decimal(10,2) GENERATED ALWAYS AS ((`total_price` - `platform_fee`)) STORED COMMENT '到手收入',
   PRIMARY KEY (`id`),
   KEY `fk_gift_user` (`user_id`),
   KEY `fk_gift_player` (`player_id`),
   KEY `fk_gift_item` (`gift_id`),
-  KEY `fk_gift_order` (`order_id`),
   CONSTRAINT `fk_gift_item` FOREIGN KEY (`gift_id`) REFERENCES `gifts` (`id`) ON DELETE RESTRICT,
-  CONSTRAINT `fk_gift_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE SET NULL,
   CONSTRAINT `fk_gift_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_gift_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -151,6 +150,7 @@ CREATE TABLE `managers` (
   `authority` int DEFAULT NULL,
   `photo_img` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `role` varchar(20) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'manager' COMMENT '角色标识，固定为manager',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -176,15 +176,19 @@ CREATE TABLE `orders` (
   `user_id` int NOT NULL,
   `player_id` int NOT NULL,
   `game_id` int NOT NULL,
+  `service_id` int NOT NULL,
   `status` enum('进行中','已完成','已取消') COLLATE utf8mb4_general_ci DEFAULT '进行中',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `amount` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT 'service.price×hours 结果',
   PRIMARY KEY (`order_id`),
   KEY `fk_order_user` (`user_id`),
   KEY `fk_order_player` (`player_id`),
   KEY `fk_order_game` (`game_id`),
+  KEY `fk_orders_service` (`service_id`),
   CONSTRAINT `fk_order_game` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_order_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_order_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_order_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_orders_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -195,6 +199,30 @@ CREATE TABLE `orders` (
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `platform_config`
+--
+
+DROP TABLE IF EXISTS `platform_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `platform_config` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `commission_rate` decimal(5,2) NOT NULL COMMENT '平台抽成百分比，例如10表示10%',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `platform_config`
+--
+
+LOCK TABLES `platform_config` WRITE;
+/*!40000 ALTER TABLE `platform_config` DISABLE KEYS */;
+/*!40000 ALTER TABLE `platform_config` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -218,6 +246,7 @@ CREATE TABLE `players` (
   `intro` text COLLATE utf8mb4_general_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `photo_img` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `role` varchar(20) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'player' COMMENT '陪玩标识，普通陪玩为player',
   PRIMARY KEY (`id`),
   KEY `fk_game_id` (`game_id`),
   CONSTRAINT `fk_game_id` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
@@ -314,6 +343,7 @@ CREATE TABLE `users` (
   `photo_img` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `phone_num` varchar(20) COLLATE utf8mb4_general_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `role` varchar(20) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'user' COMMENT '角色标识，普通用户为user',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -366,4 +396,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-28 22:34:37
+-- Dump completed on 2025-07-29 12:48:33

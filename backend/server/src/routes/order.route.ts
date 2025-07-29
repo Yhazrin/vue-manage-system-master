@@ -11,8 +11,8 @@ const router = Router();
  */
 router.post('/', async (req, res, next) => {
     try {
-        const { order_id, user_id, player_id, game_id, status } = req.body;
-        const id = await OrderDAO.create({ order_id, user_id, player_id, game_id, status });
+        const { order_id, user_id, player_id, game_id, service_id } = req.body;
+        const id = await OrderDAO.create({ order_id, user_id, player_id, game_id, service_id });
         res.status(201).json({ success: true, order_id: id });
     } catch (err) {
         next(err);

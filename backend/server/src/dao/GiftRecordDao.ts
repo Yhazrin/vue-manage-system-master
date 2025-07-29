@@ -1,5 +1,6 @@
 // src/dao/GiftRecordDAO.ts
 import { pool } from '../db';
+import { ConfigDAO } from './ConfigDao';
 
 export interface GiftRecord {
     id: number;
@@ -8,24 +9,40 @@ export interface GiftRecord {
     gift_id: number;
     quantity: number;
     total_price: number;
-    order_id: string | null;
     created_at: string;
 }
 
 export class GiftRecordDAO {
     /** 插入打赏记录 */
-    static async create(r: Omit<GiftRecord, 'id' | 'created_at'>): Promise<number> {
+    static async create(record: {
+        user_id: number;
+        player_id: number;
+        gift_id: number;
+        quantity: number;
+    }) {
+        // 1) 拿礼物单价
+        const [[gift]]: any = await pool.execute(
+            `SELECT price FROM gifts WHERE id = ?`,
+            [record.gift_id]
+        );
+        const total_price = gift.price * record.quantity;
+
+        // 2) 算抽成
+        const rate = await ConfigDAO.getCommissionRate();
+        const platform_fee = +(total_price * rate / 100).toFixed(2);
+
+        // 3) 插入打赏记录
         const sql = `
-      INSERT INTO gift_records (user_id, player_id, gift_id, quantity, total_price, order_id)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO gift_records (user_id, player_id, gift_id, quantity, total_price)
+      VALUES (?, ?, ?, ?, ?)
     `;
         const [result]: any = await pool.execute(sql, [
-            r.user_id,
-            r.player_id,
-            r.gift_id,
-            r.quantity,
-            r.total_price,
-            r.order_id || null
+            record.user_id,
+            record.player_id,
+            record.gift_id,
+            record.quantity,
+            total_price,
+            platform_fee,
         ]);
         return result.insertId;
     }

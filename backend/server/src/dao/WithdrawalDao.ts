@@ -1,5 +1,6 @@
 // src/dao/WithdrawalDAO.ts
 import { pool } from '../db';
+import { ConfigDAO } from "./ConfigDao";
 
 export interface Withdrawal {
     withdrawal_id: string;
@@ -7,27 +8,33 @@ export interface Withdrawal {
     amount: number;
     platform_fee: number;
     final_amount: number;
-    status: '待审核' | '已批准' | '已拒绝';
     created_at: string;
+    status: '待审核' | '已通过' | '已拒绝';
 }
 
 export class WithdrawalDAO {
     /** 创建提现记录 */
     static async create(
-        w: Omit<Withdrawal, 'created_at' | 'final_amount'>
-    ): Promise<string> {
+        withdrawal: {
+            withdrawal_id: string;
+            player_id: number;
+            amount: number;
+        }) {
+        // 1) 拿当前抽成率
+        const rate = await ConfigDAO.getCommissionRate(); // e.g. 10
+        const platform_fee = +(withdrawal.amount * rate / 100).toFixed(2);
+
         const sql = `
-      INSERT INTO withdrawals (withdrawal_id, player_id, amount, platform_fee, status)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO withdrawals (withdrawal_id, player_id, amount, platform_fee)
+      VALUES (?, ?, ?, ?)
     `;
         await pool.execute(sql, [
-            w.withdrawal_id,
-            w.player_id,
-            w.amount,
-            w.platform_fee,
-            w.status
+            withdrawal.withdrawal_id,
+            withdrawal.player_id,
+            withdrawal.amount,
+            platform_fee,
         ]);
-        return w.withdrawal_id;
+        return withdrawal.withdrawal_id;
     }
 
     /** 根据提现 ID 查询 */
@@ -35,6 +42,42 @@ export class WithdrawalDAO {
         const sql = `SELECT * FROM withdrawals WHERE withdrawal_id = ? LIMIT 1`;
         const [rows]: any = await pool.execute(sql, [id]);
         return rows[0] ?? null;
+    }
+
+    /** 根据玩家 ID 分页查询提现记录（支持状态筛选） */
+    static async findByPlayerId(
+        player_id: number,
+        page: number = 1,
+        pageSize: number = 20,
+        status?: string
+    ): Promise<{ list: Withdrawal[], total: number }> {
+        // 计算偏移量
+        const offset = (page - 1) * pageSize;
+
+        // 基础 SQL 和参数
+        let sql = `SELECT * FROM withdrawals WHERE player_id = ?`;
+        let countSql = `SELECT COUNT(*) as total FROM withdrawals WHERE player_id = ?`;
+        const params: any[] = [player_id];
+
+        // 如果有状态筛选，添加条件
+        if (status) {
+            sql += ` AND status = ?`;
+            countSql += ` AND status = ?`;
+            params.push(status);
+        }
+
+        // 添加排序和分页
+        sql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+        params.push(pageSize, offset);
+
+        // 执行查询
+        const [rows]: any = await pool.execute(sql, params);
+        const [countResult]: any = await pool.execute(countSql, params.slice(0, status ? 2 : 1));
+
+        return {
+            list: rows,
+            total: countResult[0].total
+        };
     }
 
     /** 分页查询并按状态过滤 */

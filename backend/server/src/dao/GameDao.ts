@@ -7,7 +7,7 @@ export interface Game {
 
 export class GameDAO {
     /** 创建新游戏 */
-    static async create(name: string): Promise<number> {
+    static async create(name: { name: string }): Promise<number> {
         const sql = `INSERT INTO games (name) VALUES (?)`;
         const [result]: any = await pool.execute(sql, [name]);
         return result.insertId;

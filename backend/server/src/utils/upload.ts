@@ -19,8 +19,13 @@ export const createUpload = (type: string) => {
         destination: (req, file, cb) => {
             let dir: string;
 
+            // 新增gift类型处理
+            if (type === 'gift') {
+                dir = `uploads/gift/images/`; // 礼物图片专用目录
+            }
+
             // 特殊处理：player类型区分头像、二维码和录音目录
-            if (type === 'player') {
+            else if (type === 'player') {
                 // 根据文件字段名（fieldname）判断存储子目录
                 let subDir: string;
                 switch (file.fieldname) {
@@ -108,3 +113,5 @@ export const createUpload = (type: string) => {
 export const userUpload = createUpload('user');
 export const playerUpload = createUpload('player');
 export const managerUpload = createUpload('manager');
+// 新增礼物图片上传实例
+export const giftUpload = createUpload('gift');

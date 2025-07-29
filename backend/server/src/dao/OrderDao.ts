@@ -7,26 +7,40 @@ export interface Order {
     game_id: number;
     status: '进行中' | '已完成' | '已取消';
     created_at: string;
+    service_id: number;
+    amount: number; // 订单金额
 }
 
 export class OrderDAO {
     /**
      * 创建订单
-     * Omit<Order, 'created_at'> 表示：Order 接口中除  created_at 以外的所有字段都需要提供
      */
-    static async create(o: Omit<Order, 'created_at'>): Promise<string> {
+    static async create(order: {
+        order_id: string;
+        user_id: number;
+        player_id: number;
+        game_id: number;
+        service_id: number;
+    }) {
+        // 1) 先查 price, hours
+        const [[svc]]: any = await pool.execute(
+            `SELECT price, hours FROM services WHERE id = ?`,
+            [order.service_id]
+        );
+        const amount = svc.price * svc.hours;
         const sql = `
-      INSERT INTO orders (order_id, user_id, player_id, game_id, status)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO orders (order_id, user_id, player_id, game_id, service_id, amount)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
         await pool.execute(sql, [
-            o.order_id,
-            o.user_id,
-            o.player_id,
-            o.game_id,
-            o.status
+            order.order_id,
+            order.user_id,
+            order.player_id,
+            order.game_id,
+            order.service_id,
+            amount
         ]);
-        return o.order_id;
+        return order.order_id;
     }
 
     /** 根据 order_id 查询单条订单 */
