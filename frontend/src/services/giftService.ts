@@ -41,40 +41,40 @@ export interface UpdateGiftRequest {
 
 // 获取礼物列表
 export const getGifts = async (): Promise<Gift[]> => {
-  return await get('/api/admin/gifts');
+  return await get('/gifts');
 };
 
 // 创建礼物
 export const createGift = async (gift: CreateGiftRequest): Promise<Gift> => {
-  return await post('/api/admin/gifts', gift);
+  return await post('/gifts', gift);
 };
 
 // 更新礼物
 export const updateGift = async (id: string, gift: UpdateGiftRequest): Promise<Gift> => {
-  return await put(`/api/admin/gifts/${id}`, gift);
+  return await put(`/gifts/${id}`, gift);
 };
 
 // 删除礼物
 export const deleteGift = async (id: string): Promise<void> => {
-  return await del(`/api/admin/gifts/${id}`);
+  return await del(`/gifts/${id}`);
 };
 
 // 获取送礼记录
 export const getGiftRecords = async (): Promise<GiftRecord[]> => {
-  return await get('/api/admin/gift-records');
+  return await get('/gift-records');
 };
 
 // 根据订单ID获取送礼记录
 export const getGiftRecordsByOrderId = async (orderId: string): Promise<GiftRecord[]> => {
-  return await get(`/api/admin/gift-records/order/${orderId}`);
+  return await get(`/gift-records/order/${orderId}`);
 };
 
 // 根据用户ID获取送礼记录
 export const getGiftRecordsByUserId = async (userId: string): Promise<GiftRecord[]> => {
-  return await get(`/api/admin/gift-records/user/${userId}`);
+  return await get(`/gift-records/user/${userId}`);
 };
 
 // 根据陪玩ID获取送礼记录
 export const getGiftRecordsByPlayerId = async (playerId: string): Promise<GiftRecord[]> => {
-  return await get(`/api/admin/gift-records/player/${playerId}`);
+  return await get(`/gift-records/player/${playerId}`);
 };

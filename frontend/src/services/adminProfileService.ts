@@ -1,4 +1,5 @@
-// 管理员资料相关的API服务
+// 管理员个人资料相关的API服务
+import { API_BASE_URL } from '@/config/api';
 
 // 管理员资料接口定义
 export interface AdminProfileData {
@@ -40,9 +41,9 @@ export interface ChangeAdminPasswordRequest {
 // 获取管理员资料
 export const getAdminProfile = async (): Promise<AdminProfileData> => {
   try {
-    const response = await fetch('/api/admin/profile', {
+    const response = await fetch(`${API_BASE_URL}/admin/profile`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
 
@@ -80,11 +81,11 @@ export const getAdminProfile = async (): Promise<AdminProfileData> => {
 // 更新管理员资料
 export const updateAdminProfile = async (data: UpdateAdminProfileRequest): Promise<AdminProfileData> => {
   try {
-    const response = await fetch('/api/admin/profile', {
+    const response = await fetch(`${API_BASE_URL}/admin/profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
       body: JSON.stringify(data)
     });
@@ -121,11 +122,11 @@ export const changeAdminPassword = async (data: ChangeAdminPasswordRequest): Pro
       throw new Error('新密码和确认密码不匹配');
     }
 
-    const response = await fetch('/api/admin/change-password', {
+    const response = await fetch(`${API_BASE_URL}/admin/change-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
       body: JSON.stringify({
         currentPassword: data.currentPassword,
@@ -177,9 +178,9 @@ export const getAdminOperationLogs = async (params: {
     if (params.startDate) queryParams.append('startDate', params.startDate);
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
-    const response = await fetch(`/api/admin/operation-logs?${queryParams.toString()}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/operation-logs?${queryParams.toString()}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
 

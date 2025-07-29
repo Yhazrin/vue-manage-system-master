@@ -53,6 +53,8 @@ export default function Header() {
                 { label: '提现管理', path: '/admin/withdrawals', icon: '💰' },
             { label: '权限管理', path: '/admin/permissions', icon: '🔑' },
             { label: '通知管理', path: '/admin/notifications', icon: '🔔' },
+            { label: 'API监控', path: '/admin/api-monitor', icon: '📡' },
+            { label: 'API状态', path: '/admin/api-status', icon: '🔍' },
           ];
       default:
         return [];

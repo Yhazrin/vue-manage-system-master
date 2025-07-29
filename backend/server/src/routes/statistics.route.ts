@@ -159,17 +159,31 @@ statisticsRouter.get(
 /**
  * @route   GET /api/statistics/player/:playerId
  * @desc    查询指定陪玩收入与订单统计
- * @access  仅顶级管理员可访问
+ * @access  管理员可访问任意陪玩数据，陪玩只能访问自己的数据
  */
 statisticsRouter.get(
     '/player/:playerId',
     auth,
-    requireTopManager,
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const playerId = Number(req.params.playerId);
             if (isNaN(playerId)) {
                 return res.status(400).json({ success: false, error: '无效的陪玩ID' });
+            }
+
+            // 权限检查：管理员可以查看任意陪玩数据，陪玩只能查看自己的数据
+            if (req.user?.role === 'player' && req.user.id !== playerId) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: '陪玩只能查看自己的统计数据' 
+                });
+            }
+            
+            if (req.user?.role !== 'manager' && req.user?.role !== 'player') {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: '权限不足' 
+                });
             }
 
             // 订单总数
@@ -181,6 +195,27 @@ statisticsRouter.get(
             // 总接单金额
             const [[{ total_earnings }]]: any = await pool.execute(
                 `SELECT IFNULL(SUM(amount), 0) as total_earnings FROM orders WHERE player_id = ? AND status = '已完成'`,
+                [playerId]
+            );
+
+            // 今日订单数
+            const [[{ today_orders }]]: any = await pool.execute(
+                `SELECT COUNT(*) as today_orders FROM orders WHERE player_id = ? AND DATE(created_at) = CURDATE()`,
+                [playerId]
+            );
+
+            // 本月收入
+            const [[{ monthly_income }]]: any = await pool.execute(
+                `SELECT IFNULL(SUM(amount), 0) as monthly_income FROM orders WHERE player_id = ? AND status = '已完成' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`,
+                [playerId]
+            );
+
+            // 服务评分 (假设有评分表，这里先返回固定值)
+            const service_rating = 4.8;
+
+            // 待处理事项 (待接单的订单数)
+            const [[{ pending_tasks }]]: any = await pool.execute(
+                `SELECT COUNT(*) as pending_tasks FROM orders WHERE player_id = ? AND status = 'pending'`,
                 [playerId]
             );
 
@@ -202,7 +237,12 @@ statisticsRouter.get(
                 total_order_count,
                 total_earnings,
                 total_withdrawn,
-                platform_profit
+                platform_profit,
+                // 新增字段用于陪玩工作台
+                todayOrders: today_orders,
+                monthlyIncome: monthly_income,
+                serviceRating: service_rating,
+                pendingTasks: pending_tasks
             });
         } catch (err) {
             next(err);

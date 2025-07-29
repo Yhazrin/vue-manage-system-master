@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useApi } from '@/hooks/useApi';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '@/config/api';
 
 // 定义统计数据接口
 interface StatisticsData {
@@ -20,7 +21,11 @@ interface StatisticsData {
 
 // 获取统计数据
 const fetchStatisticsData = async (): Promise<StatisticsData> => {
-  const response = await fetch('/api/admin/statistics');
+  const response = await fetch(`${API_BASE_URL}/statistics`, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
   
   if (!response.ok) {
     throw new Error('Failed to fetch statistics data');
@@ -49,11 +54,11 @@ export default function AdminStatistics() {
   
   // 导出报表功能
   const exportReport = (format: 'csv' | 'xls') => {
-    fetch(`/api/admin/statistics/export?format=${format}`, {
+    fetch(`${API_BASE_URL}/statistics/export?format=${format}`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-      },
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
     })
     .then(response => {
       if (!response.ok) throw new Error('导出失败');

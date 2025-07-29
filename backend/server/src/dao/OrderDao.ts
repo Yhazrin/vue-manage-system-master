@@ -56,23 +56,33 @@ export class OrderDAO {
         pageSize: number = 20,
         status?: Order['status']
     ): Promise<{ total: number; orders: Order[] }> {
-        const offset = (page - 1) * pageSize;
-        let where = '';
-        const params: any[] = [];
-        if (status) {
-            where = ` WHERE status = ?`;
-            params.push(status);
-        }
-        const countSql = `SELECT COUNT(*) as cnt FROM orders${where}`;
-        const [[{ cnt }]]: any = await pool.execute(countSql, params);
+        try {
+            const offset = (page - 1) * pageSize;
+            let whereClause = '';
+            const countParams: any[] = [];
+            
+            if (status) {
+                whereClause = ` WHERE status = ?`;
+                countParams.push(status);
+            }
+            
+            // 获取总数
+            const countSql = `SELECT COUNT(*) as cnt FROM orders${whereClause}`;
+            const [[{ cnt }]]: any = await pool.execute(countSql, countParams);
 
-        const dataSql = `
-      SELECT * FROM orders${where}
-      ORDER BY created_at DESC LIMIT ?, ?
-    `;
-        params.push(offset, pageSize);
-        const [rows]: any = await pool.execute(dataSql, params);
-        return { total: cnt, orders: rows };
+            // 获取数据，使用固定的LIMIT值而不是参数
+            const dataSql = `
+                SELECT * FROM orders${whereClause}
+                ORDER BY created_at DESC 
+                LIMIT ${pageSize} OFFSET ${offset}
+            `;
+            const [rows]: any = await pool.execute(dataSql, countParams);
+            
+            return { total: cnt, orders: rows };
+        } catch (error) {
+            console.error('OrderDAO.findAll error:', error);
+            throw error;
+        }
     }
 
     /** 更新订单状态 */

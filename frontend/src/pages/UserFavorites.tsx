@@ -102,8 +102,8 @@ export default function UserFavorites() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {favorites.map(player => (
               <PlayerCard 
-                key={player.id} 
-                player={player} 
+                key={player.favoriteId} 
+                player={player.player} 
               />
             ))}
           </div>

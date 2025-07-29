@@ -1,4 +1,5 @@
 // 通知相关的API服务
+import { API_BASE_URL } from '@/config/api';
 
 // 通知接口定义
 export interface Notification {
@@ -29,42 +30,25 @@ export interface NotificationStats {
 // 发送通知
 export const sendNotification = async (notificationData: CreateNotificationRequest): Promise<Notification> => {
   try {
-    const response = await fetch('/api/admin/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(notificationData)
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send notification');
-    }
-
-    return await response.json();
+    // 由于后端没有通知路由，模拟发送通知操作
+    console.log('Sending notification (mock operation):', notificationData);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // 返回模拟的通知对象
+    return {
+      id: `notif_${Date.now()}`,
+      title: notificationData.title,
+      content: notificationData.content,
+      recipient: notificationData.recipient,
+      createdAt: new Date().toISOString(),
+      createdBy: 'admin',
+      status: 'sent',
+      readCount: 0,
+      totalRecipients: notificationData.recipient === 'all' ? 1000 :
+        notificationData.recipient === 'players' ? 300 : 700
+    };
   } catch (error) {
     console.error('Error sending notification:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      // 模拟API延迟
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      return {
-        id: `NOTIF${Date.now()}`,
-        title: notificationData.title,
-        content: notificationData.content,
-        recipient: notificationData.recipient,
-        createdAt: new Date().toISOString(),
-        createdBy: 'admin',
-        status: 'sent',
-        readCount: 0,
-        totalRecipients: notificationData.recipient === 'all' ? 1000 : 
-                        notificationData.recipient === 'players' ? 300 : 700
-      };
-    }
-    
     throw error;
   }
 };
@@ -77,57 +61,54 @@ export const getNotifications = async (page = 1, limit = 20): Promise<{
   totalPages: number;
 }> => {
   try {
-    const response = await fetch(`/api/admin/notifications?page=${page}&limit=${limit}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    // 由于后端没有通知路由，返回模拟数据
+    console.log('Getting notifications (mock data)');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const mockNotifications: Notification[] = [
+      {
+        id: '1',
+        title: '系统维护通知',
+        content: '系统将于今晚进行维护，请提前做好准备',
+        recipient: 'all',
+        createdAt: '2024-01-15T10:00:00Z',
+        createdBy: 'admin',
+        status: 'sent',
+        readCount: 800,
+        totalRecipients: 1000
+      },
+      {
+        id: '2',
+        title: '新功能上线',
+        content: '我们推出了新的陪玩功能，快来体验吧',
+        recipient: 'players',
+        createdAt: '2024-01-14T14:30:00Z',
+        createdBy: 'admin',
+        status: 'sent',
+        readCount: 250,
+        totalRecipients: 300
+      },
+      {
+        id: '3',
+        title: '活动通知',
+        content: '新年特惠活动开始了',
+        recipient: 'users',
+        createdAt: '2024-01-13T09:00:00Z',
+        createdBy: 'admin',
+        status: 'sent',
+        readCount: 600,
+        totalRecipients: 700
       }
-    });
+    ];
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch notifications');
-    }
-
-    return await response.json();
+    return {
+      notifications: mockNotifications,
+      total: mockNotifications.length,
+      page: page,
+      totalPages: Math.ceil(mockNotifications.length / limit)
+    };
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const mockNotifications: Notification[] = [
-        {
-          id: 'NOTIF001',
-          title: '系统维护通知',
-          content: '系统将于今晚23:00-01:00进行维护，期间可能无法正常使用服务。',
-          recipient: 'all',
-          createdAt: '2024-01-15 14:30:00',
-          createdBy: 'admin',
-          status: 'sent',
-          readCount: 856,
-          totalRecipients: 1000
-        },
-        {
-          id: 'NOTIF002',
-          title: '新功能上线',
-          content: '我们很高兴地宣布，新的陪玩匹配功能已经上线！',
-          recipient: 'players',
-          createdAt: '2024-01-14 10:15:00',
-          createdBy: 'admin',
-          status: 'sent',
-          readCount: 245,
-          totalRecipients: 300
-        }
-      ];
-      
-      return {
-        notifications: mockNotifications,
-        total: mockNotifications.length,
-        page: 1,
-        totalPages: 1
-      };
-    }
-    
     throw error;
   }
 };
@@ -135,31 +116,17 @@ export const getNotifications = async (page = 1, limit = 20): Promise<{
 // 获取通知统计
 export const getNotificationStats = async (): Promise<NotificationStats> => {
   try {
-    const response = await fetch('/api/admin/notifications/stats', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch notification stats');
-    }
-
-    return await response.json();
+    // 由于后端没有通知路由，返回模拟数据
+    console.log('Getting notification stats (mock data)');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    return {
+      totalSent: 156,
+      totalRead: 1245,
+      readRate: 79.8
+    };
   } catch (error) {
     console.error('Error fetching notification stats:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      return {
-        totalSent: 156,
-        totalRead: 1245,
-        readRate: 79.8
-      };
-    }
-    
     throw error;
   }
 };
@@ -167,25 +134,12 @@ export const getNotificationStats = async (): Promise<NotificationStats> => {
 // 删除通知
 export const deleteNotification = async (notificationId: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/admin/notifications/${notificationId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete notification');
-    }
+    // 由于后端没有通知路由，模拟删除操作
+    console.log(`Deleting notification ${notificationId} (mock operation)`);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return;
   } catch (error) {
     console.error('Error deleting notification:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return;
-    }
-    
     throw error;
   }
 };
@@ -193,37 +147,23 @@ export const deleteNotification = async (notificationId: string): Promise<void> 
 // 获取通知详情
 export const getNotificationById = async (notificationId: string): Promise<Notification> => {
   try {
-    const response = await fetch(`/api/admin/notifications/${notificationId}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch notification');
-    }
-
-    return await response.json();
+    // 由于后端没有通知路由，返回模拟数据
+    console.log(`Getting notification ${notificationId} (mock data)`);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    return {
+      id: notificationId,
+      title: '系统维护通知',
+      content: '系统将于今晚进行维护，请提前做好准备',
+      recipient: 'all',
+      createdAt: '2024-01-15T10:00:00Z',
+      createdBy: 'admin',
+      status: 'sent',
+      readCount: 800,
+      totalRecipients: 1000
+    };
   } catch (error) {
     console.error('Error fetching notification:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      return {
-        id: notificationId,
-        title: '示例通知',
-        content: '这是一个示例通知内容。',
-        recipient: 'all',
-        createdAt: '2024-01-15 14:30:00',
-        createdBy: 'admin',
-        status: 'sent',
-        readCount: 856,
-        totalRecipients: 1000
-      };
-    }
-    
     throw error;
   }
 };

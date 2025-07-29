@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 type Theme = 'light' | 'dark' | 'cyberpunk' | 'pastel';
 
-interface ThemeColors {
+export interface ThemeColors {
   primary: string;
   secondary: string;
   accent: string;

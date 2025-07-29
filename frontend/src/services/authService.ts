@@ -1,4 +1,5 @@
 // 认证相关的API服务
+import { API_BASE_URL } from '@/config/api';
 
 export interface LoginRequest {
   identifier: string; // 邮箱或手机号
@@ -26,8 +27,8 @@ export interface LoginResponse {
       nickname: string;
       email: string;
       phone: string;
-      role: 'user' | 'player' | 'admin';
-      avatar?: string;
+      role: string;
+      avatar: string;
     };
   };
 }
@@ -41,8 +42,8 @@ export interface RegisterResponse {
 }
 
 export interface SendVerificationCodeRequest {
-  phone: string;
-  type: 'register' | 'reset_password';
+  contact: string; // 邮箱或手机号
+  type: 'email' | 'sms';
 }
 
 export interface SendVerificationCodeResponse {
@@ -53,23 +54,70 @@ export interface SendVerificationCodeResponse {
 // 登录
 export async function login(request: LoginRequest): Promise<LoginResponse> {
   try {
-    const response = await fetch('/api/auth/login', {
+    // 根据角色选择正确的API端点
+    let endpoint = '';
+    let requestBody: any = {};
+    
+    if (request.role === 'admin') {
+      endpoint = `${API_BASE_URL}/managers/login`;
+      requestBody = {
+        phone_num: request.identifier,
+        passwd: request.password
+      };
+    } else if (request.role === 'player') {
+      endpoint = `${API_BASE_URL}/players/login`;
+      requestBody = {
+        phone_num: request.identifier,
+        passwd: request.password
+      };
+    } else {
+      endpoint = `${API_BASE_URL}/users/login`;
+      requestBody = {
+        phone_num: request.identifier,
+        passwd: request.password
+      };
+    }
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    
+    if (result.success) {
+      return {
+        success: true,
+        message: '登录成功',
+        data: {
+          token: result.token,
+          user: {
+            id: result.user?.id || 'unknown',
+            nickname: result.user?.name || '用户',
+            email: result.user?.email || '',
+            phone: result.user?.phone_num || request.identifier,
+            role: request.role,
+            avatar: result.user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + request.identifier,
+          },
+        },
+      };
+    } else {
+      return {
+        success: false,
+        message: result.error || '登录失败',
+      };
+    }
   } catch (error) {
     console.error('Login API error:', error);
     
-    // 开发环境下的模拟数据
+    // 开发环境下的模拟数据（作为后备）
     if (process.env.NODE_ENV === 'development') {
       // 模拟API延迟
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -110,14 +158,17 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
       }
     }
     
-    throw error;
+    return {
+      success: false,
+      message: '网络错误，请稍后重试',
+    };
   }
 }
 
 // 注册
 export async function register(request: RegisterRequest): Promise<RegisterResponse> {
-  try {
-    const response = await fetch('/api/auth/register', {
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -175,88 +226,36 @@ export async function register(request: RegisterRequest): Promise<RegisterRespon
   }
 }
 
-// 发送验证码
-export async function sendVerificationCode(request: SendVerificationCodeRequest): Promise<SendVerificationCodeResponse> {
-  try {
-    const response = await fetch('/api/auth/send-verification-code', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Send verification code API error:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      // 模拟API延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return {
+// 发送验证码 - 暂时移除，后端未实现
+export async function sendVerificationCode(phoneNumber: string): Promise<{ success: boolean; message: string }> {
+    // 模拟发送验证码
+    return {
         success: true,
-        message: '验证码已发送，请查收短信（开发环境验证码：123456）',
-      };
-    }
-    
-    throw error;
-  }
+        message: '验证码已发送'
+    };
 }
 
-// 登出
-export async function logout(): Promise<void> {
-  try {
-    const response = await fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error('Logout API error:', error);
-    
-    // 开发环境下直接清除本地存储
-    if (process.env.NODE_ENV === 'development') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      return;
-    }
-    
-    throw error;
-  }
+// 登出 - 暂时移除，后端未实现
+export async function logout(): Promise<{ success: boolean; message: string }> {
+    // 清除本地存储的token
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    return {
+        success: true,
+        message: '登出成功'
+    };
 }
 
-// 验证token
-export async function verifyToken(token: string): Promise<boolean> {
-  try {
-    const response = await fetch('/api/auth/verify-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error('Verify token API error:', error);
-    
-    // 开发环境下简单验证token格式
-    if (process.env.NODE_ENV === 'development') {
-      return token.startsWith('mock_jwt_token_');
+// 验证token - 暂时移除，后端未实现
+export async function verifyToken(token: string): Promise<{ success: boolean; user?: any }> {
+    // 简单的token验证逻辑
+    if (token && token.length > 0) {
+        return {
+            success: true,
+            user: { id: 1, name: 'Test User' }
+        };
     }
-    
-    return false;
-  }
+    return {
+        success: false
+    };
 }

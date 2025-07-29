@@ -1,19 +1,19 @@
 // 用户通知相关的API服务
+import { API_BASE_URL } from '@/config/api';
 
 // 用户通知接口定义
 export interface UserNotification {
   id: string;
   title: string;
   message: string;
-  type: 'booking' | 'message' | 'system' | 'promotion';
+  type: 'system' | 'order' | 'message' | 'promotion';
   read: boolean;
   createdAt: string;
-  relatedId?: string; // 相关的订单ID、消息ID等
-  userId: string;
+  actionUrl?: string;
 }
 
 export interface NotificationFilter {
-  type?: 'all' | 'booking' | 'message' | 'system' | 'promotion';
+  type?: 'all' | 'system' | 'order' | 'message' | 'promotion';
   read?: boolean;
   page?: number;
   limit?: number;
@@ -26,88 +26,72 @@ export const getUserNotifications = async (filter: NotificationFilter = {}): Pro
   unreadCount: number;
 }> => {
   try {
-    const params = new URLSearchParams();
-    if (filter.type && filter.type !== 'all') params.append('type', filter.type);
-    if (filter.read !== undefined) params.append('read', filter.read.toString());
-    if (filter.page) params.append('page', filter.page.toString());
-    if (filter.limit) params.append('limit', filter.limit.toString());
-
-    const response = await fetch(`/api/user/notifications?${params.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    // 由于后端没有通知路由，直接使用模拟数据
+    console.log('Using mock notification data as backend API is not available');
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const mockNotifications: UserNotification[] = [
+      {
+        id: '1',
+        title: '新订单通知',
+        message: '您有一个新的陪玩订单，请及时查看',
+        type: 'order',
+        read: false,
+        createdAt: '2024-01-15 14:30:00'
+      },
+      {
+        id: '2',
+        title: '系统维护通知',
+        message: '系统将于今晚22:00-24:00进行维护，请提前做好准备',
+        type: 'system',
+        read: true,
+        createdAt: '2024-01-14 10:00:00'
+      },
+      {
+        id: '3',
+        title: '新消息',
+        message: '用户张三给您发送了一条消息',
+        type: 'message',
+        read: false,
+        createdAt: '2024-01-13 16:45:00'
+      },
+      {
+        id: '4',
+        title: '促销活动',
+        message: '新年特惠活动开始了，快来参与吧！',
+        type: 'promotion',
+        read: true,
+        createdAt: '2024-01-12 09:00:00'
+      },
+      {
+        id: '5',
+        title: '收入到账',
+        message: '您的陪玩收入已到账，金额：￥150.00',
+        type: 'system',
+        read: false,
+        createdAt: '2024-01-11 20:30:00'
       }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch notifications');
+    ];
+    
+    // 根据筛选条件过滤
+    let filteredNotifications = mockNotifications;
+    if (filter.type && filter.type !== 'all') {
+      filteredNotifications = filteredNotifications.filter(n => n.type === filter.type);
     }
-
-    return await response.json();
+    if (filter.read !== undefined) {
+      filteredNotifications = filteredNotifications.filter(n => n.read === filter.read);
+    }
+    
+    const unreadCount = mockNotifications.filter(n => !n.read).length;
+    
+    return {
+      notifications: filteredNotifications,
+      total: filteredNotifications.length,
+      unreadCount
+    };
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const mockNotifications: UserNotification[] = [
-        {
-          id: '1',
-          title: '预约成功',
-          message: '您已成功预约了陪玩服务，陪玩师将在约定时间联系您。',
-          type: 'booking',
-          read: false,
-          createdAt: '2024-01-15 16:30:00',
-          relatedId: 'ORDER001',
-          userId: 'user123'
-        },
-        {
-          id: '2',
-          title: '新消息',
-          message: '您有一条来自陪玩师的新消息，请及时查看。',
-          type: 'message',
-          read: true,
-          createdAt: '2024-01-15 14:20:00',
-          userId: 'user123'
-        },
-        {
-          id: '3',
-          title: '系统维护通知',
-          message: '系统将于今晚23:00-01:00进行维护，期间可能无法正常使用服务。',
-          type: 'system',
-          read: true,
-          createdAt: '2024-01-14 10:00:00',
-          userId: 'user123'
-        },
-        {
-          id: '4',
-          title: '限时优惠',
-          message: '新用户专享8折优惠，快来体验我们的陪玩服务吧！',
-          type: 'promotion',
-          read: false,
-          createdAt: '2024-01-13 09:15:00',
-          userId: 'user123'
-        }
-      ];
-      
-      // 根据筛选条件过滤
-      let filteredNotifications = mockNotifications;
-      if (filter.type && filter.type !== 'all') {
-        filteredNotifications = filteredNotifications.filter(n => n.type === filter.type);
-      }
-      if (filter.read !== undefined) {
-        filteredNotifications = filteredNotifications.filter(n => n.read === filter.read);
-      }
-      
-      const unreadCount = mockNotifications.filter(n => !n.read).length;
-      
-      return {
-        notifications: filteredNotifications,
-        total: filteredNotifications.length,
-        unreadCount
-      };
-    }
-    
     throw error;
   }
 };
@@ -115,25 +99,12 @@ export const getUserNotifications = async (filter: NotificationFilter = {}): Pro
 // 标记通知为已读
 export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/user/notifications/${notificationId}/read`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to mark notification as read');
-    }
+    // 由于后端没有通知路由，模拟标记为已读操作
+    console.log(`Marking notification ${notificationId} as read (mock operation)`);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return;
   } catch (error) {
     console.error('Error marking notification as read:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      return;
-    }
-    
     throw error;
   }
 };
@@ -141,25 +112,12 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
 // 标记所有通知为已读
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   try {
-    const response = await fetch('/api/user/notifications/read-all', {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to mark all notifications as read');
-    }
+    // 由于后端没有通知路由，模拟标记所有为已读操作
+    console.log('Marking all notifications as read (mock operation)');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return;
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return;
-    }
-    
     throw error;
   }
 };
@@ -167,25 +125,12 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
 // 删除通知
 export const deleteUserNotification = async (notificationId: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/user/notifications/${notificationId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete notification');
-    }
+    // 由于后端没有通知路由，模拟删除操作
+    console.log(`Deleting notification ${notificationId} (mock operation)`);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return;
   } catch (error) {
     console.error('Error deleting notification:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return;
-    }
-    
     throw error;
   }
 };
@@ -193,27 +138,12 @@ export const deleteUserNotification = async (notificationId: string): Promise<vo
 // 获取未读通知数量
 export const getUnreadNotificationCount = async (): Promise<number> => {
   try {
-    const response = await fetch('/api/user/notifications/unread-count', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch unread count');
-    }
-
-    const data = await response.json();
-    return data.count;
+    // 由于后端没有通知路由，返回模拟数据
+    console.log('Getting unread notification count (mock data)');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return 3; // 模拟有3条未读通知
   } catch (error) {
-    console.error('Error fetching unread count:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      return 2; // 模拟有2条未读通知
-    }
-    
-    throw error;
+    console.error('Error getting unread notification count:', error);
+    return 0;
   }
 };

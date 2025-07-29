@@ -20,6 +20,8 @@ import { Routes, Route, useNavigate } from "react-router-dom";
   import AdminGiftManagement from "@/pages/AdminGiftManagement";
   import AdminWithdrawalManagement from "@/pages/AdminWithdrawalManagement";
   import AdminNotificationPage from "@/pages/AdminNotificationPage";
+  import ApiMonitor from "@/pages/ApiMonitor";
+import ApiStatus from "@/pages/ApiStatus";
 
 import AdminPermissionManagement from "@/pages/AdminPermissionManagement";
 import BookingDetail from "@/pages/BookingDetail";
@@ -92,6 +94,9 @@ export default function App() {
               <Route path="/admin/permissions" element={<AdminPermissionManagement />} />
               {/* 通知管理 */}
               <Route path="/admin/notifications" element={<AdminNotificationPage />} />
+              {/* API监控 */}
+              <Route path="/admin/api-monitor" element={<ApiMonitor />} />
+          <Route path="/admin/api-status" element={<ApiStatus />} />
 
             
            

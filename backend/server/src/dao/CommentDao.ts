@@ -44,6 +44,13 @@ export class CommentDAO {
         return rows;
     }
 
+    /** 查询所有评论 */
+    static async findAll(): Promise<Comment[]> {
+        const sql = `SELECT * FROM comments ORDER BY created_at DESC`;
+        const [rows]: any = await pool.execute(sql, []);
+        return rows;
+    }
+
     /** 统计评论总数 */
     static async countAll(): Promise<number> {
         const [[{ cnt }]]: any = await pool.execute(`SELECT COUNT(*) as cnt FROM comments`);

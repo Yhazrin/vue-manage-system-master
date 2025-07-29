@@ -154,25 +154,44 @@ export default function GameGrid() {
                 重试
               </button>
             </div>
-          ) : games?.map(game => (
+          ) : games?.map(game => {
+            // 为缺失的字段提供默认值
+            const gameWithDefaults = {
+              ...game,
+              imageUrl: game.imageUrl || '/images/default-game.jpg',
+              category: game.category || '游戏',
+              description: game.description || game.name
+            };
+            
+            return (
           <div 
             key={game.id}
             className="min-w-[140px] bg-theme-surface rounded-xl shadow-sm overflow-hidden border border-theme-border transition-all duration-300 hover:shadow-md hover:-translate-y-1 cursor-pointer flex-shrink-0 snap-start"
             onClick={() => handleGameClick(game.id)}
           >
-            <div className="relative pb-[100%]">
+            <div className="relative pb-[100%] bg-gray-100">
               <img 
-                src={game.imageUrl} 
+                src={gameWithDefaults.imageUrl} 
                 alt={game.name}
                 className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  // 如果图片加载失败，显示默认图片或占位符
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.parentElement!.innerHTML = `
+                    <div class="absolute inset-0 w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
+                      <span class="text-white font-bold text-lg">${game.name.charAt(0)}</span>
+                    </div>
+                  `;
+                }}
               />
             </div>
             <div className="p-3 text-center">
               <h3 className="font-medium text-gray-900 text-sm line-clamp-1">{game.name}</h3>
-              <p className="text-xs text-gray-500 mt-1">{game.category}</p>
+              <p className="text-xs text-gray-500 mt-1">{gameWithDefaults.category}</p>
             </div>
           </div>
-        ))}
+        )})}
       </div>
       
       {/* 右滚动按钮 */}

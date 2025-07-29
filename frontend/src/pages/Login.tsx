@@ -69,17 +69,19 @@ export default function Login() {
           duration: 5000,
         });
         
-        // Redirect to role-specific home page after login
-        switch(activeRole) {
-          case 'admin':
-            navigate('/admin/dashboard');
-            break;
-          case 'player':
-            navigate('/player/dashboard');
-            break;
-          default:
-            navigate('/user/dashboard');
-        }
+        // Redirect to role-specific home page after login with 1 second delay
+        setTimeout(() => {
+          switch(activeRole) {
+            case 'admin':
+              navigate('/admin/dashboard');
+              break;
+            case 'player':
+              navigate('/player/dashboard');
+              break;
+            default:
+              navigate('/user/dashboard');
+          }
+        }, 1000);
       } else {
         setError(response.message || '登录失败，请检查您的账号和密码');
       }

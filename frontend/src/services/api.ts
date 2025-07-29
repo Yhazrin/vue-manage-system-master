@@ -1,7 +1,5 @@
 // API基础配置
-
-// Get API base URL from environment variable or use default
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.example.com/api';
+import { API_BASE_URL } from '@/config/api';
 
 // 请求头配置
 const getHeaders = () => {

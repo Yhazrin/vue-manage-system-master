@@ -1,3 +1,32 @@
+// 提现相关的API服务
+import { API_BASE_URL } from '@/config/api';
+
+// 提现记录接口定义
+export interface WithdrawalRecord {
+  id: string;
+  userId: string;
+  userNickname: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  requestTime: string;
+  processTime?: string;
+  processedBy?: string;
+  reason?: string;
+  bankInfo: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  };
+}
+
+export interface WithdrawalStats {
+  totalPending: number;
+  totalApproved: number;
+  totalRejected: number;
+  totalAmount: number;
+  pendingAmount: number;
+}
+
 // 提现申请接口
 export interface WithdrawalRequest {
   id: string;
@@ -28,10 +57,32 @@ export interface UpdateWithdrawalStatusRequest {
   notes?: string;
 }
 
+// 获取提现申请列表
+export const getWithdrawals = async (): Promise<WithdrawalRecord[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/withdrawals`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch withdrawal requests');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching withdrawal requests:', error);
+    // 开发环境下返回空数组
+    if (process.env.NODE_ENV === 'development') {
+      return [];
+    }
+    throw error;
+  }
+};
+
 // 获取所有提现申请
 export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
   try {
-    const response = await fetch('/api/admin/withdrawals');
+    const response = await fetch(`${API_BASE_URL}/withdrawals`);
     if (!response.ok) {
       throw new Error('Failed to fetch withdrawal requests');
     }
@@ -49,7 +100,11 @@ export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
 // 获取处理记录
 export const getProcessRecords = async (): Promise<ProcessRecord[]> => {
   try {
-    const response = await fetch('/api/admin/withdrawal/records');
+    const response = await fetch(`${API_BASE_URL}/withdrawal/records`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch process records');
     }
@@ -67,7 +122,11 @@ export const getProcessRecords = async (): Promise<ProcessRecord[]> => {
 // 获取特定提现申请的处理记录
 export const getWithdrawalProcessRecords = async (withdrawalId: string): Promise<ProcessRecord[]> => {
   try {
-    const response = await fetch(`/api/admin/withdrawals/${withdrawalId}/records`);
+    const response = await fetch(`${API_BASE_URL}/withdrawals/${withdrawalId}/records`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch withdrawal process records');
     }
@@ -88,10 +147,11 @@ export const updateWithdrawalStatus = async (
   updateData: UpdateWithdrawalStatusRequest
 ): Promise<WithdrawalRequest> => {
   try {
-    const response = await fetch(`/api/admin/withdrawals/${withdrawalId}/status`, {
+    const response = await fetch(`${API_BASE_URL}/withdrawals/${withdrawalId}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
       body: JSON.stringify(updateData),
     });
@@ -125,7 +185,11 @@ export const markWithdrawalAsPaid = async (withdrawalId: string, notes?: string)
 // 获取提现统计信息
 export const getWithdrawalStats = async () => {
   try {
-    const response = await fetch('/api/admin/withdrawals/stats');
+    const response = await fetch(`${API_BASE_URL}/withdrawals/stats`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch withdrawal stats');
     }

@@ -1,6 +1,6 @@
 // API 配置
 export const API_BASE_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:8080/api'
+  ? 'http://localhost:3000/api'
   : '/api';
 
 // API 端点
@@ -9,6 +9,11 @@ export const API_ENDPOINTS = {
   LOGIN: '/auth/login',
   REGISTER: '/auth/register',
   LOGOUT: '/auth/logout',
+  
+  // 实际后端端点
+  USER_LOGIN: '/users/login',
+  PLAYER_LOGIN: '/players/login', 
+  MANAGER_LOGIN: '/managers/login',
   
   // 游戏相关
   GAMES: '/games',

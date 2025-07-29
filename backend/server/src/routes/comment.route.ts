@@ -8,6 +8,24 @@ import { Request, Response, NextFunction } from 'express';
 const router = Router();
 
 /**
+ * @route   GET /api/comments
+ * @desc    获取所有评论
+ * @access  登录用户
+ */
+router.get(
+    '/',
+    auth,
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const comments = await CommentDAO.findAll();
+            res.json({ success: true, comments });
+        } catch (err) {
+            next(err);
+        }
+    }
+);
+
+/**
  * @route   POST /api/comments
  * @desc    创建新评论
  * @access  登录用户

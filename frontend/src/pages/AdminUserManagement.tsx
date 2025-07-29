@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import { useState, useEffect } from "react";  // 补充导入useEffect
 import { toast } from "sonner";
+import { API_BASE_URL } from '@/config/api';
 
 // 定义用户类型接口
 interface User {
@@ -39,7 +40,11 @@ export default function AdminUserManagement() {
       try {
         setLoading(true);
         // 调用真实API获取用户数据
-        const response = await fetch('/api/admin/users');
+        const response = await fetch(`${API_BASE_URL}/users`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch users');
         }
@@ -60,10 +65,14 @@ export default function AdminUserManagement() {
   // Fetch players on component mount
   useEffect(() => {
     const fetchPlayers = async () => {
-      try {
-        setPlayersLoading(true);
-        // 调用真实API获取陪玩数据
-        const response = await fetch('/api/admin/players');
+        try {
+            setPlayersLoading(true);
+            // 调用真实API获取陪玩数据
+            const response = await fetch(`${API_BASE_URL}/players`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
         if (!response.ok) {
           throw new Error('Failed to fetch players');
         }

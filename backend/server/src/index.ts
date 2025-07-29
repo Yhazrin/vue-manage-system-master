@@ -22,6 +22,8 @@ import giftRecordRouter from './routes/giftRecord.route';
 import withdrawalRouter from './routes/withdrawal.route';
 import statisticsRouter from './routes/statistics.route';
 import serviceRouter from './routes/service.route';
+import monitorRouter from './routes/monitor.route';
+import { apiMonitorMiddleware } from './middleware/apiMonitor';
 
 // 检查路由是否正确导入
 const routes = [
@@ -36,6 +38,7 @@ const routes = [
     { name: 'withdrawalRouter', router: withdrawalRouter },
     { name: 'statisticsRouter', router: statisticsRouter },
     { name: 'serviceRouter', router: serviceRouter },
+    { name: 'monitorRouter', router: monitorRouter },
 ];
 
 routes.forEach(({ name, router }) => {
@@ -57,6 +60,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+// API监控中间件（在所有路由之前）
+app.use(apiMonitorMiddleware);
 // 在路由挂载之前
 app.use('/uploads', express.static(path.join(__dirname, '../../../uploads')));
 
@@ -72,6 +77,28 @@ app.use('/api/gift-records', giftRecordRouter);
 app.use('/api/withdrawals', withdrawalRouter);
 app.use('/api/statistics', statisticsRouter);
 app.use('/api/services', serviceRouter);
+app.use('/api/monitor', monitorRouter);
+
+// 根路径欢迎页面
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: '陪玩系统后端API服务',
+        version: '1.0.0',
+        endpoints: {
+            users: '/api/users',
+            players: '/api/players', 
+            managers: '/api/managers',
+            games: '/api/games',
+            orders: '/api/orders',
+            comments: '/api/comments',
+            gifts: '/api/gifts',
+            services: '/api/services',
+            statistics: '/api/statistics',
+            monitor: '/api/monitor'
+        }
+    });
+});
 
 app.get('/api/test', (req, res) => {
     res.send('测试路由');

@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import { useState, useEffect } from "react";  // 补充导入useEffect
 import { format } from 'date-fns';
 import { toast } from "sonner";  // 导入toast（之前使用但未导入）
+import { API_BASE_URL } from '@/config/api';
 
 // 定义订单类型接口
 interface Order {
@@ -73,7 +74,11 @@ export default function AdminOrders() {
         // const data = await response.json();
         
         // 调用真实API获取订单数据
-        const response = await fetch('/api/admin/orders');
+        const response = await fetch(`${API_BASE_URL}/orders`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
         if (!response.ok) {
           throw new Error('Failed to fetch orders');
         }

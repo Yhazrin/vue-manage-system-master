@@ -1,9 +1,11 @@
 import Header from "@/components/Header";
 import GameGrid from "@/components/GameGrid";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Home() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const navigate = useNavigate();
   
   // FAQ数据
   const faqItems = [
@@ -41,10 +43,16 @@ export default function Home() {
                 无论你是想提升游戏技巧，还是寻找组队开黑的伙伴，我们都能满足你的需求。
               </p>
               <div className="flex flex-wrap gap-4">
-                <button className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+                <button 
+                  onClick={() => navigate('/lobby')}
+                  className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                >
                   立即寻找陪玩
                 </button>
-                <button className="px-6 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition-colors">
+                <button 
+                  onClick={() => navigate('/register')}
+                  className="px-6 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition-colors"
+                >
                   成为游戏陪玩
                 </button>
               </div>
@@ -167,10 +175,16 @@ export default function Home() {
             加入我们，找到你的游戏伙伴，一起享受游戏的乐趣
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <button className="px-8 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors">
+            <button 
+              onClick={() => navigate('/register')}
+              className="px-8 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+            >
               立即注册
             </button>
-            <button className="px-8 py-3 bg-white text-purple-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+            <button 
+              onClick={() => navigate('/lobby')}
+              className="px-8 py-3 bg-white text-purple-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+            >
               了解更多
             </button>
           </div>
