@@ -34,6 +34,8 @@ export default function Header() {
             return [
              { label: '主页', path: '/', icon: '🏠' },
              { label: '大厅', path: '/lobby', icon: '🏢' },
+             { label: '我的订单', path: '/user/orders', icon: '📝' },
+             { label: '我的收藏', path: '/user/favorites', icon: '❤️' },
            ];
       case 'player':
          return [

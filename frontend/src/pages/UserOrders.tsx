@@ -57,10 +57,13 @@ export default function UserOrders() {
       
       const data = await getUserOrders(activeFilter);
       setPreviousOrders(orders);
-      setOrders(data);
+      
+      // 确保data是数组，如果不是则设为空数组
+      const ordersArray = Array.isArray(data) ? data : [];
+      setOrders(ordersArray);
 
       // 比较新旧订单状态，并发送通知
-      data.forEach(newOrder => {
+      ordersArray.forEach(newOrder => {
         const oldOrder = previousOrders.find(o => o.id === newOrder.id);
         if (oldOrder && oldOrder.status !== newOrder.status) {
           toast.info(`订单 #${newOrder.id} 状态更新`, {
@@ -74,10 +77,8 @@ export default function UserOrders() {
       setError(errorMessage);
       console.error('Error loading orders:', err);
       
-      // 在开发环境下提供空数组
-      if (process.env.NODE_ENV === 'development') {
-        setOrders([]);
-      }
+      // 设置空数组避免forEach错误
+      setOrders([]);
     } finally {
       setLoading(false);
     }

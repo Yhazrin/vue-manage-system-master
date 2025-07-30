@@ -273,30 +273,7 @@ export default function UserProfile() {
               </div>
             )}
             
-            {/* 快捷操作 */}
-            {!isEditing && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link to="/user/orders" className="p-4 border border-gray-100 rounded-lg hover:border-purple-200 hover:bg-purple-50 transition-colors cursor-pointer block">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-1">我的订单</h3>
-                      <p className="text-sm text-gray-500">查看和管理您的所有订单</p>
-                    </div>
-                    <i className="fa-solid fa-arrow-right text-gray-400"></i>
-                  </div>
-                </Link>
-                
-                <Link to="/user/favorites" className="p-4 border border-gray-100 rounded-lg hover:border-purple-200 hover:bg-purple-50 transition-colors cursor-pointer block">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-1">收藏的陪玩</h3>
-                      <p className="text-sm text-gray-500">管理您收藏的陪玩</p>
-                    </div>
-                    <i className="fa-solid fa-arrow-right text-gray-400"></i>
-                  </div>
-                </Link>
-              </div>
-            )}
+
           </div>
         </div>
       </main>

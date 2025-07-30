@@ -25,13 +25,15 @@ export interface Order {
 // 获取用户订单列表
 export const getUserOrders = async (status?: string): Promise<Order[]> => {
   const params = status && status !== 'all' ? `?status=${status}` : '';
-  return get<Order[]>(`/orders/user${params}`);
+  const response = await get<{ success: boolean; orders: Order[] }>(`/orders/user${params}`);
+  return response.orders || [];
 };
 
 // 获取陪玩订单列表
 export const getPlayerOrders = async (status?: string): Promise<Order[]> => {
   const params = status && status !== 'all' ? `?status=${status}` : '';
-  return get<Order[]>(`/orders/player${params}`);
+  const response = await get<{ success: boolean; orders: Order[] }>(`/orders/player${params}`);
+  return response.orders || [];
 };
 
 // 获取订单详情
