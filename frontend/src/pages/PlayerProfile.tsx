@@ -391,7 +391,11 @@ export default function PlayerProfile() {
                     <div>
                       <p className="text-xs text-gray-500 mb-1">基础小时单价</p>
                       <div className="flex items-center gap-2">
-                        <p className="text-sm text-gray-900">¥{profile.hourlyRate || '未设置'}/小时</p>
+                        <p className="text-sm text-gray-900">
+                          {profile.hourlyRate && profile.hourlyRate > 0 
+                            ? `¥${profile.hourlyRate.toFixed(2)}/小时` 
+                            : '未设置'}
+                        </p>
                         <button
                           onClick={() => navigate('/player/services')}
                           className="text-xs text-purple-600 hover:text-purple-700 underline"

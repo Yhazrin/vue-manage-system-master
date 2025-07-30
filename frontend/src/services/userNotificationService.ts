@@ -27,8 +27,6 @@ export const getUserNotifications = async (filter: NotificationFilter = {}): Pro
 }> => {
   try {
     // 由于后端没有通知路由，直接使用模拟数据
-    console.log('Using mock notification data as backend API is not available');
-    
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const mockNotifications: UserNotification[] = [

@@ -42,8 +42,22 @@ class ServiceDAO {
             // 总数
             const [[{ cnt }]] = yield db_1.pool.execute(`SELECT COUNT(*) as cnt FROM services`);
             // 数据
-            const [rows] = yield db_1.pool.execute(`SELECT * FROM services ORDER BY created_at DESC LIMIT ?, ?`, [offset, pageSize]);
+            const [rows] = yield db_1.pool.execute(`SELECT * FROM services ORDER BY created_at DESC LIMIT ${offset}, ${pageSize}`);
             return { total: cnt, services: rows };
+        });
+    }
+    /** 根据陪玩ID查询服务列表 */
+    static findByPlayerId(playerId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const sql = `
+            SELECT s.*, g.name as game_name 
+            FROM services s 
+            LEFT JOIN games g ON s.game_id = g.id 
+            WHERE s.player_id = ? 
+            ORDER BY s.created_at DESC
+        `;
+            const [rows] = yield db_1.pool.execute(sql, [playerId]);
+            return rows;
         });
     }
     /** 更新服务 */

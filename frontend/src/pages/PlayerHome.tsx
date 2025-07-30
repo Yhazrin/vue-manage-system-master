@@ -61,12 +61,27 @@ export default function PlayerHome() {
       setLoading(true);
       setError(null);
       
+      // 从token中获取用户ID
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('请先登录');
+        return;
+      }
+      
+      let userId = '1'; // 默认值
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload.id.toString();
+      } catch (e) {
+        console.error('Failed to parse token:', e);
+      }
+      
       // 获取玩家统计数据
-      const statsResponse = await fetch(`${API_BASE_URL}/statistics/player/${localStorage.getItem('userId') || '1'}`, {
+      const statsResponse = await fetch(`${API_BASE_URL}/statistics/player/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -85,7 +100,7 @@ export default function PlayerHome() {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       

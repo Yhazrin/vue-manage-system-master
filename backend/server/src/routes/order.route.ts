@@ -1,19 +1,49 @@
 // backend/server/src/routes/order.route.ts
 import { Router } from 'express';
 import { OrderDAO } from '../dao/OrderDao';
+import { auth, AuthRequest } from '../middleware/auth';
+import { Response, NextFunction } from 'express';
 
 const router = Router();
 
 /**
  * @route   POST /api/orders
  * @desc    创建新订单
- * @body    { order_id, user_id, player_id, game_id, status }
+ * @body    { player_id, service_id, hours, amount, description }
  */
-router.post('/', async (req, res, next) => {
+router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const { order_id, user_id, player_id, game_id, service_id } = req.body;
-        const id = await OrderDAO.create({ order_id, user_id, player_id, game_id, service_id });
-        res.status(201).json({ success: true, order_id: id });
+        console.log('收到创建订单请求:', req.body);
+        const { player_id, service_id, hours, amount, description } = req.body;
+        const user_id = req.user?.id;
+        
+        if (!user_id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
+        
+        if (req.user?.role !== 'user') {
+            return res.status(403).json({ success: false, error: '只有普通用户可以创建订单' });
+        }
+        
+        // 生成唯一订单ID (限制在20字符内)
+        const timestamp = Date.now().toString().slice(-8); // 取时间戳后8位
+        const random = Math.random().toString(36).substr(2, 6); // 6位随机字符
+        const order_id = `ORD${timestamp}${random}`; // ORD + 8位时间戳 + 6位随机 = 17字符
+        
+        console.log('生成的订单ID:', order_id);
+        console.log('订单ID长度:', order_id.length);
+        
+        // 创建订单
+        const orderId = await OrderDAO.create({
+            order_id,
+            user_id,
+            player_id,
+            service_id,
+            amount,
+            status: '进行中'
+        });
+        
+        res.status(201).json({ success: true, order_id: orderId, message: '订单创建成功' });
     } catch (err) {
         next(err);
     }
@@ -24,59 +54,22 @@ router.post('/', async (req, res, next) => {
  * @desc    获取陪玩的订单列表
  * @query   status?
  */
-router.get('/player', async (req, res, next) => {
+router.get('/player', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 这里应该从JWT token中获取player_id，暂时使用模拟数据
+        const player_id = req.user?.id;
         const status = req.query.status as string | undefined;
         
-        // 模拟陪玩订单数据
-        const mockOrders = [
-            {
-                id: 'order_001',
-                gameType: '王者荣耀',
-                price: 50.00,
-                orderTime: '2024-01-15 14:30:00',
-                status: 'pending',
-                serviceTime: '2小时',
-                description: '需要上分到王者段位',
-                user: {
-                    id: 'user_001',
-                    nickname: '游戏爱好者',
-                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user001'
-                },
-                player: {
-                    id: 'player_001',
-                    nickname: '王者小姐姐',
-                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=player001'
-                }
-            },
-            {
-                id: 'order_002',
-                gameType: '英雄联盟',
-                price: 80.00,
-                orderTime: '2024-01-15 16:00:00',
-                status: 'in_progress',
-                serviceTime: '3小时',
-                description: '陪玩排位赛',
-                user: {
-                    id: 'user_002',
-                    nickname: 'LOL玩家',
-                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user002'
-                },
-                player: {
-                    id: 'player_001',
-                    nickname: '王者小姐姐',
-                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=player001'
-                }
-            }
-        ];
+        if (!player_id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
         
-        // 根据状态筛选
-        const filteredOrders = status && status !== 'all' 
-            ? mockOrders.filter(order => order.status === status)
-            : mockOrders;
-            
-        res.json(filteredOrders);
+        if (req.user?.role !== 'player') {
+            return res.status(403).json({ success: false, error: '只有陪玩可以查看订单' });
+        }
+        
+        // 获取陪玩的订单列表
+        const orders = await OrderDAO.findByPlayerId(player_id, status as any);
+        res.json({ success: true, orders });
     } catch (err) {
         next(err);
     }
@@ -87,40 +80,22 @@ router.get('/player', async (req, res, next) => {
  * @desc    获取用户的订单列表
  * @query   status?
  */
-router.get('/user', async (req, res, next) => {
+router.get('/user', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 这里应该从JWT token中获取user_id，暂时使用模拟数据
+        const user_id = req.user?.id;
         const status = req.query.status as string | undefined;
         
-        // 模拟用户订单数据
-        const mockOrders = [
-            {
-                id: 'order_003',
-                gameType: '王者荣耀',
-                price: 50.00,
-                orderTime: '2024-01-15 14:30:00',
-                status: 'completed',
-                serviceTime: '2小时',
-                description: '需要上分到王者段位',
-                user: {
-                    id: 'user_001',
-                    nickname: '游戏爱好者',
-                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user001'
-                },
-                player: {
-                    id: 'player_001',
-                    nickname: '王者小姐姐',
-                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=player001'
-                }
-            }
-        ];
+        if (!user_id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
         
-        // 根据状态筛选
-        const filteredOrders = status && status !== 'all' 
-            ? mockOrders.filter(order => order.status === status)
-            : mockOrders;
-            
-        res.json(filteredOrders);
+        if (req.user?.role !== 'user') {
+            return res.status(403).json({ success: false, error: '只有普通用户可以查看订单' });
+        }
+        
+        // 获取用户的订单列表
+        const orders = await OrderDAO.findByUserId(user_id, status as any);
+        res.json({ success: true, orders });
     } catch (err) {
         next(err);
     }

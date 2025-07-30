@@ -44,12 +44,12 @@ router.post('/register', [
             return res.status(400).json({ success: false, errors: errors.array() });
         }
         // 从请求体中获取注册信息
-        const { name, passwd, phone_num } = req.body;
+        const { name, passwd, phone_num, role = 'user' } = req.body;
         const photo_img = req.file ? req.file.path : null; // 获取上传的头像路径（如果有上传）
         // 使用 bcrypt 加密密码（10 是盐值 rounds，值越大加密越慢但越安全）
         const hash = yield bcrypt_1.default.hash(passwd, 10);
         // 调用 UserDAO 写入数据库，返回新用户 ID 和 用户名
-        const id = yield UserDao_1.UserDAO.create(name, hash, phone_num, photo_img);
+        const id = yield UserDao_1.UserDAO.create(name, hash, phone_num, photo_img, role);
         const newUser = yield UserDao_1.UserDAO.findById(id);
         // 响应 201（创建成功），返回成功信息、用户 ID 和用户名
         res.status(201).json({ success: true, id, name: newUser === null || newUser === void 0 ? void 0 : newUser.name });

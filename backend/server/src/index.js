@@ -25,6 +25,7 @@ const withdrawal_route_1 = __importDefault(require("./routes/withdrawal.route"))
 const statistics_route_1 = __importDefault(require("./routes/statistics.route"));
 const service_route_1 = __importDefault(require("./routes/service.route"));
 const monitor_route_1 = __importDefault(require("./routes/monitor.route"));
+const favorite_route_1 = __importDefault(require("./routes/favorite.route"));
 const apiMonitor_1 = require("./middleware/apiMonitor");
 // 检查路由是否正确导入
 const routes = [
@@ -40,6 +41,7 @@ const routes = [
     { name: 'statisticsRouter', router: statistics_route_1.default },
     { name: 'serviceRouter', router: service_route_1.default },
     { name: 'monitorRouter', router: monitor_route_1.default },
+    { name: 'favoriteRouter', router: favorite_route_1.default },
 ];
 routes.forEach(({ name, router }) => {
     if (!router) {
@@ -77,6 +79,7 @@ app.use('/api/withdrawals', withdrawal_route_1.default);
 app.use('/api/statistics', statistics_route_1.default);
 app.use('/api/services', service_route_1.default);
 app.use('/api/monitor', monitor_route_1.default);
+app.use('/api/favorites', favorite_route_1.default);
 // 根路径欢迎页面
 app.get('/', (req, res) => {
     res.json({
@@ -93,7 +96,8 @@ app.get('/', (req, res) => {
             gifts: '/api/gifts',
             services: '/api/services',
             statistics: '/api/statistics',
-            monitor: '/api/monitor'
+            monitor: '/api/monitor',
+            favorites: '/api/favorites'
         }
     });
 });

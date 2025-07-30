@@ -43,7 +43,7 @@ role) => {
             }
             // 签发对应角色的token
             const token = (0, auth_1.signToken)(user.id, user.phone_num, role, user.authority);
-            res.json({ success: true, token, manager: user });
+            res.json({ success: true, token, user: user });
         }
         catch (err) {
             next(err);

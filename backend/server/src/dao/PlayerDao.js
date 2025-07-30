@@ -102,6 +102,21 @@ class PlayerDAO {
             const fields = Object.keys(data);
             if (!fields.length)
                 return;
+            // 如果包含game_id，需要验证其是否存在
+            if (data.game_id !== undefined) {
+                if (data.game_id === null || data.game_id === 0) {
+                    // 允许设置为null
+                    data.game_id = null;
+                }
+                else {
+                    // 验证game_id是否存在
+                    const gameCheckSql = `SELECT id FROM games WHERE id = ?`;
+                    const [gameRows] = yield db_1.pool.execute(gameCheckSql, [data.game_id]);
+                    if (!gameRows.length) {
+                        throw new Error(`游戏ID ${data.game_id} 不存在`);
+                    }
+                }
+            }
             const sets = fields.map(key => `${key} = ?`).join(', ');
             const params = fields.map(key => data[key]);
             params.push(id);

@@ -19,26 +19,53 @@ export class OrderDAO {
         order_id: string;
         user_id: number;
         player_id: number;
-        game_id: number;
-        service_id: number;
+        service_id?: number;
+        amount?: number;
+        status?: string;
     }) {
-        // 1) 先查 price, hours
-        const [[svc]]: any = await pool.execute(
-            `SELECT price, hours FROM services WHERE id = ?`,
-            [order.service_id]
-        );
-        const amount = svc.price * svc.hours;
+        let amount = order.amount || 0;
+        let game_id = null;
+        let service_id = order.service_id;
+        
+        // 如果提供了service_id，从服务表获取价格和游戏信息
+        if (order.service_id) {
+            const [[svc]]: any = await pool.execute(
+                `SELECT price, hours, game_id FROM services WHERE id = ?`,
+                [order.service_id]
+            );
+            if (svc) {
+                amount = order.amount || (svc.price * svc.hours);
+                game_id = svc.game_id;
+            }
+        }
+        
+        // 如果没有service_id，需要设置默认值
+        if (!service_id || !game_id) {
+            // 获取第一个可用的游戏和服务作为默认值
+            const [[defaultGame]]: any = await pool.execute(
+                `SELECT id FROM games LIMIT 1`
+            );
+            const [[defaultService]]: any = await pool.execute(
+                `SELECT id FROM services WHERE player_id = ? LIMIT 1`,
+                [order.player_id]
+            );
+            
+            game_id = game_id || (defaultGame ? defaultGame.id : 1);
+            service_id = service_id || (defaultService ? defaultService.id : 1);
+        }
+        
         const sql = `
-      INSERT INTO orders (order_id, user_id, player_id, game_id, service_id, amount)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
+            INSERT INTO orders (order_id, user_id, player_id, game_id, service_id, amount, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
         await pool.execute(sql, [
             order.order_id,
             order.user_id,
             order.player_id,
-            order.game_id,
-            order.service_id,
-            amount
+            game_id,
+            service_id,
+            amount,
+            order.status || '进行中'
         ]);
         return order.order_id;
     }
@@ -98,6 +125,64 @@ export class OrderDAO {
     static async deleteById(id: string): Promise<void> {
         const sql = `DELETE FROM orders WHERE order_id = ?`;
         await pool.execute(sql, [id]);
+    }
+
+    /** 根据用户ID查询订单列表 */
+    static async findByUserId(
+        userId: number,
+        status?: Order['status']
+    ): Promise<Order[]> {
+        let whereClause = 'WHERE user_id = ?';
+        const params: any[] = [userId];
+        
+        if (status) {
+            whereClause += ' AND status = ?';
+            params.push(status);
+        }
+        
+        const sql = `
+            SELECT o.*, p.name as player_name, p.photo_img as player_avatar,
+                   u.name as user_name, u.photo_img as user_avatar,
+                   g.name as game_name, s.price, s.hours
+            FROM orders o
+            LEFT JOIN players p ON o.player_id = p.id
+            LEFT JOIN users u ON o.user_id = u.id
+            LEFT JOIN games g ON o.game_id = g.id
+            LEFT JOIN services s ON o.service_id = s.id
+            ${whereClause}
+            ORDER BY o.created_at DESC
+        `;
+        const [rows]: any = await pool.execute(sql, params);
+        return rows;
+    }
+
+    /** 根据陪玩ID查询订单列表 */
+    static async findByPlayerId(
+        playerId: number,
+        status?: Order['status']
+    ): Promise<Order[]> {
+        let whereClause = 'WHERE player_id = ?';
+        const params: any[] = [playerId];
+        
+        if (status) {
+            whereClause += ' AND status = ?';
+            params.push(status);
+        }
+        
+        const sql = `
+            SELECT o.*, p.name as player_name, p.photo_img as player_avatar,
+                   u.name as user_name, u.photo_img as user_avatar,
+                   g.name as game_name, s.price, s.hours
+            FROM orders o
+            LEFT JOIN players p ON o.player_id = p.id
+            LEFT JOIN users u ON o.user_id = u.id
+            LEFT JOIN games g ON o.game_id = g.id
+            LEFT JOIN services s ON o.service_id = s.id
+            ${whereClause}
+            ORDER BY o.created_at DESC
+        `;
+        const [rows]: any = await pool.execute(sql, params);
+        return rows;
     }
 
     /** 统计订单总数 */

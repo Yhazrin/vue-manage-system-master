@@ -18,6 +18,21 @@ export interface PlayerProfileData {
   totalOrders?: number;
   rating?: number;
   reviews?: number;
+  
+  // 服务相关字段
+  services?: Service[];
+  hourlyRate?: number; // 基础小时单价（从services中计算得出）
+}
+
+// 服务接口定义
+export interface Service {
+  id: number;
+  player_id: number;
+  game_id: number;
+  price: number;
+  hours: number;
+  created_at: string;
+  game_name?: string;
 }
 
 // 更新陪玩个人资料请求接口
@@ -40,6 +55,7 @@ export async function getPlayerProfile(): Promise<PlayerProfileData> {
     const payload = JSON.parse(atob(token.split('.')[1]));
     const playerId = payload.id;
 
+    // 获取陪玩基本信息
     const response = await fetch(`${API_BASE_URL}/players/${playerId}`, {
       method: 'GET',
       headers: {
@@ -55,6 +71,36 @@ export async function getPlayerProfile(): Promise<PlayerProfileData> {
 
     const result = await response.json();
     const player = result.player;
+
+    // 获取陪玩的服务信息
+    try {
+      const servicesResponse = await fetch(`${API_BASE_URL}/services/player/${playerId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (servicesResponse.ok) {
+        const servicesResult = await servicesResponse.json();
+        player.services = servicesResult.services || [];
+        
+        // 计算基础小时单价（取最低的每小时价格）
+        if (player.services.length > 0) {
+          const hourlyRates = player.services.map((service: Service) => service.price / service.hours);
+          player.hourlyRate = Math.min(...hourlyRates);
+        } else {
+          player.hourlyRate = 0;
+        }
+      } else {
+        player.services = [];
+        player.hourlyRate = 0;
+      }
+    } catch (servicesError) {
+      console.warn('获取服务信息失败:', servicesError);
+      player.services = [];
+      player.hourlyRate = 0;
+    }
 
     // 处理头像URL
     if (player.photo_img && !player.photo_img.startsWith('http')) {
