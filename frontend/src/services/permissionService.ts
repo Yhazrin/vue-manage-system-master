@@ -39,45 +39,45 @@ export interface UpdateAdminRequest {
 
 // 获取管理员列表
 export const getAdmins = async (): Promise<Admin[]> => {
-  return await get('/api/admin/admins');
+  return await get('/admin/admins');
 };
 
 // 创建管理员
 export const createAdmin = async (admin: CreateAdminRequest): Promise<Admin> => {
-  return await post('/api/admin/admins', admin);
+  return await post('/admin/admins', admin);
 };
 
 // 更新管理员
 export const updateAdmin = async (id: string, admin: UpdateAdminRequest): Promise<Admin> => {
-  return await put(`/api/admin/admins/${id}`, admin);
+  return await put(`/admin/admins/${id}`, admin);
 };
 
 // 删除管理员
 export const deleteAdmin = async (id: string): Promise<void> => {
-  return await del(`/api/admin/admins/${id}`);
+  return await del(`/admin/admins/${id}`);
 };
 
 // 切换管理员状态
 export const toggleAdminStatus = async (id: string): Promise<Admin> => {
-  return await put(`/api/admin/admins/${id}/toggle-status`, {});
+  return await put(`/admin/admins/${id}/toggle-status`, {});
 };
 
 // 获取操作日志
 export const getOperationLogs = async (): Promise<OperationLog[]> => {
-  return await get('/api/admin/operation-logs');
+  return await get('/admin/operation-logs');
 };
 
 // 根据管理员ID获取操作日志
 export const getOperationLogsByAdminId = async (adminId: string): Promise<OperationLog[]> => {
-  return await get(`/api/admin/operation-logs/admin/${adminId}`);
+  return await get(`/admin/operation-logs/admin/${adminId}`);
 };
 
 // 根据模块获取操作日志
 export const getOperationLogsByModule = async (module: string): Promise<OperationLog[]> => {
-  return await get(`/api/admin/operation-logs/module/${module}`);
+  return await get(`/admin/operation-logs/module/${module}`);
 };
 
 // 根据日期范围获取操作日志
 export const getOperationLogsByDateRange = async (startDate: string, endDate: string): Promise<OperationLog[]> => {
-  return await get(`/api/admin/operation-logs/date-range?start=${startDate}&end=${endDate}`);
+  return await get(`/admin/operation-logs/date-range?start=${startDate}&end=${endDate}`);
 };

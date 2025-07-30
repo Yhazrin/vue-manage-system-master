@@ -23,6 +23,7 @@ import withdrawalRouter from './routes/withdrawal.route';
 import statisticsRouter from './routes/statistics.route';
 import serviceRouter from './routes/service.route';
 import monitorRouter from './routes/monitor.route';
+import favoriteRouter from './routes/favorite.route';
 import { apiMonitorMiddleware } from './middleware/apiMonitor';
 
 // 检查路由是否正确导入
@@ -39,6 +40,7 @@ const routes = [
     { name: 'statisticsRouter', router: statisticsRouter },
     { name: 'serviceRouter', router: serviceRouter },
     { name: 'monitorRouter', router: monitorRouter },
+    { name: 'favoriteRouter', router: favoriteRouter },
 ];
 
 routes.forEach(({ name, router }) => {
@@ -78,6 +80,7 @@ app.use('/api/withdrawals', withdrawalRouter);
 app.use('/api/statistics', statisticsRouter);
 app.use('/api/services', serviceRouter);
 app.use('/api/monitor', monitorRouter);
+app.use('/api/favorites', favoriteRouter);
 
 // 根路径欢迎页面
 app.get('/', (req, res) => {
@@ -95,7 +98,8 @@ app.get('/', (req, res) => {
             gifts: '/api/gifts',
             services: '/api/services',
             statistics: '/api/statistics',
-            monitor: '/api/monitor'
+            monitor: '/api/monitor',
+            favorites: '/api/favorites'
         }
     });
 });

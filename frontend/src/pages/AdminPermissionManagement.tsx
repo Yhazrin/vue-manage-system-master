@@ -91,16 +91,15 @@ export default function AdminPermissionManagement() {
       setError(null);
       
       const data = await getAdmins();
-      setAdmins(data);
+      // 确保data是数组，如果不是则使用空数组
+      setAdmins(Array.isArray(data) ? data : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '获取管理员列表失败';
       setError(errorMessage);
       console.error('Failed to fetch admins:', err);
       
-      // 在开发环境下提供空数组
-      if (process.env.NODE_ENV === 'development') {
-        setAdmins([]);
-      }
+      // 确保在错误情况下设置空数组
+      setAdmins([]);
     } finally {
       setLoading(false);
     }
@@ -112,16 +111,15 @@ export default function AdminPermissionManagement() {
       setLogsError(null);
       
       const data = await getOperationLogs();
-      setOperationLogs(data);
+      // 确保data是数组，如果不是则使用空数组
+      setOperationLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '获取操作日志失败';
       setLogsError(errorMessage);
       console.error('Failed to fetch operation logs:', err);
       
-      // 在开发环境下提供空数组
-      if (process.env.NODE_ENV === 'development') {
-        setOperationLogs([]);
-      }
+      // 确保在错误情况下设置空数组
+      setOperationLogs([]);
     } finally {
       setLogsLoading(false);
     }

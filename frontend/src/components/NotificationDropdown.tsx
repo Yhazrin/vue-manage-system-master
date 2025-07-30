@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '@/hooks/useApi';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 import {
   getUserNotifications,
   markAllNotificationsAsRead,
@@ -101,15 +102,18 @@ export default function NotificationDropdown() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
+  // 使用全局通知状态管理
+  const { 
+    isNotificationDisplayed, 
+    addDisplayedNotifications 
+  } = useNotificationContext();
+  
   // 使用useApi hook来管理API调用状态
   const { loading, error, execute: fetchNotifications } = useApi<{
     notifications: UserNotification[];
     total: number;
     unreadCount: number;
   }>();
-  
-  // 使用Set来跟踪已显示的通知ID，防止重复
-  const [displayedNotificationIds, setDisplayedNotificationIds] = useState<Set<string>>(() => new Set());
   
   // Fetch notifications on component mount
   useEffect(() => {
@@ -140,7 +144,7 @@ export default function NotificationDropdown() {
     
     // 筛选出尚未显示的新通知
     const newNotifications = notifications.filter(
-      (n) => !n.read && !displayedNotificationIds.has(n.id)
+      (n) => !n.read && !isNotificationDisplayed(n.id)
     );
 
     if (newNotifications.length > 0) {
@@ -154,13 +158,10 @@ export default function NotificationDropdown() {
       });
 
       // 更新已显示通知ID集合
-      setDisplayedNotificationIds((prev) => {
-        const newSet = new Set(prev);
-        newNotifications.forEach(n => newSet.add(n.id));
-        return newSet;
-      });
+      const newNotificationIds = newNotifications.map(n => n.id);
+      addDisplayedNotifications(newNotificationIds);
     }
-  }, [notifications, displayedNotificationIds]);
+  }, [notifications, isNotificationDisplayed, addDisplayedNotifications]);
   
   // 标记所有为已读
   const markAllAsRead = async () => {

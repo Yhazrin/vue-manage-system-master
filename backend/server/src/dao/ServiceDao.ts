@@ -40,16 +40,28 @@ export class ServiceDAO {
         const [[{ cnt }]]: any = await pool.execute(`SELECT COUNT(*) as cnt FROM services`);
         // 数据
         const [rows]: any = await pool.execute(
-            `SELECT * FROM services ORDER BY created_at DESC LIMIT ?, ?`,
-            [offset, pageSize]
+            `SELECT * FROM services ORDER BY created_at DESC LIMIT ${offset}, ${pageSize}`
         );
         return { total: cnt, services: rows };
+    }
+
+    /** 根据陪玩ID查询服务列表 */
+    static async findByPlayerId(playerId: number): Promise<Service[]> {
+        const sql = `
+            SELECT s.*, g.name as game_name 
+            FROM services s 
+            LEFT JOIN games g ON s.game_id = g.id 
+            WHERE s.player_id = ? 
+            ORDER BY s.created_at DESC
+        `;
+        const [rows]: any = await pool.execute(sql, [playerId]);
+        return rows;
     }
 
     /** 更新服务 */
     static async updateById(
         id: number,
-        data: Partial<Pick<Service, 'price' | 'hours'>>
+        data: Partial<Pick<Service, 'game_id' | 'price' | 'hours'>>
     ): Promise<void> {
         const keys = Object.keys(data);
         if (!keys.length) return;

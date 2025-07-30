@@ -3,22 +3,26 @@ import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useContext } from 'react';
-import { AuthContext } from '@/contexts/authContext';
 import { cn } from '@/lib/utils';
-import { register as registerUser, sendVerificationCode, RegisterRequest } from '@/services/authService';
+import { register as registerService, RegisterRequest } from '@/services/authService';
 import { toast } from 'sonner';
 
-// Register form schema
+// Register form schema - 匹配后端API要求
 const registerSchema = z.object({
-  email: z.string().email({ message: '请输入有效的邮箱地址' }),
-  phone: z.string().regex(/^1[3-9]\d{9}$/, { message: '请输入有效的手机号' }),
-  verifyCode: z.string().length(6, { message: '验证码必须是6位数字' }),
-  password: z.string().min(6, { message: '密码至少6个字符' }),
+  name: z.string()
+    .min(2, '用户名至少2个字符')
+    .max(50, '用户名不能超过50个字符')
+    .regex(/^[a-zA-Z0-9\u4e00-\u9fa5_]+$/, '用户名只能包含字母、数字、中文和下划线'),
+  phone_num: z.string()
+    .regex(/^1[3-9]\d{9}$/, '请输入正确的手机号'),
+  passwd: z.string()
+    .min(6, '密码至少6个字符')
+    .regex(/^(?=.*[a-zA-Z])(?=.*\d)/, '密码必须包含字母和数字'),
   confirmPassword: z.string(),
-  nickname: z.string().min(2, { message: '昵称至少2个字符' }),
-  role: z.enum(['user', 'player'], { required_error: '请选择角色' }),
-}).refine(data => data.password === data.confirmPassword, {
+  role: z.enum(['user', 'player'], {
+    required_error: '请选择角色',
+  }),
+}).refine((data) => data.passwd === data.confirmPassword, {
   message: '两次输入的密码不一致',
   path: ['confirmPassword'],
 });
@@ -27,17 +31,12 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [codeButtonText, setCodeButtonText] = useState('获取验证码');
-  const [codeButtonDisabled, setCodeButtonDisabled] = useState(false);
-  const { setIsAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const {
     register,
     handleSubmit,
-  watch,
-  formState: { errors },
+    formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -45,78 +44,27 @@ export default function Register() {
     }
   });
 
-  const phone = watch('phone', '');
-
-  const getVerifyCode = async () => {
-    if (!phone) {
-      setError('请先输入手机号');
-      return;
-    }
-    
+  const onSubmit = async (data: z.infer<typeof registerSchema>) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setError('');
-      
-      const response = await sendVerificationCode({
-        phone,
-        type: 'register'
-      });
-      
-      if (response.success) {
-        toast.success(response.message);
-        
-        // Start countdown
-        let countdown = 60;
-        setCodeButtonDisabled(true);
-        
-        const timer = setInterval(() => {
-          countdown--;
-          setCodeButtonText(`${countdown}秒后重新获取`);
-          
-          if (countdown <= 0) {
-            clearInterval(timer);
-            setCodeButtonText('获取验证码');
-            setCodeButtonDisabled(false);
-          }
-        }, 1000);
-      } else {
-        setError(response.message || '获取验证码失败，请稍后重试');
-      }
-    } catch (err) {
-      console.error('Send verification code error:', err);
-      setError('获取验证码失败，请检查网络连接或稍后重试');
-      setCodeButtonDisabled(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSubmit = async (data: RegisterFormData) => {
-    try {
-      setIsLoading(true);
-      setError('');
-      
       const registerRequest: RegisterRequest = {
-        email: data.email,
-        phone: data.phone,
-        password: data.password,
-        confirmPassword: data.confirmPassword,
-        nickname: data.nickname,
+        name: data.name,
+        phone_num: data.phone_num,
+        passwd: data.passwd,
         role: data.role,
-        verificationCode: data.verifyCode,
       };
+
+      const result = await registerService(registerRequest);
       
-      const response = await registerUser(registerRequest);
-      
-      if (response.success) {
-        toast.success('注册成功！请登录您的账号');
+      if (result.success) {
+        toast.success('注册成功！');
         navigate('/login');
       } else {
-        setError(response.message || '注册失败，请稍后重试');
+        toast.error(result.message || '注册失败');
       }
-    } catch (err) {
-      console.error('Register error:', err);
-      setError('注册失败，请检查网络连接或稍后重试');
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error.message || '注册失败，请稍后重试');
     } finally {
       setIsLoading(false);
     }
@@ -135,28 +83,22 @@ export default function Register() {
         </div>
         
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
-              {error}
-            </div>
-          )}
-          
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                邮箱地址
+                用户名
               </label>
               <input
-                type="email"
-                {...register('email')}
+                type="text"
+                {...register('name')}
                 className={cn(
                   "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.email ? "border-red-300" : "border-gray-300"
+                  errors.name ? "border-red-300" : "border-gray-300"
                 )}
-                placeholder="请输入邮箱地址"
+                placeholder="请输入用户名"
               />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
               )}
             </div>
             
@@ -166,64 +108,16 @@ export default function Register() {
               </label>
               <input
                 type="tel"
-                {...register('phone')}
+                {...register('phone_num')}
                 className={cn(
                   "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.phone ? "border-red-300" : "border-gray-300"
+                  errors.phone_num ? "border-red-300" : "border-gray-300"
                 )}
                 placeholder="请输入手机号"
               />
-              {errors.phone && (
-                <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+              {errors.phone_num && (
+                <p className="mt-1 text-sm text-red-600">{errors.phone_num.message}</p>
               )}
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                昵称
-              </label>
-              <input
-                type="text"
-                {...register('nickname')}
-                className={cn(
-                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.nickname ? "border-red-300" : "border-gray-300"
-                )}
-                placeholder="请输入昵称"
-              />
-              {errors.nickname && (
-                <p className="mt-1 text-sm text-red-600">{errors.nickname.message}</p>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  验证码
-                </label>
-                <input
-                  type="text"
-                  {...register('verifyCode')}
-                  className={cn(
-                    "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                    errors.verifyCode ? "border-red-300" : "border-gray-300"
-                  )}
-                  placeholder="请输入验证码"
-                />
-                {errors.verifyCode && (
-                  <p className="mt-1 text-sm text-red-600">{errors.verifyCode.message}</p>
-                )}
-              </div>
-              <div className="col-span-1 flex items-end">
-                <button
-                  type="button"
-                  onClick={getVerifyCode}
-                  disabled={codeButtonDisabled || isLoading || !phone}
-                  className="w-full py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {codeButtonText}
-                </button>
-              </div>
             </div>
             
             <div>
@@ -232,15 +126,15 @@ export default function Register() {
               </label>
               <input
                 type="password"
-                {...register('password')}
+                {...register('passwd')}
                 className={cn(
                   "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.password ? "border-red-300" : "border-gray-300"
+                  errors.passwd ? "border-red-300" : "border-gray-300"
                 )}
                 placeholder="请设置密码"
               />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+              {errors.passwd && (
+                <p className="mt-1 text-sm text-red-600">{errors.passwd.message}</p>
               )}
             </div>
             
@@ -274,7 +168,7 @@ export default function Register() {
                     {...register('role')}
                     className="text-purple-600 focus:ring-purple-500 h-4 w-4"
                   />
-                  <span className="ml-2 text-sm text-gray-700">普通玩家</span>
+                  <span className="ml-2 text-sm text-gray-700">普通用户</span>
                 </label>
                 <label className="flex items-center p-3 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50">
                   <input
@@ -294,9 +188,9 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading}
-               className="w-full py-2.5 px-4 bg-theme-primary text-white font-medium rounded-lg text-sm hover:bg-theme-primary/90 focus:outline-none focus:ring-2 focus:ring-theme-primary/50 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? '注册中...' : '注册'}
+              {isLoading ? '注册中...' : '立即注册'}
             </button>
           </form>
           

@@ -98,9 +98,8 @@ class ManagerDAO {
             const dataSql = `
       SELECT * FROM managers${where}
       ORDER BY created_at DESC
-      LIMIT ?, ?
+      LIMIT ${offset}, ${pageSize}
     `;
-            params.push(offset, pageSize);
             const [rows] = yield db_1.pool.execute(dataSql, params);
             const managers = rows.map((m) => (Object.assign(Object.assign({}, m), { status: Boolean(m.status) })));
             return { total: cnt, managers };

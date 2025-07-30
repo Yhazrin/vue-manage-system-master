@@ -36,6 +36,15 @@ export default function UserFavorites() {
       setLoading(false);
     }
   };
+
+  // 处理收藏状态变化
+  const handleFavoriteChange = (playerId: number, isFavorite: boolean) => {
+    if (!isFavorite) {
+      // 从收藏列表中移除
+      setFavorites(prev => prev.filter(fav => fav.player.id !== playerId));
+      toast.success('已从收藏中移除');
+    }
+  };
   
   if (loading) {
     return (
@@ -100,10 +109,12 @@ export default function UserFavorites() {
         
         {favorites.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {favorites.map(player => (
+            {favorites.map(favorite => (
               <PlayerCard 
-                key={player.favoriteId} 
-                player={player.player} 
+                key={favorite.favoriteId} 
+                player={favorite.player}
+                isFavorite={true}
+                onFavoriteChange={handleFavoriteChange}
               />
             ))}
           </div>

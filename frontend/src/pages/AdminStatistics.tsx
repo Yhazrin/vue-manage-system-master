@@ -125,8 +125,13 @@ export default function AdminStatistics() {
     revenueData: []
   };
   
-  // 计算总收入
-  const totalRevenue = revenueData.reduce((sum, item) => sum + item.value, 0);
+  // 确保所有数据都有安全的默认值
+  const safeOrderStatistics = orderStatistics || { totalOrders: 0, totalAmount: 0, totalWithdrawals: 0, totalCommission: 0 };
+  const safeOrderData = Array.isArray(orderData) ? orderData : [];
+  const safeTopUsers = Array.isArray(topUsers) ? topUsers : [];
+  const safeTopPlayers = Array.isArray(topPlayers) ? topPlayers : [];
+  const safeRevenueData = Array.isArray(revenueData) ? revenueData : [];
+  const totalRevenue = safeRevenueData.reduce((sum, item) => sum + item.value, 0);
   
   return (
    <div className="bg-theme-background min-h-screen text-theme-text">
@@ -197,22 +202,22 @@ export default function AdminStatistics() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-gray-50 p-5 rounded-lg">
               <p className="text-sm text-gray-500 mb-1">订单总量</p>
-              <p className="text-2xl font-bold text-gray-900">{orderStatistics.totalOrders.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">{safeOrderStatistics.totalOrders.toLocaleString()}</p>
             </div>
             <div className="bg-gray-50 p-5 rounded-lg">
               <p className="text-sm text-gray-500 mb-1">总下单金额</p>
-              <p className="text-2xl font-bold text-gray-900">¥{orderStatistics.totalAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">¥{safeOrderStatistics.totalAmount.toLocaleString()}</p>
             </div>
             <div className="bg-gray-50 p-5 rounded-lg">
               <p className="text-sm text-gray-500 mb-1">总提现金额</p>
-              <p className="text-2xl font-bold text-gray-900">¥{orderStatistics.totalWithdrawals.toLocaleString()}</p>
-              <p className="text-xs text-gray-500 mt-1">总佣金: ¥{orderStatistics.totalCommission.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">¥{safeOrderStatistics.totalWithdrawals.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-1">总佣金: ¥{safeOrderStatistics.totalCommission.toLocaleString()}</p>
             </div>
           </div>
           
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={orderData}>
+              <BarChart data={safeOrderData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} />
@@ -243,9 +248,9 @@ export default function AdminStatistics() {
               </select>
             </div>
             
-            {topUsers.length > 0 ? (
+            {safeTopUsers.length > 0 ? (
               <div className="space-y-4">
-                {topUsers.map((user, index) => (
+                {safeTopUsers.map((user, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-medium text-sm">
@@ -285,9 +290,9 @@ export default function AdminStatistics() {
               </select>
             </div>
             
-            {topPlayers.length > 0 ? (
+            {safeTopPlayers.length > 0 ? (
               <div className="space-y-4">
-                {topPlayers.map((player, index) => (
+                {safeTopPlayers.map((player, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-medium text-sm">
@@ -324,7 +329,7 @@ export default function AdminStatistics() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={revenueData}
+                    data={safeRevenueData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -333,7 +338,7 @@ export default function AdminStatistics() {
                     dataKey="value"
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
-                    {revenueData.map((entry, index) => (
+                    {safeRevenueData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -348,7 +353,7 @@ export default function AdminStatistics() {
                   <h4 className="text-lg font-medium text-gray-900 mb-4">总收益: ¥{totalRevenue.toLocaleString()}</h4>
                   
                   <div className="space-y-4">
-                    {revenueData.map((item, index) => (
+                    {safeRevenueData.map((item, index) => (
                       <div key={index}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm text-gray-700">{item.name}</span>
@@ -372,7 +377,7 @@ export default function AdminStatistics() {
                   <h4 className="text-sm font-medium text-gray-700 mb-2">收益趋势</h4>
                   <div className="h-40">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={orderData}>
+                      <LineChart data={safeOrderData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />

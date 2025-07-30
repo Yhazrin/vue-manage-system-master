@@ -1,49 +1,75 @@
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Player } from "@/types";
+import { useState, useEffect } from "react";
+import { addFavoritePlayer, removeFavoritePlayer } from "@/services/favoriteService";
+import { Heart } from "lucide-react";
+import { toast } from "sonner";
 
 interface PlayerCardProps {
   player: Player;
   className?: string;
+  isFavorite?: boolean;
+  onFavoriteChange?: (playerId: number, isFavorite: boolean) => void;
 }
 
-export default function PlayerCard({ player, className }: PlayerCardProps) {
+export default function PlayerCard({ player, className, isFavorite = false, onFavoriteChange }: PlayerCardProps) {
+  const [isLocalFavorite, setIsLocalFavorite] = useState(isFavorite);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsLocalFavorite(isFavorite);
+  }, [isFavorite]);
+
+  // 处理收藏/取消收藏
+  const handleFavoriteToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isLoading) return;
+    
+    try {
+      setIsLoading(true);
+      
+      if (isLocalFavorite) {
+        await removeFavoritePlayer(player.id);
+        setIsLocalFavorite(false);
+        toast.success('已取消收藏');
+        onFavoriteChange?.(player.id, false);
+      } else {
+        await addFavoritePlayer(player.id);
+        setIsLocalFavorite(true);
+        toast.success('已添加到收藏');
+        onFavoriteChange?.(player.id, true);
+      }
+    } catch (error) {
+      console.error('收藏操作失败:', error);
+      toast.error('操作失败，请重试');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   // Get status color based on online status
   const getStatusColor = () => {
-    switch (player.status) {
-      case 'online': return 'bg-green-500';
-      case 'busy': return 'bg-yellow-500';
-      case 'offline': return 'bg-gray-300';
-      default: return 'bg-gray-300';
-    }
+    // 后端返回的status是number(0/1)或boolean
+    const isOnline = player.status === 1 || player.status === true;
+    return isOnline ? 'bg-green-500' : 'bg-gray-300';
   };
   
   // Get status text based on online status
   const getStatusText = () => {
-    switch (player.status) {
-      case 'online': return '在线';
-      case 'busy': return '忙碌';
-      case 'offline': return '离线';
-      default: return '离线';
-    }
+    const isOnline = player.status === 1 || player.status === true;
+    return isOnline ? '在线' : '离线';
   };
   
   // Get avatar image or placeholder
   const getAvatar = () => {
-    const avatarSources: { [key: number]: string } = {
-      1: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/1.jpeg",
-      2: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/2.jpeg",
-      3: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/3.jpeg",
-      4: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/4.jpeg"
-    };
-    
-    const src = avatarSources[player.avatarId];
-    
-    if (src) {
+    // 使用后端返回的photo_img字段，如果没有则使用默认头像
+    if (player.photo_img) {
       return (
         <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
           <img 
-            src={src} 
+            src={player.photo_img} 
             alt={player.name}
             className="w-full h-full object-cover"
           />
@@ -51,7 +77,7 @@ export default function PlayerCard({ player, className }: PlayerCardProps) {
       );
     }
     
-    // Placeholder if no image available
+    // 使用默认头像或首字母
     return (
       <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-medium flex-shrink-0">
         {player.name.charAt(0)}
@@ -76,7 +102,7 @@ export default function PlayerCard({ player, className }: PlayerCardProps) {
   ];
   
   return (
-     <div className={cn("bg-theme-surface rounded-lg border border-theme-border shadow-sm overflow-hidden transition-shadow hover:shadow-md", className)}>
+    <Link to={`/booking/${player.id}`} className={cn("block bg-theme-surface rounded-lg border border-theme-border shadow-sm overflow-hidden transition-shadow hover:shadow-md", className)}>
       <div className="p-5">
         {/* Player Header */}
         <div className="flex items-start gap-3 mb-4">
@@ -88,65 +114,94 @@ export default function PlayerCard({ player, className }: PlayerCardProps) {
           <span className={`w-2 h-2 rounded-full ${getStatusColor()}`}></span>
           <span className="text-xs text-theme-text/80">{getStatusText()}</span>
         </div>
-     <div className="flex items-center text-xs text-theme-text/80">
+        <div className="flex items-center text-xs text-theme-text/80">
           <div className="flex items-center">
             <i className="fa-solid fa-star text-yellow-400 mr-1"></i>
-            <span>{player.rating}</span>
+            <span>{player.rating || '5.0'}</span>
           </div>
-          <span className="mx-1">({player.reviews}条评价)</span>
+          <span className="mx-1">({player.reviews || 0}条评价)</span>
         </div>
           </div>
         </div>
         
         {/* Player Description */}
-               <p className="text-sm text-theme-text mb-4 line-clamp-2 text-balance">{player.description}</p>
+        <p className="text-sm text-theme-text mb-4 line-clamp-2 text-balance">
+          {player.intro || '这位陪玩还没有填写个人介绍'}
+        </p>
         
         {/* Games */}
         <div className="mb-3">
-          <h4 className="text-xs font-semibold text-gray-900 mb-2">Games</h4>
+          <h4 className="text-xs font-semibold text-gray-900 mb-2">游戏</h4>
           <div className="flex flex-wrap gap-2">
-            {player.games.map((game, index) => (
-              <span 
-                key={index} 
-                className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full"
-              >
-                {game}
-              </span>
-            ))}
+            {player.games && player.games.length > 0 ? (
+              player.games.map((game, index) => (
+                <span 
+                  key={index} 
+                  className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full"
+                >
+                  {game}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-gray-500">暂未设置游戏</span>
+            )}
           </div>
         </div>
         
         {/* Services */}
         <div className="mb-4">
-          <h4 className="text-xs font-semibold text-gray-900 mb-2">Services</h4>
+          <h4 className="text-xs font-semibold text-gray-900 mb-2">服务</h4>
           <div className="flex flex-wrap gap-2">
-            {player.services.map((service, index) => (
-              <span 
-                key={index} 
-                className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full"
-              >
-                {service}
-              </span>
-            ))}
+            {player.services && player.services.length > 0 ? (
+              player.services.map((service, index) => (
+                <span 
+                  key={index} 
+                  className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full"
+                >
+                  {service}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-gray-500">暂未设置服务</span>
+            )}
           </div>
         </div>
         
         {/* Price and Actions */}
         <div className="flex items-center justify-between mt-auto pt-2">
           <div className="text-purple-600 font-bold text-lg">
-            ${player.price}<span className="text-sm font-normal">/小时</span>
+            {player.price ? (
+              <>¥{player.price}<span className="text-sm font-normal">/小时</span></>
+            ) : (
+              <span className="text-sm text-gray-500">价格待定</span>
+            )}
           </div>
           
-            <div className="flex items-center gap-2">
-              <button className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-pink-500 transition-colors">
-                ♡
-              </button>
-              <Link to={`/booking/${player.id}`} className="px-4 py-1.5 bg-theme-primary text-white text-xs font-medium rounded-lg hover:bg-theme-primary/90 transition-colors">
-                立即预约
-              </Link>
-            </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleFavoriteToggle}
+              disabled={isLoading}
+              className={cn(
+                "w-8 h-8 flex items-center justify-center transition-colors rounded-full",
+                isLocalFavorite 
+                  ? "text-red-500 hover:text-red-600" 
+                  : "text-gray-300 hover:text-red-500",
+                isLoading && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <Heart 
+                className={cn(
+                  "w-4 h-4",
+                  isLocalFavorite && "fill-current"
+                )}
+              />
+            </button>
+            <span className="px-4 py-1.5 bg-theme-primary text-white text-xs font-medium rounded-lg">
+              立即预约
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

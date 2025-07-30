@@ -2,48 +2,45 @@ import { API_BASE_URL } from '@/config/api';
 
 // 陪玩个人资料数据接口
 export interface PlayerProfileData {
-  nickname: string;
-  uid: string;
-  avatar: string;
-  status: 'online' | 'offline' | 'busy';
-  skills: string[];
-  balance: number;
-  withdrawalEarnings: number;
-  recipientName: string;
-  qrCodeUrl: string | null;
-  contactInfo: string;
-  joinDate: string;
-  totalOrders: number;
-  rating: number;
-  reviews: number;
+  id: number;
+  name: string;
+  phone_num: string;
+  photo_img: string | null;
+  status: boolean;
+  intro: string | null;
+  game_id: number | null;
+  voice: string | null;
+  QR_img: string | null;
+  money: number;
+  profit: number;
+  created_at: string;
+  // 扩展字段
+  totalOrders?: number;
+  rating?: number;
+  reviews?: number;
 }
 
 // 更新陪玩个人资料请求接口
 export interface UpdatePlayerProfileRequest {
-  nickname?: string;
-  skills?: string[];
-  recipientName?: string;
-  qrCodeUrl?: string | null;
-  status?: 'online' | 'offline' | 'busy';
-}
-
-// 上传头像请求接口
-export interface UploadAvatarRequest {
-  avatar: File;
-}
-
-// 提现请求接口
-export interface WithdrawRequest {
-  amount: number;
-  recipientName: string;
-  qrCodeUrl: string;
+  name?: string;
+  phone_num?: string;
+  intro?: string;
+  game_id?: number;
 }
 
 // 获取陪玩个人资料
 export async function getPlayerProfile(): Promise<PlayerProfileData> {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/player/profile`, {
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -52,35 +49,31 @@ export async function getPlayerProfile(): Promise<PlayerProfileData> {
     });
 
     if (!response.ok) {
-      throw new Error('获取陪玩个人资料失败');
+      const errorData = await response.json();
+      throw new Error(errorData.error || '获取陪玩个人资料失败');
     }
 
-    return await response.json();
+    const result = await response.json();
+    const player = result.player;
+
+    // 处理头像URL
+    if (player.photo_img && !player.photo_img.startsWith('http')) {
+      player.photo_img = `${API_BASE_URL}/${player.photo_img}`;
+    }
+
+    // 处理二维码URL
+    if (player.QR_img && !player.QR_img.startsWith('http')) {
+      player.QR_img = `${API_BASE_URL}/${player.QR_img}`;
+    }
+
+    // 处理录音URL
+    if (player.voice && !player.voice.startsWith('http')) {
+      player.voice = `${API_BASE_URL}/${player.voice}`;
+    }
+
+    return player;
   } catch (error) {
     console.error('Error fetching player profile:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return {
-        nickname: "专业玩家_Alex",
-        uid: "PL12345678",
-        avatar: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/1.jpeg",
-        status: "online",
-        skills: ["FPS", "MOBA", "战术指导"],
-        balance: 1250.50,
-        withdrawalEarnings: 3200.00,
-        recipientName: "张三",
-        qrCodeUrl: null,
-        contactInfo: "138****5678",
-        joinDate: "2023-06-15",
-        totalOrders: 156,
-        rating: 4.8,
-        reviews: 89
-      };
-    }
-    
     throw error;
   }
 }
@@ -89,8 +82,16 @@ export async function getPlayerProfile(): Promise<PlayerProfileData> {
 export async function updatePlayerProfile(data: UpdatePlayerProfileRequest): Promise<PlayerProfileData> {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/player/profile`, {
-      method: 'PUT',
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}`, {
+      method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -99,25 +100,14 @@ export async function updatePlayerProfile(data: UpdatePlayerProfileRequest): Pro
     });
 
     if (!response.ok) {
-      throw new Error('更新陪玩个人资料失败');
+      const errorData = await response.json();
+      throw new Error(errorData.error || '更新陪玩个人资料失败');
     }
 
-    return await response.json();
+    // 更新成功后重新获取最新数据
+    return await getPlayerProfile();
   } catch (error) {
     console.error('Error updating player profile:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // 模拟更新成功，返回更新后的数据
-      const currentProfile = await getPlayerProfile();
-      return {
-        ...currentProfile,
-        ...data
-      };
-    }
-    
     throw error;
   }
 }
@@ -126,11 +116,19 @@ export async function updatePlayerProfile(data: UpdatePlayerProfileRequest): Pro
 export async function uploadAvatar(file: File): Promise<string> {
   try {
     const token = localStorage.getItem('token');
-    const formData = new FormData();
-    formData.append('avatar', file);
+    if (!token) {
+      throw new Error('请先登录');
+    }
 
-    const response = await fetch(`${API_BASE_URL}/player/avatar`, {
-      method: 'POST',
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const formData = new FormData();
+    formData.append('photo_img', file);
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}`, {
+      method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -138,62 +136,170 @@ export async function uploadAvatar(file: File): Promise<string> {
     });
 
     if (!response.ok) {
-      throw new Error('上传头像失败');
+      const errorData = await response.json();
+      throw new Error(errorData.error || '上传头像失败');
     }
 
     const result = await response.json();
-    return result.avatarUrl;
+    
+    // 处理不同的响应结构
+    let player;
+    if (result.player) {
+      player = result.player;
+    } else if (result.data) {
+      player = result.data;
+    } else {
+      player = result;
+    }
+
+    // 处理头像URL
+    let avatarUrl = player?.photo_img;
+    if (avatarUrl && !avatarUrl.startsWith('http')) {
+      avatarUrl = `${API_BASE_URL}/${avatarUrl}`;
+    }
+
+    return avatarUrl || '';
   } catch (error) {
     console.error('Error uploading avatar:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // 模拟上传成功，返回一个模拟的URL
-      return `https://example.com/avatars/${Date.now()}.jpg`;
-    }
-    
     throw error;
   }
 }
 
-// 申请提现
-export async function requestWithdraw(data: WithdrawRequest): Promise<{ success: boolean; message: string }> {
+// 上传二维码
+export async function uploadQRCode(file: File): Promise<string> {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/player/withdraw`, {
-      method: 'POST',
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const formData = new FormData();
+    formData.append('QR_img', file);
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}/qr`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '上传二维码失败');
+    }
+
+    // 上传成功后重新获取用户资料以获取新的二维码URL
+    const updatedProfile = await getPlayerProfile();
+    return updatedProfile.QR_img || '';
+  } catch (error) {
+    console.error('Error uploading QR code:', error);
+    throw error;
+  }
+}
+
+// 删除二维码
+export async function deleteQRCode(): Promise<void> {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}/qr`, {
+      method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ QR_img: null }),
     });
 
     if (!response.ok) {
-      throw new Error('申请提现失败');
+      const errorData = await response.json();
+      throw new Error(errorData.error || '删除二维码失败');
     }
-
-    return await response.json();
   } catch (error) {
-    console.error('Error requesting withdraw:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 模拟提现申请成功
-      return {
-        success: true,
-        message: '提现申请已提交，预计1-3个工作日到账'
-      };
-    }
-    
+    console.error('Error deleting QR code:', error);
     throw error;
   }
 }
 
+// 更新在线状态
+export async function updateStatus(status: boolean): Promise<void> {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '更新状态失败');
+    }
+  } catch (error) {
+    console.error('Error updating status:', error);
+    throw error;
+  }
+}
+
+// 上传录音
+export async function uploadVoice(file: File): Promise<string> {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const formData = new FormData();
+    formData.append('voice', file);
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}/voice`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '上传录音失败');
+    }
+
+    // 上传成功后重新获取用户资料以获取新的录音URL
+    const updatedProfile = await getPlayerProfile();
+    return updatedProfile.voice || '';
+  } catch (error) {
+    console.error('Error uploading voice:', error);
+    throw error;
+  }
+}
 // 获取收益统计
 export async function getEarningsStats(): Promise<{
   todayEarnings: number;
@@ -203,6 +309,10 @@ export async function getEarningsStats(): Promise<{
 }> {
   try {
     const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
     const response = await fetch(`${API_BASE_URL}/player/earnings`, {
       method: 'GET',
       headers: {
@@ -212,25 +322,13 @@ export async function getEarningsStats(): Promise<{
     });
 
     if (!response.ok) {
-      throw new Error('获取收益统计失败');
+      const errorData = await response.json();
+      throw new Error(errorData.error || '获取收益统计失败');
     }
 
     return await response.json();
   } catch (error) {
     console.error('Error fetching earnings stats:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      return {
-        todayEarnings: 125.50,
-        weekEarnings: 680.00,
-        monthEarnings: 2450.00,
-        totalEarnings: 3200.00
-      };
-    }
-    
     throw error;
   }
 }

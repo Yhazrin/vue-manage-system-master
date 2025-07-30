@@ -105,7 +105,12 @@ router.get('/public', async (req: Request, res: Response, next: NextFunction) =>
         // 调用 DAO 分页查询玩家列表
         const result = await PlayerDAO.findAll(page, pageSize, status, keyword);
         
-        // 过滤敏感信息，只返回公开信息
+        // 获取所有游戏信息用于映射
+        const { GameDAO } = require('../dao/GameDao');
+        const games = await GameDAO.findAll();
+        const gameMap = new Map(games.map((game: any) => [game.id, game.name]));
+        
+        // 过滤敏感信息，只返回公开信息，并添加游戏名称
         const safePlayers = result.players.map(player => ({
             id: player.id,
             name: player.name,
@@ -114,6 +119,8 @@ router.get('/public', async (req: Request, res: Response, next: NextFunction) =>
             status: player.status,
             voice: player.voice,
             game_id: player.game_id,
+            games: player.game_id ? [gameMap.get(player.game_id) || '未知游戏'] : [],
+            services: [], // 暂时为空，后续可以从services表获取
             // 隐藏敏感字段：如手机号、财务信息等
         }));
         
@@ -147,7 +154,12 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
             // 调用 DAO 分页查询玩家列表
             const result = await PlayerDAO.findAll(page, pageSize, status, keyword);
             
-            // 过滤敏感信息，只返回公开信息
+            // 获取所有游戏信息用于映射
+            const { GameDAO } = require('../dao/GameDao');
+            const games = await GameDAO.findAll();
+            const gameMap = new Map(games.map((game: any) => [game.id, game.name]));
+            
+            // 过滤敏感信息，只返回公开信息，并添加游戏名称
             const safePlayers = result.players.map(player => ({
                 id: player.id,
                 name: player.name,
@@ -156,6 +168,8 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
                 status: player.status,
                 voice: player.voice,
                 game_id: player.game_id,
+                games: player.game_id ? [gameMap.get(player.game_id) || '未知游戏'] : [],
+                services: [], // 暂时为空，后续可以从services表获取
                 // 隐藏敏感字段：如手机号、财务信息等
             }));
             
@@ -257,8 +271,11 @@ router.patch(
         // 处理头像更新
         if (req.file) updateData.photo_img = req.file.path;
 
-        await PlayerDAO.updateById(targetId, req.body);
-        res.json({ success: true });
+        await PlayerDAO.updateById(targetId, updateData);
+        
+        // 返回更新后的用户数据
+        const updatedPlayer = await PlayerDAO.findById(targetId);
+        res.json({ success: true, player: updatedPlayer });
     } catch (err) {
         next(err);
     }

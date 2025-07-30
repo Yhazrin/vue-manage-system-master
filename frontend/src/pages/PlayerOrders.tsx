@@ -3,6 +3,8 @@ import Header from "@/components/Header";
 import { cn } from "@/lib/utils";
 import { getPlayerOrders, updateOrderStatus, Order } from '@/services/orderService';
 import { toast } from 'sonner';
+import { useNotifications } from '@/components/NotificationManager';
+import WebSocketService from '@/services/websocketService';
 
 // 获取订单状态样式
 const getStatusStyle = (status: Order['status']) => {
@@ -45,6 +47,32 @@ export default function PlayerOrders() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  
+  // 使用通知系统
+  const { notifications, unreadCount } = useNotifications();
+  
+  // 初始化WebSocket连接
+  useEffect(() => {
+    const wsService = WebSocketService.getInstance();
+    // 假设当前用户是陪玩，ID为当前登录用户的ID
+    const currentPlayerId = localStorage.getItem('playerId') || 'player_1';
+    wsService.connect(currentPlayerId, 'player');
+    
+    return () => {
+      wsService.disconnect();
+    };
+  }, []);
+  
+  // 监听通知变化，刷新订单列表
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const latestNotification = notifications[0];
+      if (latestNotification.type === 'order' && !latestNotification.read) {
+        // 有新订单通知时，刷新订单列表
+        loadOrders();
+      }
+    }
+  }, [notifications]);
   
   // 加载订单数据
   useEffect(() => {
@@ -167,8 +195,36 @@ export default function PlayerOrders() {
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">订单管理</h1>
-          <p className="text-gray-500">查看和管理您的所有订单</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">订单管理</h1>
+              <p className="text-gray-500">查看和管理您的所有订单</p>
+            </div>
+            <div className="flex items-center gap-4">
+              {/* 通知图标 */}
+               <div className="relative">
+                 <button className={`p-2 text-gray-600 hover:text-purple-600 transition-colors ${unreadCount > 0 ? 'animate-pulse-notification' : ''}`}>
+                   <i className="fa-solid fa-bell text-xl"></i>
+                   {unreadCount > 0 && (
+                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce-gentle">
+                       {unreadCount > 9 ? '9+' : unreadCount}
+                     </span>
+                   )}
+                 </button>
+               </div>
+              
+              {/* 测试通知按钮 */}
+              <button
+                onClick={() => {
+                  const wsService = WebSocketService.getInstance();
+                  wsService.triggerTestNotification();
+                }}
+                className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                测试通知
+              </button>
+            </div>
+          </div>
         </div>
         
         {/* 订单筛选 */}

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from "@/components/Header";
-import { cn } from "@/lib/utils";
-import { useNavigate } from 'react-router-dom';
+import AvatarUpload from "@/components/AvatarUpload";
+import ProfileEditForm from "@/components/ProfileEditForm";
 import { toast } from "sonner";
 import {
   getUserProfile,
   updateUserProfile,
+  uploadAvatar,
   UserProfileData
 } from '@/services/userProfileService';
 
@@ -15,7 +16,6 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [newNickname, setNewNickname] = useState('');
   const [updating, setUpdating] = useState(false);
   const navigate = useNavigate();
 
@@ -26,32 +26,35 @@ export default function UserProfile() {
       setError(null);
       const data = await getUserProfile();
       setProfile(data);
-      setNewNickname(data.nickname);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      setError('获取用户资料失败，请重试');
+      setError(error instanceof Error ? error.message : '获取用户资料失败，请重试');
     } finally {
       setLoading(false);
     }
   };
 
-  // 保存昵称修改
-  const saveNicknameChange = async () => {
-    if (!profile || newNickname.trim() === profile.nickname) {
-      setIsEditing(false);
-      return;
+  // 处理头像上传
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      const newAvatarUrl = await uploadAvatar(file);
+      setProfile(prev => prev ? { ...prev, photo_img: newAvatarUrl } : null);
+    } catch (error) {
+      throw error; // 让AvatarUpload组件处理错误显示
     }
+  };
 
+  // 处理个人信息保存
+  const handleProfileSave = async (data: Record<string, string>) => {
     try {
       setUpdating(true);
-      const updatedProfile = await updateUserProfile({ nickname: newNickname.trim() });
+      const updatedProfile = await updateUserProfile(data);
       setProfile(updatedProfile);
       setIsEditing(false);
-      toast.success('昵称修改成功');
+      toast.success('个人信息更新成功');
     } catch (error) {
-      console.error('Error updating nickname:', error);
-      toast.error('昵称修改失败，请重试');
-      setNewNickname(profile.nickname); // 恢复原昵称
+      console.error('Error updating profile:', error);
+      toast.error(error instanceof Error ? error.message : '更新失败，请重试');
     } finally {
       setUpdating(false);
     }
@@ -96,6 +99,57 @@ export default function UserProfile() {
   if (!profile) {
     return null;
   }
+
+  // 准备编辑表单字段
+  const profileFields = [
+    {
+      key: 'name',
+      label: '用户名',
+      value: profile.name,
+      type: 'text' as const,
+      editable: true,
+      required: true,
+      maxLength: 20,
+      placeholder: '请输入用户名'
+    },
+    {
+      key: 'phone_num',
+      label: '手机号',
+      value: profile.phone_num,
+      type: 'tel' as const,
+      editable: true,
+      required: true,
+      placeholder: '请输入手机号'
+    },
+    {
+      key: 'id',
+      label: '用户ID',
+      value: profile.id.toString(),
+      type: 'text' as const,
+      editable: false
+    },
+    {
+      key: 'role',
+      label: '用户角色',
+      value: profile.role === 'user' ? '普通用户' : profile.role,
+      type: 'text' as const,
+      editable: false
+    },
+    {
+      key: 'status',
+      label: '账户状态',
+      value: profile.status ? '正常' : '已禁用',
+      type: 'text' as const,
+      editable: false
+    },
+    {
+      key: 'created_at',
+      label: '注册时间',
+      value: new Date(profile.created_at).toLocaleString('zh-CN'),
+      type: 'text' as const,
+      editable: false
+    }
+  ];
   
   return (
     <div className="bg-theme-background min-h-screen text-theme-text">
@@ -105,12 +159,22 @@ export default function UserProfile() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">个人主页</h1>
-            <button 
-              onClick={() => navigate('/lobby')}
-              className="py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <i className="fa-solid fa-arrow-left mr-1"></i> 返回大厅
-            </button>
+            <div className="flex space-x-3">
+              {!isEditing && (
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <i className="fa-solid fa-edit mr-1"></i> 编辑资料
+                </button>
+              )}
+              <button 
+                onClick={() => navigate('/user/dashboard')}
+                className="py-1.5 px-3 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left mr-1"></i> 返回大厅
+              </button>
+            </div>
           </div>
           <p className="text-gray-500">管理您的个人信息和偏好设置</p>
         </div>
@@ -119,145 +183,120 @@ export default function UserProfile() {
           <div className="p-6">
             {/* 用户信息头部 */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
-              <div className="relative">
-                <img 
-                  src={profile.avatar} 
-                  alt={profile.nickname}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-sm"
-                />
-              </div>
+              <AvatarUpload
+                currentAvatar={profile.photo_img || '/default-avatar.svg'}
+                onAvatarChange={handleAvatarUpload}
+                size="lg"
+                disabled={isEditing}
+              />
               
-              <div className="text-center md:text-left">
-                <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={newNickname}
-                        onChange={(e) => setNewNickname(e.target.value)}
-                        className="text-xl font-bold text-gray-900 border-b border-gray-300 focus:outline-none focus:border-purple-500"
-                      />
-                    ) : (
-                      profile.nickname
-                    )}
-                  </h2>
-                  {isEditing ? (
-                    <button 
-                      onClick={saveNicknameChange}
-                      disabled={updating}
-                      className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {updating ? '保存中...' : '保存'}
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <i className="fa-solid fa-pencil"></i>
-                    </button>
-                  )}
+              <div className="text-center md:text-left flex-1">
+                <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                  <h2 className="text-2xl font-bold text-gray-900">{profile.name}</h2>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    profile.status 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {profile.status ? '正常' : '已禁用'}
+                  </span>
                 </div>
-                <p className="text-sm text-gray-500 mb-3">UID: {profile.uid}</p>
+                <p className="text-sm text-gray-500 mb-4">ID: {profile.id} | 角色: {profile.role === 'user' ? '普通用户' : profile.role}</p>
                 
                 <div className="flex flex-wrap justify-center md:justify-start gap-6">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.orderCount}</p>
+                    <p className="text-lg font-bold text-gray-900">{profile.orderCount || 0}</p>
                     <p className="text-xs text-gray-500">订单总数</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.favoritePlayers}</p>
+                    <p className="text-lg font-bold text-gray-900">{profile.favoritePlayers || 0}</p>
                     <p className="text-xs text-gray-500">收藏陪玩</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.membershipDuration}年</p>
+                    <p className="text-lg font-bold text-gray-900">{profile.membershipDuration || 0}年</p>
                     <p className="text-xs text-gray-500">会员时长</p>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* 个人信息卡片 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="bg-gray-50 p-5 rounded-lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">联系信息</h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">邮箱</p>
-                    <p className="text-sm text-gray-900">{profile.email}</p>
+            {/* 个人信息编辑表单或显示 */}
+            {isEditing ? (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">编辑个人信息</h3>
+                <ProfileEditForm
+                  fields={profileFields}
+                  onSave={handleProfileSave}
+                  onCancel={() => setIsEditing(false)}
+                  loading={updating}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-gray-50 p-5 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">基本信息</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">用户名</p>
+                      <p className="text-sm text-gray-900">{profile.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">手机号</p>
+                      <p className="text-sm text-gray-900">{profile.phone_num}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">注册时间</p>
+                      <p className="text-sm text-gray-900">{new Date(profile.created_at).toLocaleString('zh-CN')}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">手机号</p>
-                    <p className="text-sm text-gray-900">{profile.phone}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">注册时间</p>
-                    <p className="text-sm text-gray-900">{profile.registerDate}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">最后登录</p>
-                    <p className="text-sm text-gray-900">{profile.lastLogin}</p>
+                </div>
+                
+                <div className="bg-gray-50 p-5 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">账户信息</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">用户ID</p>
+                      <p className="text-sm text-gray-900">{profile.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">用户角色</p>
+                      <p className="text-sm text-gray-900">{profile.role === 'user' ? '普通用户' : profile.role}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">账户状态</p>
+                      <p className={`text-sm ${profile.status ? 'text-green-600' : 'text-red-600'}`}>
+                        {profile.status ? '正常' : '已禁用'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="bg-gray-50 p-5 rounded-lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">账户安全</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">密码修改</p>
-                      <p className="text-sm text-gray-900">上次修改: {profile.securitySettings.lastPasswordChange}</p>
-                    </div>
-                    <button className="text-purple-600 text-sm hover:text-purple-700">
-                      修改
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">两步验证</p>
-                      <p className="text-sm text-gray-900">{profile.securitySettings.twoFactorEnabled ? '已开启' : '未开启'}</p>
-                    </div>
-                    <button className="text-purple-600 text-sm hover:text-purple-700">
-                      {profile.securitySettings.twoFactorEnabled ? '关闭' : '开启'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">登录设备管理</p>
-                      <p className="text-sm text-gray-900">当前{profile.securitySettings.activeDevices}台设备在线</p>
-                    </div>
-                    <button className="text-purple-600 text-sm hover:text-purple-700">
-                      查看
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
             
-            {/* 最近订单和收藏陪玩入口 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <Link to="/user/orders" className="p-4 border border-gray-100 rounded-lg hover:border-purple-200 hover:bg-purple-50 transition-colors cursor-pointer block">
-                 <div className="flex items-center justify-between">
-                   <div>
-                     <h3 className="font-medium text-gray-900 mb-1">我的订单</h3>
-                     <p className="text-sm text-gray-500">查看和管理您的所有订单</p>
-                   </div>
-                   <i className="fa-solid fa-arrow-right text-gray-400"></i>
-                 </div>
-               </Link>
-               
-
-               <Link to="/user/favorites" className="p-4 border border-gray-100 rounded-lg hover:border-purple-200 hover:bg-purple-50 transition-colors cursor-pointer block">
-                 <div className="flex items-center justify-between">
-                   <div>
-                     <h3 className="font-medium text-gray-900 mb-1">收藏的陪玩</h3>
-                     <p className="text-sm text-gray-500">查看您收藏的陪玩列表</p>
-                   </div>
-                   <i className="fa-solid fa-arrow-right text-gray-400"></i>
-                 </div>
-               </Link>
-             </div>
+            {/* 快捷操作 */}
+            {!isEditing && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link to="/user/orders" className="p-4 border border-gray-100 rounded-lg hover:border-purple-200 hover:bg-purple-50 transition-colors cursor-pointer block">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-1">我的订单</h3>
+                      <p className="text-sm text-gray-500">查看和管理您的所有订单</p>
+                    </div>
+                    <i className="fa-solid fa-arrow-right text-gray-400"></i>
+                  </div>
+                </Link>
+                
+                <Link to="/user/favorites" className="p-4 border border-gray-100 rounded-lg hover:border-purple-200 hover:bg-purple-50 transition-colors cursor-pointer block">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-1">收藏的陪玩</h3>
+                      <p className="text-sm text-gray-500">管理您收藏的陪玩</p>
+                    </div>
+                    <i className="fa-solid fa-arrow-right text-gray-400"></i>
+                  </div>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </main>

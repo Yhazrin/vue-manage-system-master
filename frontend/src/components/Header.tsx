@@ -38,6 +38,7 @@ export default function Header() {
       case 'player':
          return [
            { label: '工作台', path: '/player/dashboard', icon: '📊' },
+           { label: '服务管理', path: '/player/services', icon: '⚙️' },
            { label: '订单管理', path: '/player/orders', icon: '📝' },
            { label: '资金提现', path: '/player/funds', icon: '💰' },
            { label: '陪玩指导', path: '/player/guide', icon: '📋' },

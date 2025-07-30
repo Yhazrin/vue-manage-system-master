@@ -14,17 +14,18 @@ exports.UserDAO = void 0;
 const db_1 = require("../db");
 class UserDAO {
     /** 插入新用户，返回新生成的 id */
-    static create(name, passwd, phone_num, photo_img) {
-        return __awaiter(this, void 0, void 0, function* () {
+    static create(name_1, passwd_1, phone_num_1, photo_img_1) {
+        return __awaiter(this, arguments, void 0, function* (name, passwd, phone_num, photo_img, role = 'user') {
             const sql = `
-            INSERT INTO users (name, passwd, phone_num, photo_img)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO users (name, passwd, phone_num, photo_img, role)
+            VALUES (?, ?, ?, ?, ?)
         `;
             const [result] = yield db_1.pool.execute(sql, [
                 name,
                 passwd,
                 phone_num,
                 photo_img || null,
+                role,
             ]);
             return result.insertId;
         });
@@ -78,9 +79,8 @@ class UserDAO {
             const dataSql = `
       SELECT * FROM users WHERE 1=1 ${where}
       ORDER BY created_at DESC
-      LIMIT ?, ?
+      LIMIT ${offset}, ${pageSize}
     `;
-            params.push(offset, pageSize);
             const [rows] = yield db_1.pool.execute(dataSql, params);
             return { total: cnt, users: rows };
         });

@@ -114,10 +114,26 @@ export class PlayerDAO {
     /** 更新玩家基础信息 */
     static async updateById(
         id: number,
-        data: Partial<Pick<Player, 'name' | 'phone_num' | 'intro'>>
+        data: Partial<Pick<Player, 'name' | 'phone_num' | 'intro' | 'game_id' | 'photo_img'>>
     ): Promise<void> {
         const fields = Object.keys(data);
         if (!fields.length) return;
+        
+        // 如果包含game_id，需要验证其是否存在
+        if (data.game_id !== undefined) {
+            if (data.game_id === null || data.game_id === 0) {
+                // 允许设置为null
+                data.game_id = null;
+            } else {
+                // 验证game_id是否存在
+                const gameCheckSql = `SELECT id FROM games WHERE id = ?`;
+                const [gameRows]: any = await pool.execute(gameCheckSql, [data.game_id]);
+                if (!gameRows.length) {
+                    throw new Error(`游戏ID ${data.game_id} 不存在`);
+                }
+            }
+        }
+        
         const sets = fields.map(key => `${key} = ?`).join(', ');
         const params = fields.map(key => (data as any)[key]);
         params.push(id);

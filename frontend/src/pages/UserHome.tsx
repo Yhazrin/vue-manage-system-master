@@ -7,42 +7,106 @@ import { Player } from "@/types";
 import { usePlayers } from "@/hooks/usePlayers";
 import { debounce } from "@/lib/utils";
 import { toast } from 'sonner';
+import { getFavoritePlayers, FavoritePlayer } from "@/services/favoriteService";
 
 export default function UserHome() {
   const { logout } = useContext(AuthContext);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([10, 50]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGame, setSelectedGame] = useState<number | null>(null);
+  const [priceRange, setPriceRange] = useState<[number, number]>([10, 200]);
+  const [favorites, setFavorites] = useState<FavoritePlayer[]>([]);
+  const [favoritePlayerIds, setFavoritePlayerIds] = useState<Set<number>>(new Set());
   const { players, loading, error, fetchPlayers } = usePlayers();
   
-  // 初始加载时获取所有玩家
+  // 初始加载时获取所有玩家和收藏列表
   useEffect(() => {
     fetchPlayers();
+    loadFavorites();
   }, [fetchPlayers]);
-  
-  // 页面加载后显示欢迎通知已移除
 
-  // 添加防抖处理价格范围变化
-  const debouncedPriceChange = useCallback(
-    debounce((min: number, max: number) => {
-      if (players) {
-        const filtered = players.filter(player => 
-          player.price >= min && player.price <= max
-        );
-        setFilteredPlayers(filtered);
-      }
-    }, 300), // 300ms防抖
-    [players]
+  // 加载收藏列表
+  const loadFavorites = async () => {
+    try {
+      const favoriteList = await getFavoritePlayers();
+      setFavorites(favoriteList);
+      const playerIds = new Set(favoriteList.map(fav => fav.player.id));
+      setFavoritePlayerIds(playerIds);
+    } catch (err) {
+      console.error('Failed to load favorites:', err);
+    }
+  };
+
+  // 筛选陪玩的函数
+  const filterPlayers = useCallback(() => {
+    if (!players || !Array.isArray(players)) {
+      setFilteredPlayers([]);
+      return;
+    }
+
+    let filtered = [...players];
+
+    // 搜索筛选 - 支持陪玩名称和游戏名称搜索
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(player =>
+        player.name.toLowerCase().includes(searchLower) ||
+        (player.game_name && player.game_name.toLowerCase().includes(searchLower)) ||
+        (player.intro && player.intro.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // 游戏筛选
+    if (selectedGame) {
+      filtered = filtered.filter(player => player.game_id === selectedGame);
+    }
+
+    // 价格范围筛选
+    filtered = filtered.filter(player => {
+      if (!player.price) return false;
+      return player.price >= priceRange[0] && player.price <= priceRange[1];
+    });
+
+    setFilteredPlayers(filtered);
+  }, [players, searchTerm, selectedGame, priceRange]);
+
+  // 防抖的筛选函数
+  const debouncedFilter = useCallback(
+    debounce(filterPlayers, 300),
+    [filterPlayers]
   );
-  
-  // 当玩家数据或价格范围变化时筛选玩家
-  useEffect(() => {
-    debouncedPriceChange(priceRange[0], priceRange[1]);
-  }, [priceRange, debouncedPriceChange]);
 
-  
+  // 当筛选条件变化时执行筛选
+  useEffect(() => {
+    debouncedFilter();
+  }, [debouncedFilter]);
+
+  // 处理搜索
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
+
+  // 处理游戏筛选
+  const handleGameFilter = (gameId: number | null) => {
+    setSelectedGame(gameId);
+  };
+
   // 处理价格范围变化
-  const handlePriceChange = (minPrice: number, maxPrice: number) => {
-    setPriceRange([minPrice, maxPrice]);
+  const handlePriceRangeChange = (min: number, max: number) => {
+    setPriceRange([min, max]);
+  };
+
+  // 处理收藏状态变化
+  const handleFavoriteChange = (playerId: number, isFavorite: boolean) => {
+    if (isFavorite) {
+      setFavoritePlayerIds(prev => new Set([...prev, playerId]));
+    } else {
+      setFavoritePlayerIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(playerId);
+        return newSet;
+      });
+    }
   };
   
   return (
@@ -50,11 +114,14 @@ export default function UserHome() {
       <Header />
       
       <main className="container mx-auto px-4 py-6">
-            <SearchFilter onPriceChange={handlePriceChange} />
-             {/* 右下角浮动通知 - 使用sonner实现 */}
-             {(() => {
-               return null;
-             })()}
+        <SearchFilter 
+          onSearch={handleSearch}
+          onGameFilter={handleGameFilter}
+          onPriceRangeChange={handlePriceRangeChange}
+          searchTerm={searchTerm}
+          selectedGame={selectedGame}
+          priceRange={priceRange}
+        />
 
          {loading ? (
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -84,7 +151,11 @@ export default function UserHome() {
             </button>
           </div>
         ) : (
-          <PlayerList players={filteredPlayers} />
+          <PlayerList 
+            players={filteredPlayers} 
+            favoritePlayerIds={favoritePlayerIds}
+            onFavoriteChange={handleFavoriteChange}
+          />
         )}
         
         {/* 显示筛选结果数量 */}

@@ -9,6 +9,7 @@ export interface User {
     photo_img: string | null;
     phone_num: string;
     created_at: string;
+    role: string;
 }
 
 export class UserDAO {
@@ -17,17 +18,19 @@ export class UserDAO {
         name: string,
         passwd: string,
         phone_num: string,
-        photo_img?: string | null
+        photo_img?: string | null,
+        role: string = 'user'
     ): Promise<number> {
         const sql = `
-            INSERT INTO users (name, passwd, phone_num, photo_img)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO users (name, passwd, phone_num, photo_img, role)
+            VALUES (?, ?, ?, ?, ?)
         `;
         const [result]: any = await pool.execute(sql, [
             name,
             passwd,
             phone_num,
             photo_img || null,
+            role,
         ]);
         return result.insertId;
     }
@@ -78,9 +81,8 @@ export class UserDAO {
         const dataSql = `
       SELECT * FROM users WHERE 1=1 ${where}
       ORDER BY created_at DESC
-      LIMIT ?, ?
+      LIMIT ${offset}, ${pageSize}
     `;
-        params.push(offset, pageSize);
         const [rows]: any = await pool.execute(dataSql, params);
         return { total: cnt, users: rows };
     }

@@ -17,18 +17,21 @@ import { Routes, Route, useNavigate } from "react-router-dom";
   import PlayerOrders from "@/pages/PlayerOrders";
   import PlayerFunds from "@/pages/PlayerFunds";
   import PlayerGuide from "@/pages/PlayerGuide";
-  import AdminGiftManagement from "@/pages/AdminGiftManagement";
-  import AdminWithdrawalManagement from "@/pages/AdminWithdrawalManagement";
-  import AdminNotificationPage from "@/pages/AdminNotificationPage";
-  import ApiMonitor from "@/pages/ApiMonitor";
+import AdminGiftManagement from "@/pages/AdminGiftManagement";
+import AdminWithdrawalManagement from "@/pages/AdminWithdrawalManagement";
+import AdminNotificationPage from "@/pages/AdminNotificationPage";
+import ApiMonitor from "@/pages/ApiMonitor";
 import ApiStatus from "@/pages/ApiStatus";
+import TestNotification from "@/pages/TestNotification";
 
 import AdminPermissionManagement from "@/pages/AdminPermissionManagement";
 import BookingDetail from "@/pages/BookingDetail";
 import GamePlayersPage from "@/pages/GamePlayersPage";
+import PlayerServices from "@/pages/PlayerServices";
 import Notifications from "@/pages/Notifications";
 import { useState } from "react";
 import { AuthContext } from '@/contexts/authContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 
 export default function App() {
   // 从localStorage加载认证状态
@@ -69,6 +72,7 @@ export default function App() {
     <AuthContext.Provider
       value={{ isAuthenticated, userRole, setIsAuthenticated: setAuth, logout }}
     >
+      <NotificationProvider>
         <Routes>
            {/* 大厅路由 - 原用户主页内容 */}
            <Route path="/lobby" element={<UserHome />} />
@@ -106,6 +110,7 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/messages" element={<Notifications />} />
              <Route path="/player/profile" element={<PlayerProfile />} />
+             <Route path="/player/services" element={<PlayerServices />} />
              <Route path="/user/profile" element={<UserProfile />} />
              <Route path="/admin/profile" element={<AdminProfile />} />
              <Route path="/player/orders" element={<PlayerOrders />} />
@@ -116,7 +121,9 @@ export default function App() {
                       <Route path="/user/favorites" element={<UserFavorites />} />
              <Route path="/booking/:playerId" element={<BookingDetail />} />
              <Route path="/game/:gameId/players" element={<GamePlayersPage />} />
+             <Route path="/test-notification" element={<TestNotification />} />
         </Routes>
+      </NotificationProvider>
     </AuthContext.Provider>
   );
 }

@@ -15,6 +15,18 @@ const GiftRecordDao_1 = require("../dao/GiftRecordDao");
 const auth_1 = require("../middleware/auth"); // 导入权限中间件
 const express_validator_1 = require("express-validator");
 const router = (0, express_1.Router)();
+// 根路径 - 返回可用的礼物记录接口
+router.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: '礼物记录API',
+        endpoints: {
+            create: 'POST /api/gift-records',
+            getById: 'GET /api/gift-records/:id',
+            getByUser: 'GET /api/gift-records/user/:userId'
+        }
+    });
+});
 /**
  * @route   POST /api/gift-records
  * @desc    创建打赏记录

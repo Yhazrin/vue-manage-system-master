@@ -10,11 +10,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 // server/src/routes/statistics.route.ts
+// 修改时间: 2024-01-01
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth"); // 导入权限中间件
 const ConfigDao_1 = require("../dao/ConfigDao");
 const statisticsRouter = (0, express_1.Router)();
+// 根路径 - 返回可用的统计接口
+statisticsRouter.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: '统计分析API',
+        endpoints: {
+            global: '/api/statistics/global',
+            user: '/api/statistics/user/:userId',
+            player: '/api/statistics/player/:playerId'
+        }
+    });
+});
 // 权限中间件：仅允许 authority 为 1 的管理员访问
 const requireTopManager = (req, res, next) => {
     var _a;

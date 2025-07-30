@@ -47,16 +47,15 @@ export default function AdminGiftManagement() {
       setError(null);
       
       const data = await getGifts();
-      setGifts(data);
+      // 确保data是数组，如果不是则使用空数组
+      setGifts(Array.isArray(data) ? data : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '获取礼物列表失败';
       setError(errorMessage);
       console.error('Failed to fetch gifts:', err);
       
-      // 在开发环境下提供空数组
-      if (process.env.NODE_ENV === 'development') {
-        setGifts([]);
-      }
+      // 确保在错误情况下设置空数组
+      setGifts([]);
     } finally {
       setLoading(false);
     }
@@ -68,16 +67,15 @@ export default function AdminGiftManagement() {
       setRecordsError(null);
       
       const data = await getGiftRecords();
-      setGiftRecords(data);
+      // 确保data是数组，如果不是则使用空数组
+      setGiftRecords(Array.isArray(data) ? data : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '获取送礼记录失败';
       setRecordsError(errorMessage);
       console.error('Failed to fetch gift records:', err);
       
-      // 在开发环境下提供空数组
-      if (process.env.NODE_ENV === 'development') {
-        setGiftRecords([]);
-      }
+      // 确保在错误情况下设置空数组
+      setGiftRecords([]);
     } finally {
       setRecordsLoading(false);
     }

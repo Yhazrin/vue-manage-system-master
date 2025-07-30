@@ -84,7 +84,8 @@ export default function AdminOrders() {
         }
         const data = await response.json();
         
-        setOrders(data);
+        // 确保data是数组，如果不是则使用空数组
+        setOrders(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to fetch orders:', error);
         toast.error('获取订单列表失败');
@@ -106,7 +107,7 @@ export default function AdminOrders() {
   };
   
   // 排序订单
-  const sortedOrders = [...orders].sort((a, b) => {
+  const sortedOrders = [...(Array.isArray(orders) ? orders : [])].sort((a, b) => {
     if (a[sortField] < b[sortField]) {
       return sortDirection === "asc" ? -1 : 1;
     }

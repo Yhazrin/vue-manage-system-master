@@ -3,22 +3,17 @@ import { API_BASE_URL } from '@/config/api';
 
 // 用户资料接口定义
 export interface UserProfileData {
-  id: string;
-  nickname: string;
-  uid: string;
-  avatar: string;
-  email?: string;
-  phone?: string;
-  registerDate: string;
-  lastLogin: string;
-  favoritePlayers: number;
-  orderCount: number;
-  membershipDuration: number; // 会员时长（年）
-  securitySettings: {
-    lastPasswordChange: string;
-    twoFactorEnabled: boolean;
-    activeDevices: number;
-  };
+  id: number;
+  name: string;
+  phone_num: string;
+  photo_img: string | null;
+  status: boolean;
+  created_at: string;
+  role: string;
+  // 扩展字段
+  orderCount?: number;
+  favoritePlayers?: number;
+  membershipDuration?: number;
 }
 
 export interface UpdateProfileRequest {
@@ -38,7 +33,18 @@ export interface ChangePasswordRequest {
 export const getUserProfile = async (): Promise<UserProfileData> => {
   try {
     const token = localStorage.getItem('token');
-    const userId = localStorage.getItem('userId') || '1'; // 临时使用固定ID
+    const userStr = localStorage.getItem('user');
+    
+    if (!token || !userStr) {
+      throw new Error('用户未登录');
+    }
+    
+    const user = JSON.parse(userStr);
+    const userId = user.id || user.uid;
+    
+    if (!userId || userId === 'unknown') {
+      throw new Error('用户信息不完整，请重新登录');
+    }
     
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
       method: 'GET',
@@ -49,106 +55,69 @@ export const getUserProfile = async (): Promise<UserProfileData> => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`获取用户资料失败: ${response.status}`);
     }
 
     const data = await response.json();
     
-    if (data.success && data.user) {
-      return {
-        id: data.user.id,
-        nickname: data.user.name,
-        uid: data.user.uid || `US${data.user.id}`,
-        avatar: data.user.photo_img || "",
-        email: data.user.email || "",
-        phone: data.user.phone_num || "",
-        registerDate: data.user.created_at || "2023-05-15",
-        lastLogin: data.user.updated_at || "2024-01-15 10:25:00",
-        favoritePlayers: data.user.favorite_players || 0,
-        orderCount: data.user.order_count || 0,
-        membershipDuration: data.user.membership_duration || 0,
-        securitySettings: {
-          lastPasswordChange: data.user.last_password_change || "2023-12-15",
-          twoFactorEnabled: data.user.two_factor_enabled || false,
-          activeDevices: data.user.active_devices || 1
-        }
-      };
+    if (!data.success) {
+      throw new Error(data.error || '获取用户资料失败');
     }
-    
-    throw new Error('Invalid response format');
+
+    // 处理头像URL
+    const userData = data.user;
+    if (userData.photo_img && !userData.photo_img.startsWith('http')) {
+      userData.photo_img = `${API_BASE_URL.replace('/api', '')}/${userData.photo_img}`;
+    }
+
+    return userData;
   } catch (error) {
     console.error('Error fetching user profile:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return {
-        id: 'user123',
-        nickname: "游戏爱好者_小明",
-        uid: "US12345678",
-        avatar: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=user%20avatar&sign=f1f81b57b203e2aa336aa3ec3f6e3f7f",
-        email: "user@example.com",
-        phone: "138****5678",
-        registerDate: "2023-05-15",
-        lastLogin: "2024-01-15 10:25:00",
-        favoritePlayers: 8,
-        orderCount: 24,
-        membershipDuration: new Date().getFullYear() - 2023,
-        securitySettings: {
-          lastPasswordChange: "2023-12-15",
-          twoFactorEnabled: false,
-          activeDevices: 1
-        }
-      };
-    }
-    
     throw error;
   }
 };
 
 // 更新用户资料
-export const updateUserProfile = async (profileData: Partial<UserProfileData>): Promise<{ success: boolean; message: string }> => {
+export const updateUserProfile = async (profileData: Partial<UserProfileData>): Promise<UserProfileData> => {
   try {
     const token = localStorage.getItem('token');
-    const userId = localStorage.getItem('userId') || '1'; // 临时使用固定ID
+    const userStr = localStorage.getItem('user');
     
+    if (!token || !userStr) {
+      throw new Error('用户未登录');
+    }
+    
+    const user = JSON.parse(userStr);
+    const userId = user.id;
+    
+    if (!userId) {
+      throw new Error('用户信息不完整');
+    }
+
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({
-        name: profileData.nickname,
-        email: profileData.email,
-        phone_num: profileData.phone
-      })
+      body: JSON.stringify(profileData)
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`更新用户资料失败: ${response.status}`);
     }
 
     const data = await response.json();
     
-    if (data.success) {
-      return {
-        success: true,
-        message: '用户资料更新成功'
-      };
+    if (!data.success) {
+      throw new Error(data.error || '更新用户资料失败');
     }
-    
-    throw new Error('Update failed');
+
+    // 重新获取最新的用户资料
+    return await getUserProfile();
   } catch (error) {
     console.error('Error updating user profile:', error);
-    
-    // 模拟成功响应
-    return {
-      success: true,
-      message: '用户资料更新成功',
-      lastLogin: new Date().toISOString().slice(0, 19).replace('T', ' ')
-    };
+    throw error;
   }
 };
 
@@ -156,7 +125,18 @@ export const updateUserProfile = async (profileData: Partial<UserProfileData>): 
 export const changePassword = async (passwordData: ChangePasswordRequest): Promise<{ success: boolean; message: string }> => {
     try {
         const token = localStorage.getItem('token');
-        const userId = localStorage.getItem('userId') || '1'; // 临时使用固定ID
+        const userStr = localStorage.getItem('user');
+        
+        if (!token || !userStr) {
+            throw new Error('用户未登录');
+        }
+        
+        const user = JSON.parse(userStr);
+        const userId = user.id;
+        
+        if (!userId) {
+            throw new Error('用户信息不完整');
+        }
         
         const response = await fetch(`${API_BASE_URL}/users/${userId}/password`, {
             method: 'PATCH',
@@ -244,7 +224,7 @@ export const getLoginDevices = async (): Promise<{
   }>;
 }> => {
   try {
-    const response = await fetch('/api/user/devices', {
+    const response = await fetch(`${API_BASE_URL}/user/devices`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -291,7 +271,7 @@ export const getLoginDevices = async (): Promise<{
 // 注销指定设备
 export const logoutDevice = async (deviceId: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/user/devices/${deviceId}/logout`, {
+    const response = await fetch(`${API_BASE_URL}/user/devices/${deviceId}/logout`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -315,37 +295,46 @@ export const logoutDevice = async (deviceId: string): Promise<void> => {
 };
 
 // 上传头像
-export const uploadAvatar = async (file: File): Promise<{ avatarUrl: string }> => {
+export const uploadAvatar = async (file: File): Promise<string> => {
   try {
-    const formData = new FormData();
-    formData.append('avatar', file);
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    
+    if (!token || !userStr) {
+      throw new Error('用户未登录');
+    }
+    
+    const user = JSON.parse(userStr);
+    const userId = user.id;
+    
+    if (!userId) {
+      throw new Error('用户信息不完整');
+    }
 
-    const response = await fetch('/api/user/avatar', {
-      method: 'POST',
+    const formData = new FormData();
+    formData.append('photo_img', file);
+
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      method: 'PATCH',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       },
       body: formData
     });
 
     if (!response.ok) {
-      throw new Error('Failed to upload avatar');
+      throw new Error(`头像上传失败: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || '头像上传失败');
+    }
+
+    return data.photo_img || '';
   } catch (error) {
     console.error('Error uploading avatar:', error);
-    
-    // 开发环境下的模拟
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // 模拟上传成功，返回一个模拟的URL
-      return {
-        avatarUrl: `https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=user%20avatar&sign=${Date.now()}`
-      };
-    }
-    
     throw error;
   }
 };

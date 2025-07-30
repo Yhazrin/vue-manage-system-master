@@ -10,18 +10,19 @@
     "build": "rm -rf dist && pnpm build:client && cp package.json dist && touch dist/build.flag"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
     "clsx": "^2.1.1",
+    "date-fns": "^2.30.0",
     "framer-motion": "^12.9.2",
+    "lucide-react": "^0.534.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.0",
     "react-router-dom": "^7.3.0",
     "recharts": "^2.15.1",
     "sonner": "^2.0.2",
     "tailwind-merge": "^3.0.2",
-  "zod": "^3.24.2",
-  "react-hook-form": "^7.53.0",
-  "@hookform/resolvers": "^3.9.0",
-  "date-fns": "^2.30.0"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

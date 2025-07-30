@@ -105,9 +105,8 @@ export class ManagerDAO {
         const dataSql = `
       SELECT * FROM managers${where}
       ORDER BY created_at DESC
-      LIMIT ?, ?
+      LIMIT ${offset}, ${pageSize}
     `;
-        params.push(offset, pageSize);
         const [rows]: any = await pool.execute(dataSql, params);
         const managers = rows.map((m: any) => ({ ...m, status: Boolean(m.status) }));
 

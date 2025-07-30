@@ -8,13 +8,14 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  email: string;
-  phone: string;
-  password: string;
-  confirmPassword: string;
-  nickname: string;
-  role: 'user' | 'player';
-  verificationCode: string;
+  name: string;
+  phone_num: string;
+  passwd: string;
+  role?: string;
+  photo_img?: string;
+  // 陪玩注册的可选字段
+  intro?: string;
+  game_id?: number;
 }
 
 export interface LoginResponse {
@@ -99,12 +100,12 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
         data: {
           token: result.token,
           user: {
-            id: result.user?.id || 'unknown',
-            nickname: result.user?.name || '用户',
+            id: result.user?.id || result.user?.user_id || 'unknown',
+            nickname: result.user?.name || result.user?.nickname || '用户',
             email: result.user?.email || '',
             phone: result.user?.phone_num || request.identifier,
             role: request.role,
-            avatar: result.user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + request.identifier,
+            avatar: result.user?.photo_img || result.user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + request.identifier,
           },
         },
       };
@@ -167,61 +168,66 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
 
 // 注册
 export async function register(request: RegisterRequest): Promise<RegisterResponse> {
-    try {
-        const response = await fetch(`${API_BASE_URL}/users/register`, {
+  try {
+    // 根据角色选择正确的API端点
+    let endpoint = '';
+    let requestBody: any = {};
+    
+    if (request.role === 'player') {
+      // 陪玩注册
+      endpoint = `${API_BASE_URL}/players/register`;
+      requestBody = {
+        name: request.name,
+        phone_num: request.phone_num,
+        passwd: request.passwd,
+        // 陪玩可以有可选字段
+        photo_img: request.photo_img || null,
+        intro: request.intro || null,
+        game_id: request.game_id || null
+      };
+    } else {
+      // 普通用户注册
+      endpoint = `${API_BASE_URL}/users/register`;
+      requestBody = {
+        name: request.name,
+        phone_num: request.phone_num,
+        passwd: request.passwd,
+        role: request.role || 'user',
+        photo_img: request.photo_img || null
+      };
+    }
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || '注册失败');
     }
 
-    return await response.json();
-  } catch (error) {
-    console.error('Register API error:', error);
+    const result = await response.json();
     
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      // 模拟API延迟
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 模拟注册验证
-      if (request.password !== request.confirmPassword) {
-        return {
-          success: false,
-          message: '两次输入的密码不一致',
-        };
-      }
-      
-      if (request.verificationCode !== '123456') {
-        return {
-          success: false,
-          message: '验证码错误',
-        };
-      }
-      
-      // 模拟邮箱或手机号已存在的情况
-      const existingAccounts = ['admin@example.com', 'player@example.com', '13800138000'];
-      if (existingAccounts.includes(request.email) || existingAccounts.includes(request.phone)) {
-        return {
-          success: false,
-          message: '该邮箱或手机号已被注册',
-        };
-      }
-      
+    if (result.success) {
       return {
         success: true,
         message: '注册成功',
         data: {
-          userId: 'user_' + Date.now(),
-        },
+          userId: result.id?.toString() || 'unknown'
+        }
+      };
+    } else {
+      return {
+        success: false,
+        message: result.error || '注册失败'
       };
     }
-    
+  } catch (error) {
+    console.error('Registration error:', error);
     throw error;
   }
 }

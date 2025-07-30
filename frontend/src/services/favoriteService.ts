@@ -1,29 +1,30 @@
-import { Player } from '../types';
-import { apiRequest } from './api';
+// 收藏相关的API服务
+import { apiRequest } from '@/services/api';
+import { Player } from '@/types';
 
-// 收藏相关接口
 export interface FavoritePlayer {
   favoriteId: number;
   favoritedAt: string;
   player: Player;
 }
 
-// 获取用户收藏的陪玩列表
+// 获取用户收藏列表
 export const getFavoritePlayers = async (): Promise<FavoritePlayer[]> => {
-  return await apiRequest<FavoritePlayer[]>('/api/favorites');
+  const response = await apiRequest<{ data: FavoritePlayer[] }>('/favorites/list');
+  return response.data;
 };
 
-// 添加陪玩到收藏
+// 添加收藏
 export const addFavoritePlayer = async (playerId: number): Promise<void> => {
-  await apiRequest('/api/favorites', {
+  await apiRequest('/favorites', {
     method: 'POST',
-    body: JSON.stringify({ playerId }),
+    body: JSON.stringify({ playerId })
   });
 };
 
-// 从收藏中移除陪玩
+// 移除收藏
 export const removeFavoritePlayer = async (playerId: number): Promise<void> => {
-  await apiRequest(`/api/favorites/${playerId}`, {
-    method: 'DELETE',
+  await apiRequest(`/favorites/${playerId}`, {
+    method: 'DELETE'
   });
 };

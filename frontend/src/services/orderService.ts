@@ -1,4 +1,5 @@
-import { get, post, put } from '@/services/api';
+import { get, post, put, patch } from '@/services/api';
+import WebSocketService from './websocketService';
 
 // 定义订单类型接口
 export interface Order {
@@ -46,12 +47,21 @@ export const createOrder = async (orderData: {
   price: number;
   description?: string;
 }): Promise<Order> => {
-  return post<Order>('/orders', orderData);
+  const order = await post<Order>('/orders', orderData);
+  
+  // 订单创建成功后，模拟发送通知给陪玩
+  // 在实际项目中，这应该由后端WebSocket服务器处理
+  const wsService = WebSocketService.getInstance();
+  setTimeout(() => {
+    wsService.triggerTestNotification();
+  }, 1000); // 延迟1秒模拟网络延迟
+  
+  return order;
 };
 
 // 更新订单状态
 export const updateOrderStatus = async (orderId: string, status: Order['status']): Promise<Order> => {
-  return put<Order>(`/orders/${orderId}/status`, { status });
+  return patch<Order>(`/orders/${orderId}/status`, { status });
 };
 
 // 取消订单

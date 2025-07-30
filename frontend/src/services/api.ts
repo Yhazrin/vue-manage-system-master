@@ -76,6 +76,15 @@ export const put = <T>(endpoint: string, data?: any, options?: RequestInit) => {
   });
 };
 
+// PATCH请求
+export const patch = <T>(endpoint: string, data?: any, options?: RequestInit) => {
+  return apiRequest<T>(endpoint, {
+    method: 'PATCH',
+    body: data ? JSON.stringify(data) : undefined,
+    ...options,
+  });
+};
+
 // DELETE请求
 export const del = <T>(endpoint: string, options?: RequestInit) => {
   return apiRequest<T>(endpoint, {
@@ -84,4 +93,4 @@ export const del = <T>(endpoint: string, options?: RequestInit) => {
   });
 };
 
-export default { get, post, put, delete: del };
+export default { get, post, put, patch, delete: del };

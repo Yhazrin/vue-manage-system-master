@@ -277,7 +277,7 @@ export const getAdminPermissions = async (): Promise<{
   }>;
 }> => {
   try {
-    const response = await fetch('/api/admin/permissions', {
+    const response = await fetch(`${API_BASE_URL}/admin/permissions`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
       }

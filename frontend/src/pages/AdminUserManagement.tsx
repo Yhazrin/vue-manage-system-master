@@ -50,10 +50,13 @@ export default function AdminUserManagement() {
         }
         const data = await response.json();
         
-        setUsers(data);
+        // 确保data是数组，如果不是则使用空数组
+        setUsers(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to fetch users:', error);
         toast.error('获取用户列表失败');
+        // 确保在错误情况下设置空数组
+        setUsers([]);
       } finally {
         setLoading(false);
       }
@@ -78,10 +81,13 @@ export default function AdminUserManagement() {
         }
         const data = await response.json();
         
-        setPlayers(data);
+        // 确保data是数组，如果不是则使用空数组
+        setPlayers(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to fetch players:', error);
         toast.error('获取陪玩列表失败');
+        // 确保在错误情况下设置空数组
+        setPlayers([]);
       } finally {
         setPlayersLoading(false);
       }

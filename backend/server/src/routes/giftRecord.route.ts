@@ -7,6 +7,19 @@ import {body, param, validationResult} from 'express-validator';
 
 const router = Router();
 
+// 根路径 - 返回可用的礼物记录接口
+router.get('/', (req: Request, res: Response) => {
+    res.json({
+        success: true,
+        message: '礼物记录API',
+        endpoints: {
+            create: 'POST /api/gift-records',
+            getById: 'GET /api/gift-records/:id',
+            getByUser: 'GET /api/gift-records/user/:userId'
+        }
+    });
+});
+
 /**
  * @route   POST /api/gift-records
  * @desc    创建打赏记录

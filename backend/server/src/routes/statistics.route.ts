@@ -1,4 +1,5 @@
 // server/src/routes/statistics.route.ts
+// 修改时间: 2024-01-01
 import { Router } from 'express';
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../db';
@@ -6,6 +7,19 @@ import { auth, AuthRequest } from '../middleware/auth'; // 导入权限中间件
 import { ConfigDAO } from "../dao/ConfigDao";
 
 const statisticsRouter = Router();
+
+// 根路径 - 返回可用的统计接口
+statisticsRouter.get('/', (req: Request, res: Response) => {
+    res.json({
+        success: true,
+        message: '统计分析API',
+        endpoints: {
+            global: '/api/statistics/global',
+            user: '/api/statistics/user/:userId',
+            player: '/api/statistics/player/:playerId'
+        }
+    });
+});
 
 // 权限中间件：仅允许 authority 为 1 的管理员访问
 const requireTopManager = (req: AuthRequest, res: Response, next: NextFunction) => {

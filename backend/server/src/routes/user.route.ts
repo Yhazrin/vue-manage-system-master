@@ -43,14 +43,14 @@ router.post(
         }
 
         // 从请求体中获取注册信息
-        const { name, passwd, phone_num } = req.body;
+        const { name, passwd, phone_num, role = 'user' } = req.body;
         const photo_img = req.file ? req.file.path : null; // 获取上传的头像路径（如果有上传）
 
         // 使用 bcrypt 加密密码（10 是盐值 rounds，值越大加密越慢但越安全）
         const hash = await bcrypt.hash(passwd, 10);
 
         // 调用 UserDAO 写入数据库，返回新用户 ID 和 用户名
-        const id = await UserDAO.create(name, hash, phone_num, photo_img);
+        const id = await UserDAO.create(name, hash, phone_num, photo_img, role);
         const newUser = await UserDAO.findById(id);
 
         // 响应 201（创建成功），返回成功信息、用户 ID 和用户名
