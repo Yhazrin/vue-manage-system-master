@@ -62,6 +62,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// 全局调试中间件
+app.use((req: Request, res: Response, next: NextFunction) => {
+    console.log(`🌐 全局中间件收到请求: ${req.method} ${req.originalUrl}`);
+    console.log('请求头:', req.headers);
+    console.log('请求体:', req.body);
+    next();
+});
+
 // API监控中间件（在所有路由之前）
 app.use(apiMonitorMiddleware);
 // 在路由挂载之前
@@ -81,6 +90,12 @@ app.use('/api/statistics', statisticsRouter);
 app.use('/api/services', serviceRouter);
 app.use('/api/monitor', monitorRouter);
 app.use('/api/favorites', favoriteRouter);
+
+// 添加一个简单的测试路由
+app.post('/api/test-managers', (req, res) => {
+    console.log('🧪 测试路由被调用:', req.body);
+    res.json({ success: true, message: '测试路由工作正常', body: req.body });
+});
 
 // 根路径欢迎页面
 app.get('/', (req, res) => {

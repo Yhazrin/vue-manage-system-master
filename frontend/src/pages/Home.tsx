@@ -28,33 +28,33 @@ export default function Home() {
   ];
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-theme-background min-h-screen">
       <Header />
       
       <main className="container mx-auto px-4 py-8">
         {/* 英雄区域 */}
-        <section className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl overflow-hidden mb-12">
+        <section className="bg-theme-primary rounded-2xl overflow-hidden mb-12">
           <div className="grid md:grid-cols-2 gap-8 p-8 md:p-12 items-center">
             <div className="text-white">
               <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
            Vita<br />找到你的游戏伙伴
             </h1>
-              <p className="text-lg mb-8 text-purple-100">
+              <p className="text-lg mb-8 text-white/80">
                 无论你是想提升游戏技巧，还是寻找组队开黑的伙伴，我们都能满足你的需求。
               </p>
               <div className="flex flex-wrap gap-4">
                 <button 
-                  onClick={() => navigate('/lobby')}
-                  className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  立即寻找陪玩
-                </button>
-                <button 
-                  onClick={() => navigate('/register')}
-                  className="px-6 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition-colors"
-                >
-                  成为游戏陪玩
-                </button>
+                onClick={() => navigate('/user/dashboard')}
+                className="px-6 py-3 bg-theme-surface text-theme-primary font-semibold rounded-lg hover:bg-theme-border transition-colors"
+              >
+                立即体验
+              </button>
+              <button 
+                onClick={() => navigate('/player/guide')}
+                className="px-6 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition-colors"
+              >
+                成为陪玩
+              </button>
               </div>
             </div>
             <div className="hidden md:block relative">
@@ -70,33 +70,33 @@ export default function Home() {
         {/* 平台特点 */}
         <section className="mb-12">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">为什么选择我们</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">我们提供专业、安全、便捷的游戏陪玩服务，让你的游戏体验更加精彩</p>
+            <h2 className="text-3xl font-bold text-theme-text mb-3">为什么选择我们</h2>
+            <p className="text-theme-text/70 max-w-2xl mx-auto">我们提供专业、安全、便捷的游戏陪玩服务，让你的游戏体验更加精彩</p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 mb-4">
+            <div className="bg-theme-surface p-6 rounded-xl shadow-sm border border-theme-border hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-theme-primary/10 rounded-lg flex items-center justify-center text-theme-primary mb-4">
                 <i className="fa-solid fa-user-check text-xl"></i>
               </div>
               <h3 className="text-xl font-semibold mb-2">严格筛选</h3>
-              <p className="text-gray-600">每位陪玩都经过严格审核，确保技术水平和服务质量</p>
+              <p className="text-theme-text/70">每位陪玩都经过严格审核，确保技术水平和服务质量</p>
             </div>
             
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-4">
+            <div className="bg-theme-surface p-6 rounded-xl shadow-sm border border-theme-border hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-600 mb-4">
                 <i className="fa-solid fa-shield-alt text-xl"></i>
               </div>
               <h3 className="text-xl font-semibold mb-2">安全交易</h3>
-              <p className="text-gray-600">平台担保交易，资金安全有保障，让你放心消费</p>
+              <p className="text-theme-text/70">平台担保交易，资金安全有保障，让你放心消费</p>
             </div>
             
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600 mb-4">
+            <div className="bg-theme-surface p-6 rounded-xl shadow-sm border border-theme-border hover:shadow-md transition-shadow">
+              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center text-green-600 mb-4">
                 <i className="fa-solid fa-gamepad text-xl"></i>
               </div>
               <h3 className="text-xl font-semibold mb-2">多样选择</h3>
-              <p className="text-gray-600">覆盖多种热门游戏，无论你喜欢什么类型，都能找到合适的陪玩</p>
+              <p className="text-theme-text/70">覆盖多种热门游戏，无论你喜欢什么类型，都能找到合适的陪玩</p>
             </div>
           </div>
         </section>
@@ -104,36 +104,36 @@ export default function Home() {
         {/* 游戏分类 */}
         <section className="mb-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">热门游戏</h2>
-            <a href="#" className="text-purple-600 font-medium hover:underline">查看全部</a>
+            <h2 className="text-2xl font-bold text-theme-text">热门游戏</h2>
+            <a href="#" className="text-theme-primary font-medium hover:underline">查看全部</a>
           </div>
           <GameGrid />
         </section>
         
         {/* 如何使用 */}
-        <section className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 mb-12">
+        <section className="bg-theme-surface p-8 rounded-xl shadow-sm border border-theme-border mb-12">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">如何使用</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">只需简单三步，开启你的游戏陪玩之旅</p>
+            <h2 className="text-3xl font-bold text-theme-text mb-3">如何使用</h2>
+            <p className="text-theme-text/70 max-w-2xl mx-auto">只需简单三步，开启你的游戏陪玩之旅</p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-2xl font-bold mx-auto mb-4">1</div>
+              <div className="w-16 h-16 bg-theme-primary/10 rounded-full flex items-center justify-center text-theme-primary text-2xl font-bold mx-auto mb-4">1</div>
               <h3 className="text-xl font-semibold mb-2">注册账号</h3>
-              <p className="text-gray-600">创建账号并完善个人信息，设置你的游戏偏好</p>
+              <p className="text-theme-text/70">创建账号并完善个人信息，设置你的游戏偏好</p>
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-2xl font-bold mx-auto mb-4">2</div>
+              <div className="w-16 h-16 bg-theme-primary/10 rounded-full flex items-center justify-center text-theme-primary text-2xl font-bold mx-auto mb-4">2</div>
               <h3 className="text-xl font-semibold mb-2">选择陪玩</h3>
-              <p className="text-gray-600">浏览陪玩列表，根据游戏类型和价格筛选合适的陪玩</p>
+              <p className="text-theme-text/70">浏览陪玩列表，根据游戏类型和价格筛选合适的陪玩</p>
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-2xl font-bold mx-auto mb-4">3</div>
+              <div className="w-16 h-16 bg-theme-primary/10 rounded-full flex items-center justify-center text-theme-primary text-2xl font-bold mx-auto mb-4">3</div>
               <h3 className="text-xl font-semibold mb-2">开始游戏</h3>
-              <p className="text-gray-600">预约时间并支付，与陪玩一起享受游戏乐趣</p>
+              <p className="text-theme-text/70">预约时间并支付，与陪玩一起享受游戏乐趣</p>
             </div>
           </div>
         </section>
@@ -141,25 +141,25 @@ export default function Home() {
         {/* 常见问题 */}
         <section className="mb-12">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">常见问题</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">你可能想了解的问题</p>
+            <h2 className="text-3xl font-bold text-theme-text mb-3">常见问题</h2>
+            <p className="text-theme-text/70 max-w-2xl mx-auto">你可能想了解的问题</p>
           </div>
           
           <div className="max-w-3xl mx-auto space-y-4">
             {faqItems.map((item, index) => (
               <div 
                 key={index} 
-                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+                className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden"
               >
                 <button
                   className="w-full px-6 py-4 text-left font-medium flex justify-between items-center"
                   onClick={() => setActiveFaq(activeFaq === index ? null : index)}
                 >
                   <span>{item.question}</span>
-                  <i className={`fa-solid ${activeFaq === index ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+                  <i className={`fa-solid ${activeFaq === index ? 'fa-chevron-up' : 'fa-chevron-down'} text-theme-text/40`}></i>
                 </button>
                 {activeFaq === index && (
-                  <div className="px-6 pb-4 text-gray-600">
+                  <div className="px-6 pb-4 text-theme-text/70">
                     {item.answer}
                   </div>
                 )}
@@ -169,21 +169,21 @@ export default function Home() {
         </section>
         
         {/* 行动召唤 */}
-        <section className="bg-purple-50 rounded-2xl p-8 text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">准备好开始你的游戏之旅了吗？</h2>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+        <section className="bg-theme-primary/10 rounded-2xl p-8 text-center mb-8">
+          <h2 className="text-3xl font-bold text-theme-text mb-4">准备好开始你的游戏之旅了吗？</h2>
+          <p className="text-lg text-theme-text/70 mb-8 max-w-2xl mx-auto">
             加入我们，找到你的游戏伙伴，一起享受游戏的乐趣
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button 
               onClick={() => navigate('/register')}
-              className="px-8 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-8 py-3 bg-theme-primary text-white font-semibold rounded-lg hover:bg-theme-primary/90 transition-colors"
             >
               立即注册
             </button>
             <button 
               onClick={() => navigate('/lobby')}
-              className="px-8 py-3 bg-white text-purple-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              className="px-8 py-3 bg-theme-surface text-theme-primary font-semibold rounded-lg hover:bg-theme-background transition-colors"
             >
               了解更多
             </button>

@@ -15,6 +15,8 @@ export default function UserHome() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGame, setSelectedGame] = useState<number | null>(null);
   const [priceRange, setPriceRange] = useState<[number, number]>([10, 200]);
+  const [gameFilterEnabled, setGameFilterEnabled] = useState(false);
+  const [priceFilterEnabled, setPriceFilterEnabled] = useState(false);
   const [favorites, setFavorites] = useState<FavoritePlayer[]>([]);
   const [favoritePlayerIds, setFavoritePlayerIds] = useState<Set<number>>(new Set());
   const { players, loading, error, fetchPlayers } = usePlayers();
@@ -56,19 +58,21 @@ export default function UserHome() {
       );
     }
 
-    // 游戏筛选
-    if (selectedGame) {
+    // 游戏筛选 - 只有在启用且选择了游戏时才筛选
+    if (gameFilterEnabled && selectedGame) {
       filtered = filtered.filter(player => player.game_id === selectedGame);
     }
 
-    // 价格范围筛选
-    filtered = filtered.filter(player => {
-      if (!player.price) return false;
-      return player.price >= priceRange[0] && player.price <= priceRange[1];
-    });
+    // 价格范围筛选 - 只有在启用时才筛选
+    if (priceFilterEnabled) {
+      filtered = filtered.filter(player => {
+        if (!player.price) return false;
+        return player.price >= priceRange[0] && player.price <= priceRange[1];
+      });
+    }
 
     setFilteredPlayers(filtered);
-  }, [players, searchTerm, selectedGame, priceRange]);
+  }, [players, searchTerm, selectedGame, priceRange, gameFilterEnabled, priceFilterEnabled]);
 
   // 防抖的筛选函数
   const debouncedFilter = useCallback(
@@ -87,13 +91,15 @@ export default function UserHome() {
   };
 
   // 处理游戏筛选
-  const handleGameFilter = (gameId: number | null) => {
+  const handleGameFilter = (gameId: number | null, enabled: boolean) => {
     setSelectedGame(gameId);
+    setGameFilterEnabled(enabled);
   };
 
   // 处理价格范围变化
-  const handlePriceRangeChange = (min: number, max: number) => {
+  const handlePriceRangeChange = (min: number, max: number, enabled: boolean) => {
     setPriceRange([min, max]);
+    setPriceFilterEnabled(enabled);
   };
 
   // 处理收藏状态变化
@@ -121,21 +127,23 @@ export default function UserHome() {
           searchTerm={searchTerm}
           selectedGame={selectedGame}
           priceRange={priceRange}
+          gameFilterEnabled={gameFilterEnabled}
+          priceFilterEnabled={priceFilterEnabled}
         />
 
          {loading ? (
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
              {Array.from({ length: 6 }).map((_, index) => (
-              <div key={`skeleton-${index}`} className="bg-gray-100 rounded-xl overflow-hidden border border-gray-200 animate-pulse">
-                <div className="relative pb-[100%] bg-gray-200"></div>
+              <div key={`skeleton-${index}`} className="bg-theme-surface rounded-xl overflow-hidden border border-theme-border animate-pulse">
+                <div className="relative pb-[100%] bg-theme-background"></div>
                 <div className="p-3">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-theme-background rounded w-3/4 mb-2"></div>
                   <div className="flex gap-2 mb-2">
-                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                    <div className="h-3 bg-theme-background rounded w-1/4"></div>
+                    <div className="h-3 bg-theme-background rounded w-1/4"></div>
+                    <div className="h-3 bg-theme-background rounded w-1/4"></div>
                   </div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4 mt-2"></div>
+                  <div className="h-4 bg-theme-background rounded w-1/4 mt-2"></div>
                 </div>
               </div>
             ))}
@@ -145,7 +153,7 @@ export default function UserHome() {
             <p className="text-red-500">加载陪玩失败: {error}</p>
             <button 
               onClick={fetchPlayers}
-              className="mt-2 text-purple-600 hover:underline"
+              className="mt-2 text-theme-primary hover:underline"
             >
               重试
             </button>
@@ -159,7 +167,7 @@ export default function UserHome() {
         )}
         
         {/* 显示筛选结果数量 */}
-        <div className="mt-4 text-sm text-gray-500">
+        <div className="mt-4 text-sm text-theme-text/70">
           找到 {filteredPlayers.length} 位符合条件的陪玩
         </div>
       </main>

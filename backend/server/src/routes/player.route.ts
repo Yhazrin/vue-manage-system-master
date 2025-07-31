@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 // 导入共享工具
-import { playerUpload } from '../utils/upload'; // 复用共享multer配置（玩家专用）
+import { playerUpload, normalizePath } from '../utils/upload'; // 复用共享multer配置（玩家专用）
 import {
     phoneValidator,
     phoneUniqueValidator,
@@ -53,8 +53,8 @@ router.post(
             // 提取请求数据（包含文件路径）
             const { name, passwd, phone_num, game_id, intro } = req.body;
             const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-            const photo_img = files?.['photo_img']?.[0]?.path || null; // 头像路径
-            const QR_img = files?.['QR_img']?.[0]?.path || null;       // 二维码路径
+            const photo_img = files?.['photo_img']?.[0]?.path ? normalizePath(files['photo_img'][0].path) : null; // 头像路径
+            const QR_img = files?.['QR_img']?.[0]?.path ? normalizePath(files['QR_img'][0].path) : null;       // 二维码路径
 
             // 密码加密
             const hash = await bcrypt.hash(passwd, 10);
@@ -107,21 +107,45 @@ router.get('/public', async (req: Request, res: Response, next: NextFunction) =>
         
         // 获取所有游戏信息用于映射
         const { GameDAO } = require('../dao/GameDao');
+        const { ServiceDAO } = require('../dao/ServiceDao');
         const games = await GameDAO.findAll();
         const gameMap = new Map(games.map((game: any) => [game.id, game.name]));
         
-        // 过滤敏感信息，只返回公开信息，并添加游戏名称
-        const safePlayers = result.players.map(player => ({
-            id: player.id,
-            name: player.name,
-            photo_img: player.photo_img,
-            intro: player.intro,
-            status: player.status,
-            voice: player.voice,
-            game_id: player.game_id,
-            games: player.game_id ? [gameMap.get(player.game_id) || '未知游戏'] : [],
-            services: [], // 暂时为空，后续可以从services表获取
-            // 隐藏敏感字段：如手机号、财务信息等
+        // 为每个陪玩获取其提供的服务和对应的游戏
+        const safePlayers = await Promise.all(result.players.map(async (player) => {
+            // 获取该陪玩的所有服务
+            const services = await ServiceDAO.findByPlayerId(player.id);
+            
+            // 提取服务中的游戏名称，去重
+            const serviceGames = [...new Set(services.map((service: any) => service.game_name).filter(Boolean))];
+            
+            // 如果没有服务，则使用个人资料中的游戏
+            const playerGames = serviceGames.length > 0 
+                ? serviceGames 
+                : (player.game_id ? [gameMap.get(player.game_id) || '未知游戏'] : []);
+            
+            // 计算最低价格
+            const prices = services.map((service: any) => service.price).filter(Boolean);
+            const minPrice = prices.length > 0 ? Math.min(...prices) : null;
+            
+            return {
+                id: player.id,
+                name: player.name,
+                photo_img: player.photo_img,
+                intro: player.intro,
+                status: player.status,
+                voice: player.voice,
+                game_id: player.game_id,
+                games: playerGames,
+                price: minPrice,
+                services: services.map((service: any) => ({
+                    id: service.id,
+                    game_name: service.game_name,
+                    price: service.price,
+                    hours: service.hours
+                })),
+                // 隐藏敏感字段：如手机号、财务信息等
+            };
         }));
         
         res.json({ 
@@ -156,21 +180,45 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
             
             // 获取所有游戏信息用于映射
             const { GameDAO } = require('../dao/GameDao');
+            const { ServiceDAO } = require('../dao/ServiceDao');
             const games = await GameDAO.findAll();
             const gameMap = new Map(games.map((game: any) => [game.id, game.name]));
             
-            // 过滤敏感信息，只返回公开信息，并添加游戏名称
-            const safePlayers = result.players.map(player => ({
-                id: player.id,
-                name: player.name,
-                photo_img: player.photo_img,
-                intro: player.intro,
-                status: player.status,
-                voice: player.voice,
-                game_id: player.game_id,
-                games: player.game_id ? [gameMap.get(player.game_id) || '未知游戏'] : [],
-                services: [], // 暂时为空，后续可以从services表获取
-                // 隐藏敏感字段：如手机号、财务信息等
+            // 为每个陪玩获取其提供的服务和对应的游戏
+            const safePlayers = await Promise.all(result.players.map(async (player) => {
+                // 获取该陪玩的所有服务
+                const services = await ServiceDAO.findByPlayerId(player.id);
+                
+                // 提取服务中的游戏名称，去重
+                const serviceGames = [...new Set(services.map((service: any) => service.game_name).filter(Boolean))];
+                
+                // 如果没有服务，则使用个人资料中的游戏
+                const playerGames = serviceGames.length > 0 
+                    ? serviceGames 
+                    : (player.game_id ? [gameMap.get(player.game_id) || '未知游戏'] : []);
+                
+                // 计算最低价格
+                const prices = services.map((service: any) => service.price).filter(Boolean);
+                const minPrice = prices.length > 0 ? Math.min(...prices) : null;
+                
+                return {
+                    id: player.id,
+                    name: player.name,
+                    photo_img: player.photo_img,
+                    intro: player.intro,
+                    status: player.status,
+                    voice: player.voice,
+                    game_id: player.game_id,
+                    games: playerGames,
+                    price: minPrice,
+                    services: services.map((service: any) => ({
+                        id: service.id,
+                        game_name: service.game_name,
+                        price: service.price,
+                        hours: service.hours
+                    })),
+                    // 隐藏敏感字段：如手机号、财务信息等
+                };
             }));
             
             return res.json({ 
@@ -269,7 +317,7 @@ router.patch(
 
         const updateData: any = { ...req.body };
         // 处理头像更新
-        if (req.file) updateData.photo_img = req.file.path;
+        if (req.file) updateData.photo_img = normalizePath(req.file.path);
 
         await PlayerDAO.updateById(targetId, updateData);
         
@@ -339,7 +387,7 @@ router.patch(
             }
 
             // 获取上传的录音文件路径
-            const voicePath = req.file?.path || null;
+            const voicePath = req.file?.path ? normalizePath(req.file.path) : null;
             if (!voicePath) {
                 return res.status(400).json({ success: false, error: '请上传录音文件' });
             }
@@ -371,7 +419,7 @@ router.patch(
             }
 
             // 优先使用上传的文件路径，其次使用body中的路径
-            const QR_img = req.file?.path || req.body.QR_img;
+            const QR_img = req.file?.path ? normalizePath(req.file.path) : req.body.QR_img;
             await PlayerDAO.updateQR(targetId, QR_img);
             res.json({ success: true });
         } catch (err) {

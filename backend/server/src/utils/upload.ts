@@ -3,6 +3,25 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * 规范化 Windows 路径到 Web 路径：
+ *  - 全部转成 '/' 分隔
+ *  - 丢掉 drive 盘符和前面多余的目录，只保留 uploads/ 下的相对路径
+ */
+export function normalizePath(fullPath: string): string {
+    // 1. 先将所有反斜杠转为斜杠（处理Windows路径）
+    let p = fullPath.replace(/\\/g, '/');
+    // 2. 移除可能的重复斜杠（如"uploads//player"转为"uploads/player"）
+    p = p.replace(/\/+/g, '/');
+    // 3. 提取uploads/及其后面的路径（确保从uploads开始）
+    const idx = p.indexOf('uploads/');
+    if (idx !== -1) {
+        return p.substring(idx);
+    }
+    // 兜底：如果没有uploads/，则返回文件名（避免无效路径）
+    return path.basename(p);
+}
+
 // 确保目录存在（防止上传失败）
 const ensureDir = (dir: string) => {
     if (!fs.existsSync(dir)) {

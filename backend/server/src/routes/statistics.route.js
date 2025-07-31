@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 // server/src/routes/statistics.route.ts
 // 修改时间: 2024-01-01
@@ -30,8 +21,7 @@ statisticsRouter.get('/', (req, res) => {
 });
 // 权限中间件：仅允许 authority 为 1 的管理员访问
 const requireTopManager = (req, res, next) => {
-    var _a;
-    if (((_a = req.user) === null || _a === void 0 ? void 0 : _a.role) !== 'manager' || req.user.authority !== 1) {
+    if (req.user?.role !== 'manager' || req.user.authority !== 1) {
         return res.status(403).json({
             success: false,
             error: '仅顶级管理员可访问此统计数据'
@@ -44,33 +34,34 @@ const requireTopManager = (req, res, next) => {
  * @desc    查询全局统计数据（总收入、总抽成、总订单数等）
  * @access  仅 authority 为 1 的管理员可访问
  */
-statisticsRouter.get('/global', auth_1.auth, requireTopManager, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+statisticsRouter.get('/global', auth_1.auth, requireTopManager, async (req, res, next) => {
     try {
         // 1. 拉取抽成比例
-        const commissionRate = yield ConfigDao_1.ConfigDAO.getCommissionRate(); // e.g. 10.00
+        const commissionRate = await ConfigDao_1.ConfigDAO.getCommissionRate(); // e.g. 10.00
         // 2. 基础统计
-        const [[{ total_orders }]] = yield db_1.pool.execute(`SELECT COUNT(*) as total_orders FROM orders`);
-        const [[{ total_revenue }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as total_revenue
+        const [[{ total_orders }]] = await db_1.pool.execute(`SELECT COUNT(*) as total_orders FROM orders
+       WHERE status = 'completed'`);
+        const [[{ total_revenue }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as total_revenue
                  FROM orders
-                 WHERE status = '已完成'`);
-        const [[{ total_users }]] = yield db_1.pool.execute(`SELECT COUNT(*) as total_users FROM users`);
-        const [[{ total_players }]] = yield db_1.pool.execute(`SELECT COUNT(*) as total_players FROM players`);
+                 WHERE status = 'completed'`);
+        const [[{ total_users }]] = await db_1.pool.execute(`SELECT COUNT(*) as total_users FROM users`);
+        const [[{ total_players }]] = await db_1.pool.execute(`SELECT COUNT(*) as total_players FROM players`);
         // 3. 订单平台抽成
-        const [[{ order_platform_fee }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(amount * ? / 100), 0) as order_platform_fee
+        const [[{ order_platform_fee }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(amount * ? / 100), 0) as order_platform_fee
                  FROM orders
-                 WHERE status = '已完成'`, [commissionRate]);
+                 WHERE status = 'completed'`, [commissionRate]);
         // 4. 提现统计（平台抽成 & 玩家到手）
-        const [[{ withdraw_platform_fee }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(platform_fee), 0) as withdraw_platform_fee
+        const [[{ withdraw_platform_fee }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(platform_fee), 0) as withdraw_platform_fee
                  FROM withdrawals`);
-        const [[{ total_withdrawn }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(final_amount), 0) as total_withdrawn
+        const [[{ total_withdrawn }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(final_amount), 0) as total_withdrawn
                    FROM withdrawals 
-                  WHERE status = '已批准'`);
+                  WHERE status = 'approved'`);
         // 5. 打赏统计（总额、平台抽成、到手收入）
-        const [[{ total_gift_amount }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(total_price), 0) as total_gift_amount 
+        const [[{ total_gift_amount }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(total_price), 0) as total_gift_amount 
                    FROM gift_records`);
-        const [[{ gift_platform_fee }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(platform_fee), 0) as gift_platform_fee 
+        const [[{ gift_platform_fee }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(platform_fee), 0) as gift_platform_fee 
                    FROM gift_records`);
-        const [[{ gift_net }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(final_amount), 0) as gift_net 
+        const [[{ gift_net }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(final_amount), 0) as gift_net 
                    FROM gift_records`);
         // 6. 汇总平台总抽成
         const total_platform_profit = Number(order_platform_fee) +
@@ -100,21 +91,21 @@ statisticsRouter.get('/global', auth_1.auth, requireTopManager, (req, res, next)
     catch (err) {
         next(err);
     }
-}));
+});
 /**
  * @route   GET /api/statistics/user/:userId
  * @desc    查询指定用户订单统计
  * @access  仅顶级管理员可访问
  */
-statisticsRouter.get('/user/:userId', auth_1.auth, requireTopManager, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+statisticsRouter.get('/user/:userId', auth_1.auth, requireTopManager, async (req, res, next) => {
     try {
         const userId = Number(req.params.userId);
         if (isNaN(userId)) {
             return res.status(400).json({ success: false, error: '无效的用户ID' });
         }
-        const [[{ user_order_count }]] = yield db_1.pool.execute(`SELECT COUNT(*) as user_order_count FROM orders WHERE user_id = ?`, [userId]);
+        const [[{ user_order_count }]] = await db_1.pool.execute(`SELECT COUNT(*) as user_order_count FROM orders WHERE user_id = ?`, [userId]);
         // 查询用户总消费金额
-        const [[{ user_total_spent }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as user_total_spent FROM orders WHERE user_id = ? AND status = '已完成'`, [userId]);
+        const [[{ user_total_spent }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as user_total_spent FROM orders WHERE user_id = ? AND status = 'completed'`, [userId]);
         res.json({
             success: true,
             userId,
@@ -125,48 +116,47 @@ statisticsRouter.get('/user/:userId', auth_1.auth, requireTopManager, (req, res,
     catch (err) {
         next(err);
     }
-}));
+});
 /**
  * @route   GET /api/statistics/player/:playerId
  * @desc    查询指定陪玩收入与订单统计
  * @access  管理员可访问任意陪玩数据，陪玩只能访问自己的数据
  */
-statisticsRouter.get('/player/:playerId', auth_1.auth, (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
+statisticsRouter.get('/player/:playerId', auth_1.auth, async (req, res, next) => {
     try {
         const playerId = Number(req.params.playerId);
         if (isNaN(playerId)) {
             return res.status(400).json({ success: false, error: '无效的陪玩ID' });
         }
         // 权限检查：管理员可以查看任意陪玩数据，陪玩只能查看自己的数据
-        if (((_a = req.user) === null || _a === void 0 ? void 0 : _a.role) === 'player' && req.user.id !== playerId) {
+        if (req.user?.role === 'player' && req.user.id !== playerId) {
             return res.status(403).json({
                 success: false,
                 error: '陪玩只能查看自己的统计数据'
             });
         }
-        if (((_b = req.user) === null || _b === void 0 ? void 0 : _b.role) !== 'manager' && ((_c = req.user) === null || _c === void 0 ? void 0 : _c.role) !== 'player') {
+        if (req.user?.role !== 'manager' && req.user?.role !== 'player') {
             return res.status(403).json({
                 success: false,
                 error: '权限不足'
             });
         }
         // 订单总数
-        const [[{ total_order_count }]] = yield db_1.pool.execute(`SELECT COUNT(*) as total_order_count FROM orders WHERE player_id = ?`, [playerId]);
+        const [[{ total_order_count }]] = await db_1.pool.execute(`SELECT COUNT(*) as total_order_count FROM orders WHERE player_id = ?`, [playerId]);
         // 总接单金额
-        const [[{ total_earnings }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as total_earnings FROM orders WHERE player_id = ? AND status = '已完成'`, [playerId]);
+        const [[{ total_earnings }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as total_earnings FROM orders WHERE player_id = ? AND status = 'completed'`, [playerId]);
         // 今日订单数
-        const [[{ today_orders }]] = yield db_1.pool.execute(`SELECT COUNT(*) as today_orders FROM orders WHERE player_id = ? AND DATE(created_at) = CURDATE()`, [playerId]);
+        const [[{ today_orders }]] = await db_1.pool.execute(`SELECT COUNT(*) as today_orders FROM orders WHERE player_id = ? AND DATE(created_at) = CURDATE()`, [playerId]);
         // 本月收入
-        const [[{ monthly_income }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as monthly_income FROM orders WHERE player_id = ? AND status = '已完成' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`, [playerId]);
+        const [[{ monthly_income }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as monthly_income FROM orders WHERE player_id = ? AND status = 'completed' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`, [playerId]);
         // 服务评分 (假设有评分表，这里先返回固定值)
         const service_rating = 4.8;
         // 待处理事项 (待接单的订单数)
-        const [[{ pending_tasks }]] = yield db_1.pool.execute(`SELECT COUNT(*) as pending_tasks FROM orders WHERE player_id = ? AND status = 'pending'`, [playerId]);
+        const [[{ pending_tasks }]] = await db_1.pool.execute(`SELECT COUNT(*) as pending_tasks FROM orders WHERE player_id = ? AND status = 'pending'`, [playerId]);
         // 总提现金额
-        const [[{ total_withdrawn }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as total_withdrawn FROM withdrawals WHERE player_id = ? AND status = '已批准'`, [playerId]);
+        const [[{ total_withdrawn }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(amount), 0) as total_withdrawn FROM withdrawals WHERE player_id = ? AND status = 'approved'`, [playerId]);
         // 平台总抽成
-        const [[{ platform_profit }]] = yield db_1.pool.execute(`SELECT IFNULL(SUM(platform_fee), 0) as platform_profit FROM withdrawals WHERE player_id = ?`, [playerId]);
+        const [[{ platform_profit }]] = await db_1.pool.execute(`SELECT IFNULL(SUM(platform_fee), 0) as platform_profit FROM withdrawals WHERE player_id = ?`, [playerId]);
         res.json({
             success: true,
             playerId,
@@ -184,5 +174,5 @@ statisticsRouter.get('/player/:playerId', auth_1.auth, (req, res, next) => __awa
     catch (err) {
         next(err);
     }
-}));
+});
 exports.default = statisticsRouter;

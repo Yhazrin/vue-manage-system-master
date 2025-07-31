@@ -5,18 +5,18 @@ import { API_BASE_URL } from '@/config/api';
 
 // 定义用户类型接口
 interface User {
-  id: string;
-  uid: string;
-  nickname: string;
-  avatar: string;
-  phone?: string;
-  registerTime: string;
-  lastLogin: string;
-  status: 'active' | 'inactive';
-  role: 'user' | 'player';
-  skills?: string[];
-  rating?: number;
-  orders?: number;
+  id: number;
+  name: string;
+  phone_num?: string;
+  created_at: string;
+  status: boolean;
+  role?: string;
+  photo_img?: string;
+  // 陪玩特有字段
+  game_id?: number;
+  money?: number;
+  profit?: number;
+  intro?: string;
 }
 
 export default function AdminUserManagement() {
@@ -27,9 +27,9 @@ export default function AdminUserManagement() {
   const [players, setPlayers] = useState<User[]>([]);
   const [isAddingPlayer, setIsAddingPlayer] = useState(false);
   const [newPlayer, setNewPlayer] = useState({
-    nickname: "",
-    phone: "",
-    skills: ""
+    name: "",
+    phone_num: "",
+    intro: ""
   });
   const [loading, setLoading] = useState(true);
   const [playersLoading, setPlayersLoading] = useState(true);
@@ -40,7 +40,7 @@ export default function AdminUserManagement() {
       try {
         setLoading(true);
         // 调用真实API获取用户数据
-        const response = await fetch(`${API_BASE_URL}/users`, {
+        const response = await fetch(`${API_BASE_URL}/users?page=1&pageSize=100`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -50,8 +50,8 @@ export default function AdminUserManagement() {
         }
         const data = await response.json();
         
-        // 确保data是数组，如果不是则使用空数组
-        setUsers(Array.isArray(data) ? data : []);
+        // 确保data.users是数组，如果不是则使用空数组
+        setUsers(Array.isArray(data.users) ? data.users : []);
       } catch (error) {
         console.error('Failed to fetch users:', error);
         toast.error('获取用户列表失败');
@@ -71,18 +71,18 @@ export default function AdminUserManagement() {
         try {
             setPlayersLoading(true);
             // 调用真实API获取陪玩数据
-            const response = await fetch(`${API_BASE_URL}/players`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+        const response = await fetch(`${API_BASE_URL}/players?page=1&pageSize=100`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch players');
         }
         const data = await response.json();
         
-        // 确保data是数组，如果不是则使用空数组
-        setPlayers(Array.isArray(data) ? data : []);
+        // 确保data.players是数组，如果不是则使用空数组
+         setPlayers(Array.isArray(data.players) ? data.players : []);
       } catch (error) {
         console.error('Failed to fetch players:', error);
         toast.error('获取陪玩列表失败');
@@ -97,12 +97,12 @@ export default function AdminUserManagement() {
   }, []);
   
   // 切换用户状态
-  const toggleUserStatus = (id: string, role: 'user' | 'player') => {
+  const toggleUserStatus = (id: number, role: 'user' | 'player') => {
     if (role === 'user') {
       setUsers(prevUsers => 
         prevUsers.map(user => 
           user.id === id 
-            ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' } 
+            ? { ...user, status: !user.status } 
             : user
         )
       );
@@ -110,7 +110,7 @@ export default function AdminUserManagement() {
       setPlayers(prevPlayers => 
         prevPlayers.map(player => 
           player.id === id 
-            ? { ...player, status: player.status === 'active' ? 'inactive' : 'active' } 
+            ? { ...player, status: !player.status } 
             : player
         )
       );
@@ -119,51 +119,39 @@ export default function AdminUserManagement() {
   
   // 搜索用户/陪玩
   const filteredUsers = users.filter(user => 
-    user.nickname.includes(searchTerm) || 
-    user.uid.includes(searchTerm) ||
-    (user.phone && user.phone.includes(searchTerm))
+    (user.name && user.name.includes(searchTerm)) || 
+    (user.id && user.id.toString().includes(searchTerm)) ||
+    (user.phone_num && user.phone_num.includes(searchTerm))
   );
   
   const filteredPlayers = players.filter(player => 
-    player.nickname.includes(searchTerm) || 
-    player.uid.includes(searchTerm) ||
-    (player.phone && player.phone.includes(searchTerm))
+    (player.name && player.name.includes(searchTerm)) || 
+    (player.id && player.id.toString().includes(searchTerm)) ||
+    (player.phone_num && player.phone_num.includes(searchTerm))
   );
   
   // 添加陪玩
   const handleAddPlayer = () => {
-    if (!newPlayer.nickname || !newPlayer.phone || !newPlayer.skills) {
+    if (!newPlayer.name || !newPlayer.phone_num) {
       toast.error("请填写所有必填字段");
       return;
     }
     
-    const skillsArray = newPlayer.skills.split(',').map(skill => skill.trim());
-    
-    // 生成新ID（处理空数组情况）
-    const lastId = players.length > 0 ? players[players.length - 1].id : 'P000';
-    const numericPart = parseInt(lastId.replace('P', ''));
-    const newId = `P${(numericPart + 1).toString().padStart(3, '0')}`;
-    
-    const newUid = `PLR${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`;
-    
+    // 这里应该调用后端API来添加陪玩
+    // 暂时只是前端模拟
     const playerToAdd: User = {
-      id: newId,
-      uid: newUid,
-      nickname: newPlayer.nickname,
-      avatar: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=new%20player%20avatar&sign=a2ead23e3632b515b4784ac67ce298cf",
-      phone: newPlayer.phone,
-      registerTime: new Date().toISOString().split('T')[0],
-      lastLogin: new Date().toISOString().split('T')[0] + " 00:00",
-      status: "active",
-      role: "player",
-      skills: skillsArray,
-      rating: 0,
-      orders: 0
+      id: Date.now(), // 临时ID
+      name: newPlayer.name,
+      phone_num: newPlayer.phone_num,
+      created_at: new Date().toISOString().split('T')[0],
+      status: true,
+      intro: newPlayer.intro,
+      photo_img: null
     };
     
     setPlayers(prevPlayers => [...prevPlayers, playerToAdd]);
     setIsAddingPlayer(false);
-    setNewPlayer({ nickname: "", phone: "", skills: "" });
+    setNewPlayer({ name: "", phone_num: "", intro: "" });
     toast.success("陪玩添加成功");
   };
   
@@ -227,7 +215,7 @@ export default function AdminUserManagement() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜索昵称/手机号/UID..."
+              placeholder="搜索姓名/手机号/ID..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -257,13 +245,13 @@ export default function AdminUserManagement() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">陪玩昵称</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">陪玩姓名</label>
                 <input
                   type="text"
-                  value={newPlayer.nickname}
-                  onChange={(e) => setNewPlayer({...newPlayer, nickname: e.target.value})}
+                  value={newPlayer.name}
+                  onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="请输入陪玩昵称"
+                  placeholder="请输入陪玩姓名"
                 />
               </div>
               
@@ -271,21 +259,21 @@ export default function AdminUserManagement() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
                 <input
                   type="text"
-                  value={newPlayer.phone}
-                  onChange={(e) => setNewPlayer({...newPlayer, phone: e.target.value})}
+                  value={newPlayer.phone_num}
+                  onChange={(e) => setNewPlayer({...newPlayer, phone_num: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   placeholder="请输入联系电话"
                 />
               </div>
               
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">擅长技能（用逗号分隔）</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">个人介绍</label>
                 <input
                   type="text"
-                  value={newPlayer.skills}
-                  onChange={(e) => setNewPlayer({...newPlayer, skills: e.target.value})}
+                  value={newPlayer.intro}
+                  onChange={(e) => setNewPlayer({...newPlayer, intro: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="例如：英雄联盟,王者荣耀,无畏契约"
+                  placeholder="请输入个人介绍"
                 />
               </div>
             </div>
@@ -307,7 +295,7 @@ export default function AdminUserManagement() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
                   {activeTab === 'players' && (
                     <>
@@ -330,39 +318,39 @@ export default function AdminUserManagement() {
                   filteredUsers.length > 0 ? (
                     filteredUsers.map(user => (
                       <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.uid}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full" src={user.avatar} alt={user.nickname} />
+                              <img className="h-10 w-10 rounded-full" src={user.photo_img || '/default-avatar.png'} alt={user.name} />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{user.nickname}</div>
-                              <div className="text-xs text-gray-500">{user.phone}</div>
+                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                              <div className="text-xs text-gray-500">{user.phone_num}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.orders}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.registerTime}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.lastLogin}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.created_at}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            user.status === 'active' 
+                            user.status 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-red-100 text-red-800'
                           }`}>
-                            {user.status === 'active' ? '正常' : '封禁'}
+                            {user.status ? '正常' : '封禁'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button 
                             onClick={() => toggleUserStatus(user.id, 'user')}
-                            className={user.status === 'active' 
+                            className={user.status 
                               ? 'text-red-600 hover:text-red-900' 
                               : 'text-green-600 hover:text-green-900'
                             }
                           >
-                            {user.status === 'active' ? '封禁' : '解封'}
+                            {user.status ? '封禁' : '解封'}
                           </button>
                         </td>
                       </tr>
@@ -381,49 +369,47 @@ export default function AdminUserManagement() {
                   filteredPlayers.length > 0 ? (
                     filteredPlayers.map(player => (
                       <tr key={player.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.uid}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full" src={player.avatar} alt={player.nickname} />
+                              <img className="h-10 w-10 rounded-full" src={player.photo_img || '/default-avatar.png'} alt={player.name} />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{player.nickname}</div>
-                              <div className="text-xs text-gray-500">{player.phone}</div>
+                              <div className="text-sm font-medium text-gray-900">{player.name}</div>
+                              <div className="text-xs text-gray-500">{player.phone_num}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-wrap gap-1">
-                            {player.skills?.map((skill, index) => (
-                              <span key={index} className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full">
-                                {skill}
-                              </span>
-                            ))}
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full">
+                              {player.intro || '暂无介绍'}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">★ {player.rating}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.orders}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.registerTime}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.lastLogin}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">★ -</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.created_at}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            player.status === 'active' 
+                            player.status 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-red-100 text-red-800'
                           }`}>
-                            {player.status === 'active' ? '正常' : '封禁'}
+                            {player.status ? '正常' : '封禁'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button 
                             onClick={() => toggleUserStatus(player.id, 'player')}
-                            className={player.status === 'active' 
+                            className={player.status 
                               ? 'text-red-600 hover:text-red-900' 
                               : 'text-green-600 hover:text-green-900'
                             }
                           >
-                            {player.status === 'active' ? '封禁' : '解封'}
+                            {player.status ? '封禁' : '解封'}
                           </button>
                         </td>
                       </tr>

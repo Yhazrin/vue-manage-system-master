@@ -149,7 +149,7 @@ export default function AdminGiftManagement() {
   };
   
   // 处理删除礼物
-  const handleDeleteGift = async (id: string) => {
+  const handleDeleteGift = async (id: number) => {
     if (!window.confirm("确定要删除这个礼物吗？")) {
       return;
     }
@@ -391,7 +391,7 @@ export default function AdminGiftManagement() {
                           />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{gift.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">¥{gift.price.toFixed(2)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">¥{(typeof gift.price === 'number' ? gift.price : parseFloat(gift.price) || 0).toFixed(2)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{gift.createdAt}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button 
@@ -482,9 +482,9 @@ export default function AdminGiftManagement() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900 text-sm">{record.giftName}</div>
-                          <div className="text-xs text-gray-500">单价: ¥{record.giftPrice.toFixed(2)} x {record.quantity}</div>
+                          <div className="text-xs text-gray-500">单价: ¥{(typeof record.giftPrice === 'number' ? record.giftPrice : parseFloat(record.giftPrice) || 0).toFixed(2)} x {record.quantity}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">¥{record.totalPrice.toFixed(2)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">¥{(typeof record.totalPrice === 'number' ? record.totalPrice : parseFloat(record.totalPrice) || 0).toFixed(2)}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <img 
                             src={record.qrCodeUrl} 

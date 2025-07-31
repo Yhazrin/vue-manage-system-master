@@ -119,7 +119,7 @@ export default function GameGrid() {
       <button
         onClick={() => handleScroll('left')}
         disabled={!canScrollLeft}
-        className={`absolute left-0 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/80 shadow-md flex items-center justify-center text-gray-700 hover:bg-white transition-all duration-300 ${
+        className={`absolute left-0 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-theme-surface/80 shadow-md flex items-center justify-center text-theme-text hover:bg-theme-surface transition-all duration-300 ${
           canScrollLeft ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         aria-label="滚动到左边"
@@ -136,11 +136,11 @@ export default function GameGrid() {
       >
         {loading ? (
             Array.from({ length: 5 }).map((_, index) => (
-              <div key={`skeleton-${index}`} className="min-w-[140px] bg-gray-100 rounded-xl overflow-hidden border border-gray-200 animate-pulse">
-                <div className="relative pb-[100%] bg-gray-200"></div>
+              <div key={`skeleton-${index}`} className="min-w-[140px] bg-theme-surface rounded-xl overflow-hidden border border-theme-border animate-pulse">
+                <div className="relative pb-[100%] bg-theme-background"></div>
                 <div className="p-3 text-center">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                  <div className="h-4 bg-theme-background rounded w-3/4 mx-auto mb-2"></div>
+                  <div className="h-3 bg-theme-background rounded w-1/2 mx-auto"></div>
                 </div>
               </div>
             ))
@@ -149,7 +149,7 @@ export default function GameGrid() {
               <p className="text-red-500">加载游戏失败: {error}</p>
               <button 
                 onClick={() => window.location.reload()}
-                className="mt-2 text-purple-600 hover:underline"
+                className="mt-2 text-theme-primary hover:underline"
               >
                 重试
               </button>
@@ -169,7 +169,7 @@ export default function GameGrid() {
             className="min-w-[140px] bg-theme-surface rounded-xl shadow-sm overflow-hidden border border-theme-border transition-all duration-300 hover:shadow-md hover:-translate-y-1 cursor-pointer flex-shrink-0 snap-start"
             onClick={() => handleGameClick(game.id)}
           >
-            <div className="relative pb-[100%] bg-gray-100">
+            <div className="relative pb-[100%] bg-theme-background">
               <img 
                 src={gameWithDefaults.imageUrl} 
                 alt={game.name}
@@ -187,8 +187,8 @@ export default function GameGrid() {
               />
             </div>
             <div className="p-3 text-center">
-              <h3 className="font-medium text-gray-900 text-sm line-clamp-1">{game.name}</h3>
-              <p className="text-xs text-gray-500 mt-1">{gameWithDefaults.category}</p>
+              <h3 className="font-medium text-theme-text text-sm line-clamp-1">{game.name}</h3>
+              <p className="text-xs text-theme-text/70 mt-1">{gameWithDefaults.category}</p>
             </div>
           </div>
         )})}
@@ -198,7 +198,7 @@ export default function GameGrid() {
       <button
         onClick={() => handleScroll('right')}
         disabled={!canScrollRight}
-        className={`absolute right-0 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/80 shadow-md flex items-center justify-center text-gray-700 hover:bg-white transition-all duration-300 ${
+        className={`absolute right-0 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-theme-surface/80 shadow-md flex items-center justify-center text-theme-text hover:bg-theme-surface transition-all duration-300 ${
           canScrollRight ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         aria-label="滚动到右边"

@@ -15,8 +15,24 @@ import {
   PlayerProfileData
 } from '@/services/playerProfileService';
 
+interface Service {
+  id: number;
+  player_id: number;
+  game_id: number;
+  game_name?: string;
+  price: number;
+  hours: number;
+  created_at: string;
+}
+
+interface Game {
+  id: number;
+  name: string;
+}
+
 export default function PlayerProfile() {
-  const [profile, setProfile] = useState<PlayerProfileData | null>(null);
+  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -24,6 +40,23 @@ export default function PlayerProfile() {
   const [uploadingQR, setUploadingQR] = useState(false);
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const navigate = useNavigate();
+
+  // 获取服务列表
+  const fetchServices = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/services/my', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setServices(data.services || []);
+      }
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  };
 
   // 获取陪玩资料
   const fetchProfile = async () => {
@@ -55,23 +88,7 @@ export default function PlayerProfile() {
     try {
       setUpdating(true);
       
-      // 处理game_id字段，确保它是有效的数字或null
-      const processedData: any = { ...data };
-      if ('game_id' in processedData) {
-        const gameIdValue = processedData.game_id;
-        if (gameIdValue === '' || gameIdValue === null || gameIdValue === undefined) {
-          processedData.game_id = null;
-        } else {
-          const numericGameId = parseInt(gameIdValue, 10);
-          if (isNaN(numericGameId) || numericGameId <= 0) {
-            processedData.game_id = null;
-          } else {
-            processedData.game_id = numericGameId;
-          }
-        }
-      }
-      
-      const updatedProfile = await updatePlayerProfile(processedData);
+      const updatedProfile = await updatePlayerProfile(data);
       setProfile(updatedProfile);
       setIsEditing(false);
       toast.success('个人信息更新成功');
@@ -172,6 +189,7 @@ export default function PlayerProfile() {
 
   useEffect(() => {
     fetchProfile();
+    fetchServices();
   }, []);
 
   if (loading) {
@@ -180,7 +198,7 @@ export default function PlayerProfile() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-primary"></div>
           </div>
         </main>
       </div>
@@ -196,7 +214,7 @@ export default function PlayerProfile() {
             <p className="text-red-500 mb-4">{error}</p>
             <button 
               onClick={fetchProfile}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90 transition-colors"
             >
               重试
             </button>
@@ -240,14 +258,7 @@ export default function PlayerProfile() {
       maxLength: 200,
       placeholder: '请输入个人简介'
     },
-    {
-      key: 'game_id',
-      label: '游戏ID',
-      value: profile.game_id?.toString() || '',
-      type: 'select' as const,
-      editable: true,
-      placeholder: '请选择游戏'
-    },
+
     {
       key: 'id',
       label: '陪玩ID',
@@ -271,28 +282,28 @@ export default function PlayerProfile() {
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">陪玩主页</h1>
+            <h1 className="text-2xl font-bold text-theme-text">陪玩主页</h1>
             <div className="flex space-x-3">
               {!isEditing && (
                 <button 
                   onClick={() => setIsEditing(true)}
-                  className="py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  className="py-1.5 px-3 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
                 >
                   <i className="fa-solid fa-edit mr-1"></i> 编辑资料
                 </button>
               )}
               <button 
                 onClick={() => navigate('/player/dashboard')}
-                className="py-1.5 px-3 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                className="py-1.5 px-3 bg-theme-text/80 text-white text-sm font-medium rounded-lg hover:bg-theme-text transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-1"></i> 返回大厅
               </button>
             </div>
           </div>
-          <p className="text-gray-500">管理您的陪玩信息和服务设置</p>
+          <p className="text-theme-text/70">管理您的陪玩信息和服务设置</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden mb-6">
           <div className="p-6">
             {/* 陪玩信息头部 */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
@@ -305,36 +316,36 @@ export default function PlayerProfile() {
               
               <div className="text-center md:text-left flex-1">
                 <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                  <h2 className="text-2xl font-bold text-gray-900">{profile.name}</h2>
+                  <h2 className="text-2xl font-bold text-theme-text">{profile.name}</h2>
                   <button
                     onClick={handleStatusToggle}
                     className={`px-3 py-1 text-sm rounded-full transition-colors ${
                       profile.status 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                        ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300' 
+                        : 'bg-theme-background text-theme-text/70 hover:bg-theme-border border border-theme-border'
                     }`}
                   >
                     {profile.status ? '在线' : '离线'}
                   </button>
                 </div>
-                <p className="text-sm text-gray-500 mb-4">ID: {profile.id} | 游戏ID: {profile.game_id || '未设置'}</p>
+                <p className="text-sm text-theme-text/70 mb-4">ID: {profile.id}</p>
                 
                 <div className="flex flex-wrap justify-center md:justify-start gap-6">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">¥{profile.money || 0}</p>
-                    <p className="text-xs text-gray-500">账户余额</p>
+                    <p className="text-lg font-bold text-theme-text">¥{profile.money || 0}</p>
+                    <p className="text-xs text-theme-text/70">账户余额</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">¥{profile.profit || 0}</p>
-                    <p className="text-xs text-gray-500">累计收益</p>
+                    <p className="text-lg font-bold text-theme-text">¥{profile.profit || 0}</p>
+                    <p className="text-xs text-theme-text/70">累计收益</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.totalOrders || 0}</p>
-                    <p className="text-xs text-gray-500">完成订单</p>
+                    <p className="text-lg font-bold text-theme-text">{profile.totalOrders || 0}</p>
+                    <p className="text-xs text-theme-text/70">完成订单</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.rating || 0}</p>
-                    <p className="text-xs text-gray-500">评分</p>
+                    <p className="text-lg font-bold text-theme-text">{profile.rating || 0}</p>
+                    <p className="text-xs text-theme-text/70">评分</p>
                   </div>
                 </div>
               </div>
@@ -353,67 +364,67 @@ export default function PlayerProfile() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-gray-50 p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">基本信息</h3>
+                <div className="bg-theme-background p-5 rounded-lg">
+                  <h3 className="text-sm font-semibold text-theme-text mb-4">基本信息</h3>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">用户名</p>
-                      <p className="text-sm text-gray-900">{profile.name}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">用户名</p>
+                      <p className="text-sm text-theme-text">{profile.name}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">手机号</p>
-                      <p className="text-sm text-gray-900">{profile.phone_num}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">手机号</p>
+                      <p className="text-sm text-theme-text">{profile.phone_num}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">个人简介</p>
-                      <p className="text-sm text-gray-900">{profile.intro || '暂无简介'}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">个人简介</p>
+                      <p className="text-sm text-theme-text">{profile.intro || '暂无简介'}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">注册时间</p>
-                      <p className="text-sm text-gray-900">{new Date(profile.created_at).toLocaleString('zh-CN')}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">注册时间</p>
+                      <p className="text-sm text-theme-text">{new Date(profile.created_at).toLocaleString('zh-CN')}</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">服务信息</h3>
+                <div className="bg-theme-background p-5 rounded-lg">
+                  <h3 className="text-sm font-semibold text-theme-text mb-4">服务信息</h3>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">陪玩ID</p>
-                      <p className="text-sm text-gray-900">{profile.id}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">陪玩ID</p>
+                      <p className="text-sm text-theme-text">{profile.id}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">在线状态</p>
-                      <p className={`text-sm ${profile.status ? 'text-green-600' : 'text-gray-600'}`}>
+                      <p className="text-xs text-theme-text/70 mb-1">在线状态</p>
+                      <p className={`text-sm ${profile.status ? 'text-green-600' : 'text-theme-text/70'}`}>
                         {profile.status ? '在线' : '离线'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">基础小时单价</p>
+                      <p className="text-xs text-theme-text/70 mb-1">基础小时单价</p>
                       <div className="flex items-center gap-2">
-                        <p className="text-sm text-gray-900">
+                        <p className="text-sm text-theme-text">
                           {profile.hourlyRate && profile.hourlyRate > 0 
                             ? `¥${profile.hourlyRate.toFixed(2)}/小时` 
                             : '未设置'}
                         </p>
                         <button
                           onClick={() => navigate('/player/services')}
-                          className="text-xs text-purple-600 hover:text-purple-700 underline"
+                          className="text-xs text-theme-primary hover:text-theme-primary/80 underline"
                         >
                           设置价格
                         </button>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">在服务管理中可设置不同游戏的具体价格</p>
+                      <p className="text-xs text-theme-text/50 mt-1">在服务管理中可设置不同游戏的具体价格</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">录音介绍</p>
+                      <p className="text-xs text-theme-text/70 mb-1">录音介绍</p>
                       {profile.voice ? (
                         <audio controls className="w-full">
                           <source src={profile.voice} type="audio/mpeg" />
                           您的浏览器不支持音频播放
                         </audio>
                       ) : (
-                        <p className="text-sm text-gray-400">暂无录音</p>
+                        <p className="text-sm text-theme-text/50">暂无录音</p>
                       )}
                     </div>
                   </div>
@@ -421,18 +432,57 @@ export default function PlayerProfile() {
               </div>
             )}
             
+            {/* 服务列表 */}
+            {!isEditing && (
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-theme-text">我的服务</h3>
+                  <button
+                    onClick={() => navigate('/player/services')}
+                    className="py-1.5 px-3 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
+                  >
+                    <i className="fa-solid fa-plus mr-1"></i> 管理服务
+                  </button>
+                </div>
+                
+                {services.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    {services.map((service) => (
+                      <div key={service.id} className="bg-theme-background p-4 rounded-lg border border-theme-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-theme-text">{service.game_name || `游戏 ${service.game_id}`}</h4>
+                          <span className="text-sm text-theme-primary font-semibold">¥{service.price}/{service.hours}小时</span>
+                        </div>
+                        <p className="text-xs text-theme-text/70">创建时间: {new Date(service.created_at).toLocaleDateString('zh-CN')}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-theme-background p-6 rounded-lg text-center mb-8">
+                    <p className="text-theme-text/70 mb-3">暂无服务项目</p>
+                    <button
+                      onClick={() => navigate('/player/services')}
+                      className="py-2 px-4 bg-theme-primary text-white text-sm rounded-lg hover:bg-theme-primary/90 transition-colors"
+                    >
+                      添加服务
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {/* 文件管理区域 */}
             {!isEditing && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 {/* 收款二维码管理 */}
-                <div className="bg-gray-50 p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">收款二维码</h3>
+                <div className="bg-theme-background p-5 rounded-lg">
+                  <h3 className="text-sm font-semibold text-theme-text mb-4">收款二维码</h3>
                   {profile.QR_img ? (
                     <div className="space-y-3">
                       <img 
                         src={profile.QR_img} 
                         alt="收款二维码" 
-                        className="w-32 h-32 object-cover rounded-lg border border-gray-200"
+                        className="w-32 h-32 object-cover rounded-lg border border-theme-border"
                       />
                       <div className="flex space-x-2">
                         <label className="flex-1">
@@ -443,13 +493,13 @@ export default function PlayerProfile() {
                             className="hidden"
                             disabled={uploadingQR}
                           />
-                          <span className="block w-full py-2 px-3 bg-blue-600 text-white text-sm text-center rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                          <span className="block w-full py-2 px-3 bg-blue-500 text-white text-sm text-center rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
                             {uploadingQR ? '上传中...' : '更换二维码'}
                           </span>
                         </label>
                         <button
                           onClick={handleQRDelete}
-                          className="py-2 px-3 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                          className="py-2 px-3 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
                         >
                           删除
                         </button>
@@ -457,7 +507,7 @@ export default function PlayerProfile() {
                     </div>
                   ) : (
                     <div className="text-center">
-                      <p className="text-sm text-gray-500 mb-3">暂无收款二维码</p>
+                      <p className="text-sm text-theme-text/70 mb-3">暂无收款二维码</p>
                       <label>
                         <input
                           type="file"
@@ -466,7 +516,7 @@ export default function PlayerProfile() {
                           className="hidden"
                           disabled={uploadingQR}
                         />
-                        <span className="inline-block py-2 px-4 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
+                        <span className="inline-block py-2 px-4 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
                           {uploadingQR ? '上传中...' : '上传二维码'}
                         </span>
                       </label>
@@ -475,8 +525,8 @@ export default function PlayerProfile() {
                 </div>
 
                 {/* 录音管理 */}
-                <div className="bg-gray-50 p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">录音介绍</h3>
+                <div className="bg-theme-background p-5 rounded-lg">
+                  <h3 className="text-sm font-semibold text-theme-text mb-4">录音介绍</h3>
                   {profile.voice ? (
                     <div className="space-y-3">
                       <audio controls className="w-full">
@@ -491,14 +541,14 @@ export default function PlayerProfile() {
                           className="hidden"
                           disabled={uploadingVoice}
                         />
-                        <span className="block w-full py-2 px-3 bg-blue-600 text-white text-sm text-center rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                        <span className="block w-full py-2 px-3 bg-blue-500 text-white text-sm text-center rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
                           {uploadingVoice ? '上传中...' : '更换录音'}
                         </span>
                       </label>
                     </div>
                   ) : (
                     <div className="text-center">
-                      <p className="text-sm text-gray-500 mb-3">暂无录音介绍</p>
+                      <p className="text-sm text-theme-text/70 mb-3">暂无录音介绍</p>
                       <label>
                         <input
                           type="file"
@@ -507,7 +557,7 @@ export default function PlayerProfile() {
                           className="hidden"
                           disabled={uploadingVoice}
                         />
-                        <span className="inline-block py-2 px-4 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
+                        <span className="inline-block py-2 px-4 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
                           {uploadingVoice ? '上传中...' : '上传录音'}
                         </span>
                       </label>

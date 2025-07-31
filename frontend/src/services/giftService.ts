@@ -2,7 +2,7 @@ import { get, post, put, del } from '@/services/api';
 
 // 礼物接口
 export interface Gift {
-  id: string;
+  id: number;
   name: string;
   price: number;
   imageUrl: string;
@@ -41,21 +41,24 @@ export interface UpdateGiftRequest {
 
 // 获取礼物列表
 export const getGifts = async (): Promise<Gift[]> => {
-  return await get('/gifts');
+  const response = await get('/gifts');
+  return response.gifts;
 };
 
 // 创建礼物
 export const createGift = async (gift: CreateGiftRequest): Promise<Gift> => {
-  return await post('/gifts', gift);
+  const response = await post('/gifts', gift);
+  return response.gift;
 };
 
 // 更新礼物
-export const updateGift = async (id: string, gift: UpdateGiftRequest): Promise<Gift> => {
-  return await put(`/gifts/${id}`, gift);
+export const updateGift = async (id: number, gift: UpdateGiftRequest): Promise<Gift> => {
+  const response = await put(`/gifts/${id}`, gift);
+  return response.gift;
 };
 
 // 删除礼物
-export const deleteGift = async (id: string): Promise<void> => {
+export const deleteGift = async (id: number): Promise<void> => {
   return await del(`/gifts/${id}`);
 };
 

@@ -94,27 +94,27 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-theme-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-           <div className="text-purple-600 font-bold text-2xl flex items-center justify-center mb-2">
+           <div className="text-theme-primary font-bold text-2xl flex items-center justify-center mb-2">
             <span className="mr-2">🎮</span>
            Vita
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">欢迎回来</h1>
-          <p className="text-gray-500">请选择身份并登录您的账号</p>
+          <h1 className="text-2xl font-bold text-theme-text">欢迎回来</h1>
+          <p className="text-theme-text/70">请选择身份并登录您的账号</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden">
           {/* Role Tabs */}
-          <div className="border-b border-gray-100">
+          <div className="border-b border-theme-border">
             <div className="flex">
               <button
                 onClick={() => setActiveRole('user')}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${
                   activeRole === 'user' 
-                    ? 'text-purple-600 border-b-2 border-purple-600' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-theme-primary border-b-2 border-theme-primary' 
+                    : 'text-theme-text/70 hover:text-theme-text'
                 }`}
               >
                 普通玩家
@@ -123,8 +123,8 @@ export default function Login() {
                 onClick={() => setActiveRole('player')}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${
                   activeRole === 'player' 
-                    ? 'text-purple-600 border-b-2 border-purple-600' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-theme-primary border-b-2 border-theme-primary' 
+                    : 'text-theme-text/70 hover:text-theme-text'
                 }`}
               >
                 游戏陪玩
@@ -133,8 +133,8 @@ export default function Login() {
                 onClick={() => setActiveRole('admin')}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${
                   activeRole === 'admin' 
-                    ? 'text-purple-600 border-b-2 border-purple-600' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-theme-primary border-b-2 border-theme-primary' 
+                    : 'text-theme-text/70 hover:text-theme-text'
                 }`}
               >
                 管理员
@@ -152,15 +152,15 @@ export default function Login() {
             
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-theme-text mb-1">
                   邮箱/手机号
                 </label>
                 <input
                   type="text"
                   {...register('identifier')}
                   className={cn(
-                    "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                    errors.identifier ? "border-red-300" : "border-gray-300"
+                    "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
+                    errors.identifier ? "border-red-300" : "border-theme-border"
                   )}
                   placeholder="请输入邮箱或手机号"
                 />
@@ -171,12 +171,12 @@ export default function Login() {
               
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-theme-text">
                     密码
                   </label>
                   <Link
                     to="/forgot-password"
-                    className="text-sm text-purple-600 hover:text-purple-700"
+                    className="text-sm text-theme-primary hover:text-theme-primary/80"
                   >
                     忘记密码?
                   </Link>
@@ -185,8 +185,8 @@ export default function Login() {
                   type="password"
                   {...register('password')}
                   className={cn(
-                    "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                    errors.password ? "border-red-300" : "border-gray-300"
+                    "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
+                    errors.password ? "border-red-300" : "border-theme-border"
                   )}
                   placeholder="请输入密码"
                 />
@@ -197,13 +197,13 @@ export default function Login() {
               
               {/* Role-specific additional fields could go here */}
               {activeRole === 'player' && (
-                <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg">
+                <div className="text-xs text-theme-text/70 bg-theme-primary/10 p-3 rounded-lg">
                   <i className="fa-info-circle mr-1"></i> 作为陪玩，登录后您可以设置您的服务内容和价格
                 </div>
               )}
               
               {activeRole === 'admin' && (
-                <div className="text-xs text-gray-500 bg-yellow-50 p-3 rounded-lg">
+                <div className="text-xs text-theme-text/70 bg-yellow-500/10 p-3 rounded-lg">
                   <i className="fa-info-circle mr-1"></i> 管理员账号可以管理平台用户和内容
                 </div>
               )}
@@ -217,12 +217,12 @@ export default function Login() {
               </button>
             </form>
             
-            <div className="mt-6 text-center text-sm text-gray-500">
+            <div className="mt-6 text-center text-sm text-theme-text/70">
               <p>
                 还没有账号?{' '}
                 <Link
                   to="/register"
-                  className="font-medium text-purple-600 hover:text-purple-700"
+                  className="font-medium text-theme-primary hover:text-theme-primary/80"
                 >
                   立即注册
                 </Link>

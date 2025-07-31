@@ -22,8 +22,6 @@ import AdminWithdrawalManagement from "@/pages/AdminWithdrawalManagement";
 import AdminNotificationPage from "@/pages/AdminNotificationPage";
 import ApiMonitor from "@/pages/ApiMonitor";
 import ApiStatus from "@/pages/ApiStatus";
-import TestNotification from "@/pages/TestNotification";
-
 import AdminPermissionManagement from "@/pages/AdminPermissionManagement";
 import BookingDetail from "@/pages/BookingDetail";
 import GamePlayersPage from "@/pages/GamePlayersPage";
@@ -121,7 +119,6 @@ export default function App() {
                       <Route path="/user/favorites" element={<UserFavorites />} />
              <Route path="/booking/:playerId" element={<BookingDetail />} />
              <Route path="/game/:gameId/players" element={<GamePlayersPage />} />
-             <Route path="/test-notification" element={<TestNotification />} />
         </Routes>
       </NotificationProvider>
     </AuthContext.Provider>

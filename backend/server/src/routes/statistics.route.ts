@@ -53,7 +53,7 @@ statisticsRouter.get(
             const [[{ total_revenue }]]: any = await pool.execute(
                 `SELECT IFNULL(SUM(amount), 0) as total_revenue
                  FROM orders
-                 WHERE status = '已完成'`
+                 WHERE status = 'completed'`
             );
             const [[{ total_users }]]: any = await pool.execute(
                 `SELECT COUNT(*) as total_users FROM users`
@@ -66,7 +66,7 @@ statisticsRouter.get(
             const [[{ order_platform_fee }]]: any = await pool.execute(
                 `SELECT IFNULL(SUM(amount * ? / 100), 0) as order_platform_fee
                  FROM orders
-                 WHERE status = '已完成'`,
+                 WHERE status = 'completed'`,
                 [commissionRate]
             );
 
@@ -78,7 +78,7 @@ statisticsRouter.get(
             const [[{ total_withdrawn }]]: any = await pool.execute(
                 `SELECT IFNULL(SUM(final_amount), 0) as total_withdrawn
                    FROM withdrawals 
-                  WHERE status = '已批准'`
+                  WHERE status = 'approved'`
             );
 
             // 5. 打赏统计（总额、平台抽成、到手收入）
@@ -154,7 +154,7 @@ statisticsRouter.get(
 
             // 查询用户总消费金额
             const [[{ user_total_spent }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount), 0) as user_total_spent FROM orders WHERE user_id = ? AND status = '已完成'`,
+                `SELECT IFNULL(SUM(amount), 0) as user_total_spent FROM orders WHERE user_id = ? AND status = 'completed'`,
                 [userId]
             );
 
@@ -208,7 +208,7 @@ statisticsRouter.get(
 
             // 总接单金额
             const [[{ total_earnings }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount), 0) as total_earnings FROM orders WHERE player_id = ? AND status = '已完成'`,
+                `SELECT IFNULL(SUM(amount), 0) as total_earnings FROM orders WHERE player_id = ? AND status = 'completed'`,
                 [playerId]
             );
 
@@ -220,7 +220,7 @@ statisticsRouter.get(
 
             // 本月收入
             const [[{ monthly_income }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount), 0) as monthly_income FROM orders WHERE player_id = ? AND status = '已完成' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`,
+                `SELECT IFNULL(SUM(amount), 0) as monthly_income FROM orders WHERE player_id = ? AND status = 'completed' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`,
                 [playerId]
             );
 
@@ -235,7 +235,7 @@ statisticsRouter.get(
 
             // 总提现金额
             const [[{ total_withdrawn }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount), 0) as total_withdrawn FROM withdrawals WHERE player_id = ? AND status = '已批准'`,
+                `SELECT IFNULL(SUM(amount), 0) as total_withdrawn FROM withdrawals WHERE player_id = ? AND status = 'approved'`,
                 [playerId]
             );
 

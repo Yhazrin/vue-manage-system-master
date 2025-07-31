@@ -5,7 +5,7 @@ export interface Order {
     user_id: number;
     player_id: number;
     game_id: number;
-    status: '进行中' | '已完成' | '已取消';
+    status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
     created_at: string;
     service_id: number;
     amount: number; // 订单金额
@@ -46,7 +46,7 @@ export class OrderDAO {
                 `SELECT id FROM games LIMIT 1`
             );
             const [[defaultService]]: any = await pool.execute(
-                `SELECT id FROM services WHERE player_id = ? LIMIT 1`,
+                `SELECT id FROM services WHERE services.player_id = ? LIMIT 1`,
                 [order.player_id]
             );
             
@@ -65,7 +65,7 @@ export class OrderDAO {
             game_id,
             service_id,
             amount,
-            order.status || '进行中'
+            order.status || 'pending'
         ]);
         return order.order_id;
     }
@@ -89,18 +89,33 @@ export class OrderDAO {
             const countParams: any[] = [];
             
             if (status) {
-                whereClause = ` WHERE status = ?`;
+                whereClause = ` WHERE o.status = ?`;
                 countParams.push(status);
             }
             
             // 获取总数
-            const countSql = `SELECT COUNT(*) as cnt FROM orders${whereClause}`;
+            const countSql = `SELECT COUNT(*) as cnt FROM orders o${whereClause}`;
             const [[{ cnt }]]: any = await pool.execute(countSql, countParams);
 
-            // 获取数据，使用固定的LIMIT值而不是参数
+            // 获取数据，包含完整的关联信息
             const dataSql = `
-                SELECT * FROM orders${whereClause}
-                ORDER BY created_at DESC 
+                SELECT o.order_id as id, o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, 
+                       o.status, o.created_at, o.amount as price,
+                       p.name as playerNickname, p.phone_num as playerUid, p.photo_img as player_avatar,
+                       u.name as userNickname, u.phone_num as userUid, u.photo_img as user_avatar,
+                       g.name as gameType, s.price as servicePrice, s.hours,
+                       DATE_FORMAT(o.created_at, '%Y-%m-%d %H:%i:%s') as orderTime,
+                       CASE 
+                           WHEN s.hours IS NOT NULL THEN CONCAT(s.hours, '小时')
+                           ELSE '待定'
+                       END as serviceTime
+                FROM orders o
+                LEFT JOIN players p ON o.player_id = p.id
+                LEFT JOIN users u ON o.user_id = u.id
+                LEFT JOIN games g ON o.game_id = g.id
+                LEFT JOIN services s ON o.service_id = s.id
+                ${whereClause}
+                ORDER BY o.created_at DESC 
                 LIMIT ${pageSize} OFFSET ${offset}
             `;
             const [rows]: any = await pool.execute(dataSql, countParams);
@@ -132,16 +147,17 @@ export class OrderDAO {
         userId: number,
         status?: Order['status']
     ): Promise<Order[]> {
-        let whereClause = 'WHERE user_id = ?';
+        let whereClause = 'WHERE o.user_id = ?';
         const params: any[] = [userId];
         
         if (status) {
-            whereClause += ' AND status = ?';
+            whereClause += ' AND o.status = ?';
             params.push(status);
         }
         
         const sql = `
-            SELECT o.*, p.name as player_name, p.photo_img as player_avatar,
+            SELECT o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, o.status, o.created_at, o.amount,
+                   p.name as player_name, p.photo_img as player_avatar,
                    u.name as user_name, u.photo_img as user_avatar,
                    g.name as game_name, s.price, s.hours
             FROM orders o
@@ -161,16 +177,21 @@ export class OrderDAO {
         playerId: number,
         status?: Order['status']
     ): Promise<Order[]> {
-        let whereClause = 'WHERE player_id = ?';
+        console.log('=== OrderDAO.findByPlayerId 开始执行 ===');
+        console.log('调用参数:', { playerId, status });
+        console.log('当前时间:', new Date().toISOString());
+        
+        let whereClause = 'WHERE o.player_id = ?';
         const params: any[] = [playerId];
         
         if (status) {
-            whereClause += ' AND status = ?';
+            whereClause += ' AND o.status = ?';
             params.push(status);
         }
         
         const sql = `
-            SELECT o.*, p.name as player_name, p.photo_img as player_avatar,
+            SELECT o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, o.status, o.created_at, o.amount,
+                   p.name as player_name, p.photo_img as player_avatar,
                    u.name as user_name, u.photo_img as user_avatar,
                    g.name as game_name, s.price, s.hours
             FROM orders o
@@ -181,8 +202,26 @@ export class OrderDAO {
             ${whereClause}
             ORDER BY o.created_at DESC
         `;
-        const [rows]: any = await pool.execute(sql, params);
-        return rows;
+        
+        console.log('=== 准备执行SQL ===');
+        console.log('SQL语句:', sql);
+        console.log('SQL参数:', params);
+        
+        try {
+            console.log('=== 开始执行数据库查询 ===');
+            const [rows]: any = await pool.execute(sql, params);
+            console.log('=== 查询执行成功 ===');
+            console.log('查询结果行数:', rows.length);
+            console.log('查询结果:', JSON.stringify(rows, null, 2));
+            return rows;
+        } catch (error) {
+            console.error('=== SQL执行错误 ===');
+            console.error('错误详情:', error);
+            console.error('错误消息:', (error as any).message);
+            console.error('错误代码:', (error as any).code);
+            console.error('SQL状态:', (error as any).sqlState);
+            throw error;
+        }
     }
 
     /** 统计订单总数 */

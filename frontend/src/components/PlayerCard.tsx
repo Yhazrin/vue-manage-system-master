@@ -79,7 +79,7 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
     
     // 使用默认头像或首字母
     return (
-      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-medium flex-shrink-0">
+      <div className="w-12 h-12 rounded-full bg-theme-background flex items-center justify-center text-theme-text/70 font-medium flex-shrink-0">
         {player.name.charAt(0)}
       </div>
     );
@@ -130,50 +130,35 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
         </p>
         
         {/* Games */}
-        <div className="mb-3">
-          <h4 className="text-xs font-semibold text-gray-900 mb-2">游戏</h4>
+        <div className="mb-4">
+          <h4 className="text-xs font-semibold text-theme-text mb-2">可接受的游戏</h4>
           <div className="flex flex-wrap gap-2">
             {player.games && player.games.length > 0 ? (
               player.games.map((game, index) => (
                 <span 
                   key={index} 
-                  className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full"
+                  className="px-2 py-1 bg-theme-primary/10 text-theme-primary text-xs rounded-full"
                 >
                   {game}
                 </span>
               ))
+            ) : player.game_name ? (
+              <span className="px-2 py-1 bg-theme-primary/10 text-theme-primary text-xs rounded-full">
+                {player.game_name}
+              </span>
             ) : (
-              <span className="text-xs text-gray-500">暂未设置游戏</span>
-            )}
-          </div>
-        </div>
-        
-        {/* Services */}
-        <div className="mb-4">
-          <h4 className="text-xs font-semibold text-gray-900 mb-2">服务</h4>
-          <div className="flex flex-wrap gap-2">
-            {player.services && player.services.length > 0 ? (
-              player.services.map((service, index) => (
-                <span 
-                  key={index} 
-                  className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded-full"
-                >
-                  {service}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs text-gray-500">暂未设置服务</span>
+              <span className="text-xs text-theme-text/70">暂未设置游戏</span>
             )}
           </div>
         </div>
         
         {/* Price and Actions */}
         <div className="flex items-center justify-between mt-auto pt-2">
-          <div className="text-purple-600 font-bold text-lg">
+          <div className="text-theme-primary font-bold text-lg">
             {player.price ? (
               <>¥{player.price}<span className="text-sm font-normal">/小时</span></>
             ) : (
-              <span className="text-sm text-gray-500">价格待定</span>
+              <span className="text-sm text-theme-text/70">价格待定</span>
             )}
           </div>
           
@@ -185,7 +170,7 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
                 "w-8 h-8 flex items-center justify-center transition-colors rounded-full",
                 isLocalFavorite 
                   ? "text-red-500 hover:text-red-600" 
-                  : "text-gray-300 hover:text-red-500",
+                  : "text-theme-text/30 hover:text-red-500",
                 isLoading && "opacity-50 cursor-not-allowed"
               )}
             >

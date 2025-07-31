@@ -123,15 +123,15 @@ export default function PlayerHome() {
   const getStatusStyle = (status: string) => {
     switch(status) {
       case 'pending':
-        return 'bg-yellow-50 text-yellow-700';
+        return 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300';
       case 'in_progress':
-        return 'bg-purple-50 text-purple-700';
+        return 'bg-theme-primary/10 text-theme-primary';
       case 'completed':
-        return 'bg-green-50 text-green-700';
+        return 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300';
       case 'cancelled':
-        return 'bg-red-50 text-red-700';
+        return 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300';
       default:
-        return 'bg-gray-50 text-gray-700';
+        return 'bg-theme-surface text-theme-text';
     }
   };
 
@@ -161,8 +161,8 @@ export default function PlayerHome() {
           <div className="p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-1">欢迎回来，陪玩</h2>
-                <p className="text-gray-500">今天是 {new Date().toLocaleDateString('zh-CN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <h2 className="text-xl font-bold text-theme-text mb-1">欢迎回来，陪玩</h2>
+                <p className="text-theme-text/70">今天是 {new Date().toLocaleDateString('zh-CN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
             </div>
             
@@ -170,45 +170,45 @@ export default function PlayerHome() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="p-4 bg-gray-50 rounded-lg animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                    <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                  <div key={i} className="p-4 bg-theme-surface rounded-lg animate-pulse border border-theme-border">
+                    <div className="h-4 bg-theme-border rounded w-1/2 mb-2"></div>
+                    <div className="h-8 bg-theme-border rounded w-3/4"></div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500 mb-1">今日订单</p>
+                <div className="p-4 bg-theme-surface rounded-lg border border-theme-border">
+                  <p className="text-sm text-theme-text/70 mb-1">今日订单</p>
                   <div className="flex items-end justify-between">
-                    <h3 className="text-2xl font-bold text-gray-900">{stats.todayOrders}</h3>
+                    <h3 className="text-2xl font-bold text-theme-text">{stats.todayOrders}</h3>
                     <span className="text-xs text-green-600 flex items-center">
                       <i className="fa-solid fa-arrow-up mr-1"></i> 今日
                     </span>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500 mb-1">本月收入</p>
+                <div className="p-4 bg-theme-surface rounded-lg border border-theme-border">
+                  <p className="text-sm text-theme-text/70 mb-1">本月收入</p>
                   <div className="flex items-end justify-between">
-                    <h3 className="text-2xl font-bold text-gray-900">¥{stats.monthlyIncome}</h3>
+                    <h3 className="text-2xl font-bold text-theme-text">¥{stats.monthlyIncome}</h3>
                     <span className="text-xs text-green-600 flex items-center">
                       <i className="fa-solid fa-arrow-up mr-1"></i> 本月
                     </span>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500 mb-1">服务评分</p>
+                <div className="p-4 bg-theme-surface rounded-lg border border-theme-border">
+                  <p className="text-sm text-theme-text/70 mb-1">服务评分</p>
                   <div className="flex items-end justify-between">
-                    <h3 className="text-2xl font-bold text-gray-900">{stats.serviceRating}</h3>
-                    <span className="text-xs text-gray-500 flex items-center">
+                    <h3 className="text-2xl font-bold text-theme-text">{stats.serviceRating}</h3>
+                    <span className="text-xs text-theme-text/70 flex items-center">
                       <i className="fa-solid fa-star mr-1 text-yellow-400"></i> 评分
                     </span>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500 mb-1">待处理事项</p>
+                <div className="p-4 bg-theme-surface rounded-lg border border-theme-border">
+                  <p className="text-sm text-theme-text/70 mb-1">待处理事项</p>
                   <div className="flex items-end justify-between">
-                    <h3 className="text-2xl font-bold text-gray-900">{stats.pendingTasks}</h3>
+                    <h3 className="text-2xl font-bold text-theme-text">{stats.pendingTasks}</h3>
                     <span className="text-xs text-red-600 flex items-center">
                       <i className="fa-solid fa-exclamation-circle mr-1"></i> 待处理
                     </span>
@@ -220,25 +220,25 @@ export default function PlayerHome() {
             {/* 最近订单 */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">最近订单</h3>
-                <a href="/player/orders" className="text-sm text-purple-600 hover:text-purple-700">查看全部</a>
+                <h3 className="text-lg font-semibold text-theme-text">最近订单</h3>
+                <a href="/player/orders" className="text-sm text-theme-primary hover:text-theme-primary/80">查看全部</a>
               </div>
               
               {loading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="p-3 bg-gray-50 rounded-lg animate-pulse">
+                    <div key={i} className="p-3 bg-theme-surface rounded-lg animate-pulse border border-theme-border">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                          <div className="w-8 h-8 bg-theme-border rounded-full"></div>
                           <div>
-                            <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
-                            <div className="h-3 bg-gray-200 rounded w-32"></div>
+                            <div className="h-4 bg-theme-border rounded w-24 mb-1"></div>
+                            <div className="h-3 bg-theme-border rounded w-32"></div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="h-4 bg-gray-200 rounded w-16"></div>
-                          <div className="h-6 bg-gray-200 rounded w-12"></div>
+                          <div className="h-4 bg-theme-border rounded w-16"></div>
+                          <div className="h-6 bg-theme-border rounded w-12"></div>
                         </div>
                       </div>
                     </div>
@@ -249,7 +249,7 @@ export default function PlayerHome() {
                   <p className="text-red-500 mb-4">加载订单失败: {error}</p>
                   <button 
                     onClick={loadDashboardData}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90"
                   >
                     重试
                   </button>
@@ -257,18 +257,18 @@ export default function PlayerHome() {
               ) : recentOrders.length > 0 ? (
                 <div className="space-y-3">
                   {recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={order.id} className="flex items-center justify-between p-3 bg-theme-surface rounded-lg border border-theme-border">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                          <i className="fa-solid fa-user text-purple-600 text-sm"></i>
+                        <div className="w-8 h-8 bg-theme-primary/10 rounded-full flex items-center justify-center">
+                          <i className="fa-solid fa-user text-theme-primary text-sm"></i>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{order.userName || '用户'}</p>
-                          <p className="text-xs text-gray-500">{order.gameName || '游戏'} • {order.scheduledTime || '时间'}</p>
+                          <p className="text-sm font-medium text-theme-text">{order.userName || '用户'}</p>
+                          <p className="text-xs text-theme-text/70">{order.gameName || '游戏'} • {order.scheduledTime || '时间'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <p className="font-medium text-gray-900">¥{order.amount}</p>
+                        <p className="font-medium text-theme-text">¥{order.amount}</p>
                         <span className={`px-2 py-1 text-xs rounded-full ${getStatusStyle(order.status)}`}>
                           {getStatusText(order.status)}
                         </span>
@@ -277,7 +277,7 @@ export default function PlayerHome() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-theme-text/70">
                   <i className="fa-solid fa-inbox text-4xl mb-4"></i>
                   <p>暂无订单数据</p>
                 </div>

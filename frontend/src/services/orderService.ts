@@ -25,15 +25,83 @@ export interface Order {
 // 获取用户订单列表
 export const getUserOrders = async (status?: string): Promise<Order[]> => {
   const params = status && status !== 'all' ? `?status=${status}` : '';
-  const response = await get<{ success: boolean; orders: Order[] }>(`/orders/user${params}`);
-  return response.orders || [];
+  const response = await get<{ success: boolean; orders: any[] }>(`/orders/user${params}`);
+  
+  // 确保price字段是数字类型，并转换数据格式
+  const orders = (response.orders || []).map((order: any) => ({
+    id: order.order_id || order.id,
+    gameType: order.game_name || order.gameType || '未知游戏',
+    price: Number(order.amount || order.price || 0),
+    orderTime: order.created_at || order.orderTime,
+    status: mapOrderStatus(order.status),
+    serviceTime: order.hours ? `${order.hours}小时` : (order.serviceTime || '未知'),
+    description: order.description,
+    user: {
+      id: order.user_id?.toString() || order.user?.id || '',
+      nickname: order.user_name || order.user?.nickname || '用户',
+      avatar: order.user_avatar || order.user?.avatar || '/default-avatar.svg'
+    },
+    player: {
+      id: order.player_id?.toString() || order.player?.id || '',
+      nickname: order.player_name || order.player?.nickname || '陪玩',
+      avatar: order.player_avatar || order.player?.avatar || '/default-avatar.svg'
+    }
+  }));
+  
+  return orders;
+};
+
+// 状态映射函数
+const mapOrderStatus = (status: string): Order['status'] => {
+  switch (status) {
+    case 'pending':
+      return 'pending';
+    case 'accepted':
+      return 'accepted';
+    case 'in_progress':
+      return 'in_progress';
+    case 'completed':
+      return 'completed';
+    case 'cancelled':
+      return 'cancelled';
+    case '进行中':
+      return 'in_progress';
+    case '已完成':
+      return 'completed';
+    case '已取消':
+      return 'cancelled';
+    default:
+      return 'pending';
+  }
 };
 
 // 获取陪玩订单列表
 export const getPlayerOrders = async (status?: string): Promise<Order[]> => {
   const params = status && status !== 'all' ? `?status=${status}` : '';
-  const response = await get<{ success: boolean; orders: Order[] }>(`/orders/player${params}`);
-  return response.orders || [];
+  const response = await get<{ success: boolean; orders: any[] }>(`/orders/player${params}`);
+  
+  // 确保price字段是数字类型，并转换数据格式
+  const orders = (response.orders || []).map((order: any) => ({
+    id: order.order_id || order.id,
+    gameType: order.game_name || order.gameType || '未知游戏',
+    price: Number(order.amount || order.price || 0),
+    orderTime: order.created_at || order.orderTime,
+    status: mapOrderStatus(order.status),
+    serviceTime: order.hours ? `${order.hours}小时` : (order.serviceTime || '未知'),
+    description: order.description,
+    user: {
+      id: order.user_id?.toString() || order.user?.id || '',
+      nickname: order.user_name || order.user?.nickname || '用户',
+      avatar: order.user_avatar || order.user?.avatar || '/default-avatar.svg'
+    },
+    player: {
+      id: order.player_id?.toString() || order.player?.id || '',
+      nickname: order.player_name || order.player?.nickname || '陪玩',
+      avatar: order.player_avatar || order.player?.avatar || '/default-avatar.svg'
+    }
+  }));
+  
+  return orders;
 };
 
 // 获取订单详情

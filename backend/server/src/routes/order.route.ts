@@ -40,7 +40,7 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
             player_id,
             service_id,
             amount,
-            status: '进行中'
+            status: 'pending'
         });
         
         res.status(201).json({ success: true, order_id: orderId, message: '订单创建成功' });
@@ -52,25 +52,60 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
 /**
  * @route   GET /api/orders/player
  * @desc    获取陪玩的订单列表
- * @query   status?
+ * @query   status?, playerId?
  */
 router.get('/player', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        const player_id = req.user?.id;
-        const status = req.query.status as string | undefined;
+        console.log('=== /api/orders/player 接口调用开始 ===');
+        console.log('当前时间:', new Date().toISOString());
+        console.log('用户信息:', JSON.stringify(req.user, null, 2));
+        console.log('查询参数:', JSON.stringify(req.query, null, 2));
+        console.log('请求头:', JSON.stringify(req.headers, null, 2));
         
-        if (!player_id) {
+        const status = req.query.status as string | undefined;
+        const queryPlayerId = req.query.playerId as string | undefined;
+        
+        if (!req.user?.id) {
+            console.log('❌ 用户未登录');
             return res.status(401).json({ success: false, error: '用户未登录' });
         }
         
-        if (req.user?.role !== 'player') {
-            return res.status(403).json({ success: false, error: '只有陪玩可以查看订单' });
+        let player_id: number;
+        
+        // 权限检查：陪玩只能查看自己的订单，管理员可以查看指定陪玩的订单
+        if (req.user.role === 'player') {
+            player_id = req.user.id;
+            console.log('✅ 陪玩用户查看自己的订单, playerId:', player_id);
+        } else if (req.user.role === 'manager' && queryPlayerId) {
+            player_id = parseInt(queryPlayerId);
+            console.log('✅ 管理员查看指定陪玩订单, playerId:', player_id);
+            if (isNaN(player_id)) {
+                console.log('❌ 无效的陪玩ID:', queryPlayerId);
+                return res.status(400).json({ success: false, error: '无效的陪玩ID' });
+            }
+        } else {
+            console.log('❌ 权限不足或参数缺失, role:', req.user.role, 'playerId:', queryPlayerId);
+            return res.status(403).json({ 
+                success: false, 
+                error: '权限不足：只有陪玩可以查看自己的订单，管理员可以查看指定陪玩的订单' 
+            });
         }
+        
+        console.log('=== 准备调用 OrderDAO.findByPlayerId ===');
+        console.log('参数: player_id =', player_id, ', status =', status);
         
         // 获取陪玩的订单列表
         const orders = await OrderDAO.findByPlayerId(player_id, status as any);
+        
+        console.log('=== OrderDAO.findByPlayerId 调用完成 ===');
+        console.log('返回订单数量:', orders.length);
+        
         res.json({ success: true, orders });
     } catch (err) {
+        console.error('=== /api/orders/player 接口发生错误 ===');
+        console.error('错误详情:', err);
+        console.error('错误消息:', (err as any).message);
+        console.error('错误堆栈:', (err as any).stack);
         next(err);
     }
 });
@@ -138,10 +173,34 @@ router.get('/:order_id', async (req, res, next) => {
  * @desc    更新订单状态
  * @body    { status }
  */
-router.patch('/:order_id/status', async (req, res, next) => {
+router.patch('/:order_id/status', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const { order_id } = req.params;
         const { status } = req.body;
+        
+        if (!req.user?.id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
+        
+        // 获取订单信息以验证权限
+        const order = await OrderDAO.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ success: false, error: '订单不存在' });
+        }
+        
+        // 权限检查：只有相关的陪玩或用户可以更新订单状态
+        if (req.user.role === 'player') {
+            if (order.player_id !== req.user.id) {
+                return res.status(403).json({ success: false, error: '只能操作自己的订单' });
+            }
+        } else if (req.user.role === 'user') {
+            if (order.user_id !== req.user.id) {
+                return res.status(403).json({ success: false, error: '只能操作自己的订单' });
+            }
+        } else if (req.user.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '权限不足' });
+        }
+        
         await OrderDAO.updateStatus(order_id, status);
         res.json({ success: true });
     } catch (err) {

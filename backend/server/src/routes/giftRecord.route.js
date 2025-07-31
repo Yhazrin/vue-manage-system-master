@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 // backend/server/src/routes/giftRecord.route.ts
 const express_1 = require("express");
@@ -38,14 +29,13 @@ router.post('/', auth_1.auth, [
     (0, express_validator_1.body)('gift_id').isInt().withMessage('gift_id 必须是整数'),
     (0, express_validator_1.body)('quantity').isInt({ min: 1 }).withMessage('quantity 必须是大于0的整数'),
     (0, express_validator_1.body)('order_id').optional().isString().withMessage('order_id 必须是字符串')
-], (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+], async (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);
     if (!errors.isEmpty())
         return res.status(400).json({ success: false, errors: errors.array() });
     try {
         // 只允许普通用户打赏
-        if (((_a = req.user) === null || _a === void 0 ? void 0 : _a.role) !== 'user') {
+        if (req.user?.role !== 'user') {
             return res.status(403).json({ success: false, error: '无权限执行此操作' });
         }
         // 从 token 中获取 user_id，避免前端伪造
@@ -57,7 +47,7 @@ router.post('/', auth_1.auth, [
         }
         // DAO 内部会根据 gift_id 拿单价、计算 total_price；
         // 再读 commission_rate、计算 platform_fee、生成 final_amount
-        const id = yield GiftRecordDao_1.GiftRecordDAO.create({
+        const id = await GiftRecordDao_1.GiftRecordDAO.create({
             user_id,
             player_id: Number(player_id),
             gift_id: Number(gift_id),
@@ -68,25 +58,24 @@ router.post('/', auth_1.auth, [
     catch (err) {
         next(err);
     }
-}));
+});
 /**
  * @route   GET /api/gift-records/:id
  * @desc    查询单条打赏记录
  * @access  登录用户或管理员
  */
-router.get('/:id', auth_1.auth, [(0, express_validator_1.param)('id').isInt().withMessage('id 必须是整数')], (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+router.get('/:id', auth_1.auth, [(0, express_validator_1.param)('id').isInt().withMessage('id 必须是整数')], async (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);
     if (!errors.isEmpty())
         return res.status(400).json({ success: false, errors: errors.array() });
     try {
         const id = Number(req.params.id);
-        const record = yield GiftRecordDao_1.GiftRecordDAO.findById(id);
+        const record = await GiftRecordDao_1.GiftRecordDAO.findById(id);
         if (!record) {
             return res.status(404).json({ success: false, error: '记录不存在' });
         }
         // 只有打赏发起者或管理员可以查看详情
-        if (((_a = req.user) === null || _a === void 0 ? void 0 : _a.role) === 'user' && record.user_id !== req.user.id) {
+        if (req.user?.role === 'user' && record.user_id !== req.user.id) {
             return res.status(403).json({ success: false, error: '无权限查看此记录' });
         }
         res.json({ success: true, record });
@@ -94,14 +83,13 @@ router.get('/:id', auth_1.auth, [(0, express_validator_1.param)('id').isInt().wi
     catch (err) {
         next(err);
     }
-}));
+});
 /**
  * @route   GET /api/gift-records/user/:userId
  * @desc    查询某用户所有打赏记录
  * @access  登录用户本人或管理员
  */
-router.get('/user/:userId', auth_1.auth, [(0, express_validator_1.param)('userId').isInt().withMessage('userId 必须是整数')], (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+router.get('/user/:userId', auth_1.auth, [(0, express_validator_1.param)('userId').isInt().withMessage('userId 必须是整数')], async (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);
     if (!errors.isEmpty())
         return res.status(400).json({ success: false, errors: errors.array() });
@@ -111,15 +99,15 @@ router.get('/user/:userId', auth_1.auth, [(0, express_validator_1.param)('userId
             return res.status(400).json({ success: false, error: '无效的用户ID' });
         }
         // 仅本人或顶级管理员可查
-        if (!(((_a = req.user) === null || _a === void 0 ? void 0 : _a.role) === 'manager') &&
-            !(((_b = req.user) === null || _b === void 0 ? void 0 : _b.role) === 'user' && req.user.id === userId)) {
+        if (!(req.user?.role === 'manager') &&
+            !(req.user?.role === 'user' && req.user.id === userId)) {
             return res.status(403).json({ success: false, error: '无权限查看此用户的打赏记录' });
         }
-        const records = yield GiftRecordDao_1.GiftRecordDAO.findAllByUser(userId);
+        const records = await GiftRecordDao_1.GiftRecordDAO.findAllByUser(userId);
         res.json({ success: true, records });
     }
     catch (err) {
         next(err);
     }
-}));
+});
 exports.default = router;

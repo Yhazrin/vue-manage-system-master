@@ -4,10 +4,12 @@ import Header from "@/components/Header";
 import { Player, Review } from "@/types";
 import { cn } from "@/lib/utils";
 import { getPlayers, getPlayerServices } from '@/services/playerService';
+import { useNotifications } from '@/components/NotificationManager';
 
 export default function BookingDetail() {
   const { playerId } = useParams<{ playerId: string }>();
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
   const [selectedHours, setSelectedHours] = useState(1);
   const [discount, setDiscount] = useState<number | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
@@ -174,19 +176,31 @@ export default function BookingDetail() {
     try {
       // 验证必填字段
       if (!selectedGame) {
-        alert('请选择游戏');
+        addNotification({
+          type: 'system',
+          title: '请选择游戏',
+          message: '请先选择一个游戏再进行预约'
+        });
         return;
       }
       
       if (!selectedGameData) {
-        alert('请选择有效的游戏服务');
+        addNotification({
+          type: 'system',
+          title: '请选择有效的游戏服务',
+          message: '所选游戏服务无效，请重新选择'
+        });
         return;
       }
       
       // 获取token和用户信息
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('请先登录');
+        addNotification({
+          type: 'system',
+          title: '请先登录',
+          message: '需要登录后才能进行预约'
+        });
         navigate('/login');
         return;
       }
@@ -198,7 +212,14 @@ export default function BookingDetail() {
         userId = payload.id;
       } catch (error) {
         console.error('Token解析失败:', error);
-        alert('登录状态异常，请重新登录');
+        
+        // 使用通知系统显示登录异常消息
+        addNotification({
+          type: 'system',
+          title: '登录状态异常',
+          message: '请重新登录'
+        });
+        
         navigate('/login');
         return;
       }
@@ -224,15 +245,34 @@ export default function BookingDetail() {
       
       if (response.ok) {
         const result = await response.json();
-        alert(`预约成功！订单号: ${result.order_id}\n您已成功预约${player.name}${selectedHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`);
+        
+        // 使用通知系统显示成功消息
+        addNotification({
+          type: 'order',
+          title: '预约成功！',
+          message: `订单号: ${result.order_id}\n您已成功预约${player.name}${selectedHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
+        });
+        
         navigate('/user/orders'); // 跳转到订单页面
       } else {
         const error = await response.json();
-        alert(`预约失败: ${error.message || '未知错误'}`);
+        
+        // 使用通知系统显示错误消息
+        addNotification({
+          type: 'system',
+          title: '预约失败',
+          message: error.message || '未知错误'
+        });
       }
     } catch (error) {
       console.error('预约失败:', error);
-      alert('预约失败，请稍后重试');
+      
+      // 使用通知系统显示错误消息
+      addNotification({
+        type: 'system',
+        title: '预约失败',
+        message: '网络错误，请稍后重试'
+      });
     }
   };
   

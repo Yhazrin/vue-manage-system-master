@@ -75,12 +75,7 @@ export default function Header() {
   };
   
   return (
-     <header className={`border-b border-theme-border sticky top-0 z-10 ${
-       themeColors.background === '#ffffff' ? 'bg-gray-100' : 
-       themeColors.background === '#0f172a' ? 'bg-gray-800' : 
-       themeColors.background === '#000000' ? 'bg-gray-900' : 
-       'bg-gray-50'
-     }`}>
+     <header className={`border-b border-theme-border sticky top-0 z-10 bg-theme-surface`}>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -110,10 +105,10 @@ export default function Header() {
                {/* Removed mobile menu button as per user request */}
               
                {/* Theme Toggle Button */}
-                <NotificationDropdown />
+                {/* <NotificationDropdown /> */}
                 <button 
                   onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors focus:outline-none mr-2"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-theme-surface text-theme-text hover:bg-theme-primary/10 transition-colors focus:outline-none mr-2 border border-theme-border"
                   aria-label="Toggle theme"
                 >
                   <i className="fa-solid fa-palette"></i>
@@ -121,13 +116,13 @@ export default function Header() {
                
                {/* Theme Menu */}
                {isThemeMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-72 bg-white rounded-lg shadow-lg border border-gray-100 z-10 animate-in fade-in slide-in-from-top-5 duration-150">
-                    <div className="p-4 border-b border-gray-100">
-                     <h3 className="font-semibold text-gray-900 text-sm">主题设置</h3>
+                  <div className="absolute right-0 top-full mt-1 w-72 bg-theme-surface rounded-lg shadow-lg border border-theme-border z-10 animate-in fade-in slide-in-from-top-5 duration-150">
+                    <div className="p-4 border-b border-theme-border">
+                     <h3 className="font-semibold text-theme-text text-sm">主题设置</h3>
                    </div>
                    
                    <div className="p-4">
-                     <h4 className="font-medium text-gray-900 text-xs mb-3">预设主题</h4>
+                     <h4 className="font-medium text-theme-text text-xs mb-3">预设主题</h4>
                       <div className="grid grid-cols-2 gap-2 mb-4">
                          {availableThemes.map(themeOption => (
                            <button
@@ -135,8 +130,8 @@ export default function Header() {
                              onClick={() => setThemeMode(themeOption)}
                               className={`p-2 rounded-lg text-sm font-medium transition-colors ${
                                 lastPresetTheme === themeOption 
-                                  ? 'bg-purple-100 text-purple-700' 
-                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  ? 'bg-theme-primary/20 text-theme-primary' 
+                                 : 'bg-theme-background text-theme-text hover:bg-theme-primary/10'
                              }`}
                            >
                              {themeOption === 'light' && '浅色模式'}
@@ -163,11 +158,11 @@ export default function Header() {
                 
                 {/* Dropdown Menu */}
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 z-20 animate-in fade-in slide-in-from-top-5 duration-150">
+                  <div className="absolute right-0 mt-2 w-48 bg-theme-surface rounded-lg shadow-lg border border-theme-border z-20 animate-in fade-in slide-in-from-top-5 duration-150">
                     <div className="py-1">
                        <Link
                          to={userRole === 'user' ? '/user/profile' : userRole === 'player' ? '/player/profile' : '/admin/profile'}
-                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-purple-600 transition-colors"
+                         className="block px-4 py-2 text-sm text-theme-text hover:bg-theme-primary/10 hover:text-theme-primary transition-colors"
                          onClick={() => setIsMenuOpen(false)}
                        >
                          <i className="fa-solid fa-user mr-2"></i>个人主页
@@ -177,7 +172,7 @@ export default function Header() {
                           logout();
                           setIsMenuOpen(false);
                         }}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-purple-600 transition-colors"
+                        className="block w-full text-left px-4 py-2 text-sm text-theme-text hover:bg-theme-primary/10 hover:text-theme-primary transition-colors"
                       >
                         <i className="fa-solid fa-sign-out-alt mr-2"></i>退出登录
                       </button>
@@ -188,12 +183,12 @@ export default function Header() {
             </div>
           ) : (
             <div className="flex items-center space-x-4">
-              <Link to="/login" className="text-sm text-gray-600 hover:text-purple-600 transition-colors">
+              <Link to="/login" className="text-sm text-theme-text hover:text-theme-primary transition-colors">
                 登录
               </Link>
               <Link 
                 to="/register" 
-                className="px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded hover:bg-purple-700 transition-colors"
+                className="px-3 py-1.5 bg-theme-primary text-white text-xs font-semibold rounded hover:bg-theme-primary/80 transition-colors"
               >
                 注册
               </Link>

@@ -117,10 +117,11 @@ DROP TABLE IF EXISTS `gifts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `gifts` (
-  `id` int NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
   `price` decimal(10,2) NOT NULL,
   `image_url` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -177,7 +178,7 @@ CREATE TABLE `orders` (
   `player_id` int NOT NULL,
   `game_id` int NOT NULL,
   `service_id` int NOT NULL,
-  `status` enum('进行中','已完成','已取消') COLLATE utf8mb4_general_ci DEFAULT '进行中',
+  `status` enum('pending','accepted','in_progress','completed','cancelled') COLLATE utf8mb4_general_ci DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `amount` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT 'service.price×hours 结果',
   PRIMARY KEY (`order_id`),

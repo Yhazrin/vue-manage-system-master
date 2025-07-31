@@ -74,26 +74,26 @@ export default function Register() {
      <div className="min-h-screen bg-theme-background text-theme-text flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-           <div className="text-purple-600 font-bold text-2xl flex items-center justify-center mb-2">
+           <div className="text-theme-primary font-bold text-2xl flex items-center justify-center mb-2">
             <span className="mr-2">🎮</span>
            Vita
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">创建账号</h1>
-          <p className="text-gray-500">注册成为我们的一员，开始游戏之旅</p>
+          <h1 className="text-2xl font-bold text-theme-text">创建账号</h1>
+          <p className="text-theme-text/70">注册成为我们的一员，开始游戏之旅</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 用户名
               </label>
               <input
                 type="text"
                 {...register('name')}
                 className={cn(
-                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.name ? "border-red-300" : "border-gray-300"
+                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
+                  errors.name ? "border-red-300" : "border-theme-border"
                 )}
                 placeholder="请输入用户名"
               />
@@ -103,15 +103,15 @@ export default function Register() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 手机号
               </label>
               <input
                 type="tel"
                 {...register('phone_num')}
                 className={cn(
-                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.phone_num ? "border-red-300" : "border-gray-300"
+                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
+                  errors.phone_num ? "border-red-300" : "border-theme-border"
                 )}
                 placeholder="请输入手机号"
               />
@@ -121,15 +121,15 @@ export default function Register() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 设置密码
               </label>
               <input
                 type="password"
                 {...register('passwd')}
                 className={cn(
-                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.passwd ? "border-red-300" : "border-gray-300"
+                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
+                  errors.passwd ? "border-red-300" : "border-theme-border"
                 )}
                 placeholder="请设置密码"
               />
@@ -139,15 +139,15 @@ export default function Register() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 确认密码
               </label>
               <input
                 type="password"
                 {...register('confirmPassword')}
                 className={cn(
-                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500",
-                  errors.confirmPassword ? "border-red-300" : "border-gray-300"
+                  "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
+                  errors.confirmPassword ? "border-red-300" : "border-theme-border"
                 )}
                 placeholder="请再次输入密码"
               />
@@ -157,27 +157,27 @@ export default function Register() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-1">
                 选择角色
               </label>
               <div className="grid grid-cols-2 gap-3">
-                <label className="flex items-center p-3 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50">
+                <label className="flex items-center p-3 border border-theme-border rounded-lg cursor-pointer transition-colors hover:bg-theme-background">
                   <input
                     type="radio"
                     value="user"
                     {...register('role')}
-                    className="text-purple-600 focus:ring-purple-500 h-4 w-4"
+                    className="text-theme-primary focus:ring-theme-primary h-4 w-4"
                   />
-                  <span className="ml-2 text-sm text-gray-700">普通用户</span>
+                  <span className="ml-2 text-sm text-theme-text">普通用户</span>
                 </label>
-                <label className="flex items-center p-3 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50">
+                <label className="flex items-center p-3 border border-theme-border rounded-lg cursor-pointer transition-colors hover:bg-theme-background">
                   <input
                     type="radio"
                     value="player"
                     {...register('role')}
-                    className="text-purple-600 focus:ring-purple-500 h-4 w-4"
+                    className="text-theme-primary focus:ring-theme-primary h-4 w-4"
                   />
-                  <span className="ml-2 text-sm text-gray-700">游戏陪玩</span>
+                  <span className="ml-2 text-sm text-theme-text">游戏陪玩</span>
                 </label>
               </div>
               {errors.role && (
@@ -188,18 +188,18 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-theme-primary hover:bg-theme-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? '注册中...' : '立即注册'}
             </button>
           </form>
           
-          <div className="mt-6 text-center text-sm text-gray-500">
+          <div className="mt-6 text-center text-sm text-theme-text/70">
             <p>
               已有账号?{' '}
               <Link
                 to="/login"
-                className="font-medium text-purple-600 hover:text-purple-700"
+                className="font-medium text-theme-primary hover:text-theme-primary/80"
               >
                 立即登录
               </Link>

@@ -74,7 +74,7 @@ export default function AdminOrders() {
         // const data = await response.json();
         
         // 调用真实API获取订单数据
-        const response = await fetch(`${API_BASE_URL}/orders`, {
+        const response = await fetch(`${API_BASE_URL}/orders?page=1&pageSize=100`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -84,8 +84,8 @@ export default function AdminOrders() {
         }
         const data = await response.json();
         
-        // 确保data是数组，如果不是则使用空数组
-        setOrders(Array.isArray(data) ? data : []);
+        // 确保data.orders是数组，如果不是则使用空数组
+        setOrders(Array.isArray(data.orders) ? data.orders : []);
       } catch (error) {
         console.error('Failed to fetch orders:', error);
         toast.error('获取订单列表失败');
@@ -275,7 +275,7 @@ export default function AdminOrders() {
                           <div className="text-xs text-gray-500">{order.playerUid}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.gameType}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">¥{order.price.toFixed(2)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">¥{(typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0).toFixed(2)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.orderTime}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.serviceTime}</td>
                         <td className="px-6 py-4 whitespace-nowrap">

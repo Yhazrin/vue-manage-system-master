@@ -6,18 +6,26 @@ export interface Gift {
     name: string;
     price: number;
     image_url?: string | null;
+    created_at?: string;
 }
 
 export class GiftDAO {
     /** 创建礼物 */
-    static async create(g: Omit<Gift, 'id'>): Promise<number> {
-        const sql = `INSERT INTO gifts (name, price, image_url) VALUES (?, ?, ?, ?)`;
-        const [result]: any = await pool.execute(sql, [
-            g.name,
-            g.price,
-            g.image_url
-        ]);
-        return result.insertId;
+    static async create(g: Omit<Gift, 'id' | 'created_at'>): Promise<number> {
+        console.log('GiftDAO.create 接收到的参数:', g);
+        const sql = `INSERT INTO gifts (name, price, image_url) VALUES (?, ?, ?)`;
+        const params = [g.name, g.price, g.image_url];
+        console.log('执行SQL:', sql);
+        console.log('SQL参数:', params);
+        
+        try {
+            const [result]: any = await pool.execute(sql, params);
+            console.log('插入成功，insertId:', result.insertId);
+            return result.insertId;
+        } catch (error) {
+            console.error('GiftDAO.create 执行失败:', error);
+            throw error;
+        }
     }
 
     /** 按 ID 查询礼物 */

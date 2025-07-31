@@ -182,8 +182,8 @@ async function testBookingFlow() {
         return;
     }
     
-    // 选择第一个陪玩
-    const selectedPlayer = players[0];
+    // 选择ID为1的陪玩（我们为其创建了服务）
+    const selectedPlayer = players.find(p => p.id === 1) || players[0];
     console.log(`\n🎯 选择陪玩: ${selectedPlayer.name} (ID: ${selectedPlayer.id})`);
     
     // 3. 获取选定陪玩的服务列表
