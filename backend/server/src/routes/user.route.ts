@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 // 导入共享工具
-import { userUpload } from '../utils/upload'; // 复用共享multer配置
+import { userUpload, normalizePath } from '../utils/upload'; // 复用共享multer配置及路径规范化
 import {
     phoneValidator,
     phoneUniqueValidator,
@@ -44,7 +44,7 @@ router.post(
 
         // 从请求体中获取注册信息
         const { name, passwd, phone_num, role = 'user' } = req.body;
-        const photo_img = req.file ? req.file.path : null; // 获取上传的头像路径（如果有上传）
+        const photo_img = req.file ? normalizePath(req.file.path) : null; // 获取上传的头像路径（如果有上传）并规范化
 
         // 使用 bcrypt 加密密码（10 是盐值 rounds，值越大加密越慢但越安全）
         const hash = await bcrypt.hash(passwd, 10);
@@ -148,11 +148,14 @@ router.patch(
             }
 
             const updateData: any = { ...req.body };
-            // 处理头像更新
-            if (req.file) updateData.photo_img = req.file.path;
+            // 处理头像更新并规范化路径
+            if (req.file) updateData.photo_img = normalizePath(req.file.path);
 
             await UserDAO.updateById(targetId, updateData);
-            res.json({ success: true });
+
+            // 返回更新后的头像路径，便于前端刷新
+            const updatedUser = await UserDAO.findById(targetId);
+            res.json({ success: true, photo_img: updatedUser?.photo_img });
         } catch (err) {
             next(err);
         }

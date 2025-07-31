@@ -4,7 +4,7 @@ import { GiftDAO } from '../dao/GiftDao';
 import { body, param, query, validationResult } from 'express-validator';
 import { auth, AuthRequest } from '../middleware/auth';
 import { Request, Response, NextFunction } from "express";
-import { giftUpload } from '../utils/upload'; // 导入礼物上传实例
+import { giftUpload, normalizePath } from '../utils/upload'; // 导入礼物上传实例及路径规范化
 import path from 'path';
 
 const router = Router();
@@ -30,7 +30,7 @@ router.post(
 
         try {
             const { name, price } = req.body;
-            const image_url = req.file ? req.file.path : null;
+            const image_url = req.file ? normalizePath(req.file.path) : null;
             const id = await GiftDAO.create({ name, price, image_url });
             res.status(201).json({ success: true, id });
         } catch (err) {
@@ -108,7 +108,7 @@ router.patch(
             const { name, price } = req.body;
             let image_url: string | undefined;
             if (req.file) {
-                image_url = path.join('uploads/gift/images', req.file.filename);
+                image_url = normalizePath(path.posix.join('uploads/gift/images', req.file.filename));
             }
             await GiftDAO.update(id, { name, price, image_url });
             const updated = await GiftDAO.findById(id);

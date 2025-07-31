@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 // 导入共享工具
-import { playerUpload } from '../utils/upload'; // 复用共享multer配置（玩家专用）
+import { playerUpload, normalizePath } from '../utils/upload'; // 复用共享multer配置（玩家专用）并提供路径标准化
 import {
     phoneValidator,
     phoneUniqueValidator,
@@ -53,8 +53,8 @@ router.post(
             // 提取请求数据（包含文件路径）
             const { name, passwd, phone_num, game_id, intro } = req.body;
             const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-            const photo_img = files?.['photo_img']?.[0]?.path || null; // 头像路径
-            const QR_img = files?.['QR_img']?.[0]?.path || null;       // 二维码路径
+            const photo_img = files?.['photo_img']?.[0]?.path ? normalizePath(files['photo_img'][0].path) : null; // 头像路径
+            const QR_img = files?.['QR_img']?.[0]?.path ? normalizePath(files['QR_img'][0].path) : null;       // 二维码路径
 
             // 密码加密
             const hash = await bcrypt.hash(passwd, 10);
@@ -268,8 +268,8 @@ router.patch(
         }
 
         const updateData: any = { ...req.body };
-        // 处理头像更新
-        if (req.file) updateData.photo_img = req.file.path;
+        // 处理头像更新并标准化
+        if (req.file) updateData.photo_img = normalizePath(req.file.path);
 
         await PlayerDAO.updateById(targetId, updateData);
         
@@ -339,7 +339,7 @@ router.patch(
             }
 
             // 获取上传的录音文件路径
-            const voicePath = req.file?.path || null;
+            const voicePath = req.file ? normalizePath(req.file.path) : null;
             if (!voicePath) {
                 return res.status(400).json({ success: false, error: '请上传录音文件' });
             }
@@ -370,8 +370,8 @@ router.patch(
                 return res.status(403).json({ success: false, error: '无权限更新二维码' });
             }
 
-            // 优先使用上传的文件路径，其次使用body中的路径
-            const QR_img = req.file?.path || req.body.QR_img;
+            // 优先使用上传的文件路径，其次使用body中的路径，并规范化
+            const QR_img = req.file ? normalizePath(req.file.path) : req.body.QR_img;
             await PlayerDAO.updateQR(targetId, QR_img);
             res.json({ success: true });
         } catch (err) {
