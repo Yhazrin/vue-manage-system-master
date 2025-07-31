@@ -18,6 +18,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const express_validator_1 = require("express-validator");
 // 导入共享工具
 const upload_1 = require("../utils/upload"); // 复用共享multer配置（玩家专用）
+const { normalizePath } = upload_1;
 const validators_1 = require("../utils/validators"); // 复用验证规则
 const loginHandler_1 = require("../utils/loginHandler"); // 复用登录逻辑
 // 导入业务依赖
@@ -56,8 +57,8 @@ upload_1.playerUpload.fields([
         // 提取请求数据（包含文件路径）
         const { name, passwd, phone_num, game_id, intro } = req.body;
         const files = req.files;
-        const photo_img = ((_b = (_a = files === null || files === void 0 ? void 0 : files['photo_img']) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.path) || null; // 头像路径
-        const QR_img = ((_d = (_c = files === null || files === void 0 ? void 0 : files['QR_img']) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.path) || null; // 二维码路径
+        const photo_img = ((_b = (_a = files === null || files === void 0 ? void 0 : files['photo_img']) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.path) ? normalizePath(files['photo_img'][0].path) : null; // 头像路径
+        const QR_img = ((_d = (_c = files === null || files === void 0 ? void 0 : files['QR_img']) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.path) ? normalizePath(files['QR_img'][0].path) : null; // 二维码路径
         // 密码加密
         const hash = yield bcrypt_1.default.hash(passwd, 10);
         // 创建玩家
@@ -247,9 +248,9 @@ router.patch('/:id', auth_1.auth, upload_1.playerUpload.single('photo_img'), (re
             return res.status(403).json({ success: false, error: '无权限更新该玩家信息' });
         }
         const updateData = Object.assign({}, req.body);
-        // 处理头像更新
+        // 处理头像更新并标准化
         if (req.file)
-            updateData.photo_img = req.file.path;
+            updateData.photo_img = normalizePath(req.file.path);
         yield PlayerDao_1.PlayerDAO.updateById(targetId, updateData);
         // 返回更新后的用户数据
         const updatedPlayer = yield PlayerDao_1.PlayerDAO.findById(targetId);
@@ -312,7 +313,7 @@ router.patch('/:id/voice', auth_1.auth, upload_1.playerUpload.single('voice'), /
             return res.status(403).json({ success: false, error: '无权限更新录音信息' });
         }
         // 获取上传的录音文件路径
-        const voicePath = ((_b = req.file) === null || _b === void 0 ? void 0 : _b.path) || null;
+        const voicePath = req.file ? normalizePath(req.file.path) : null;
         if (!voicePath) {
             return res.status(400).json({ success: false, error: '请上传录音文件' });
         }
@@ -337,8 +338,8 @@ router.patch('/:id/qr', auth_1.auth, upload_1.playerUpload.single('QR_img'), // 
         if (currentUserId !== targetId) {
             return res.status(403).json({ success: false, error: '无权限更新二维码' });
         }
-        // 优先使用上传的文件路径，其次使用body中的路径
-        const QR_img = ((_b = req.file) === null || _b === void 0 ? void 0 : _b.path) || req.body.QR_img;
+        // 优先使用上传的文件路径，其次使用body中的路径，并规范化
+        const QR_img = req.file ? normalizePath(req.file.path) : req.body.QR_img;
         yield PlayerDao_1.PlayerDAO.updateQR(targetId, QR_img);
         res.json({ success: true });
     }

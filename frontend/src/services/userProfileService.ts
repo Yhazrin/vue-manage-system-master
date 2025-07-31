@@ -327,12 +327,16 @@ export const uploadAvatar = async (file: File): Promise<string> => {
     }
 
     const data = await response.json();
-    
+
     if (!data.success) {
       throw new Error(data.error || '头像上传失败');
     }
 
-    return data.photo_img || '';
+    let url = data.photo_img || '';
+    if (url && !url.startsWith('http')) {
+      url = `${API_BASE_URL.replace('/api', '')}/${url}`;
+    }
+    return url;
   } catch (error) {
     console.error('Error uploading avatar:', error);
     throw error;

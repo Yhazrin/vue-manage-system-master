@@ -18,6 +18,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const express_validator_1 = require("express-validator");
 // 导入共享工具
 const upload_1 = require("../utils/upload"); // 复用共享multer配置
+const { normalizePath } = upload_1;
 const validators_1 = require("../utils/validators"); // 复用验证规则
 const loginHandler_1 = require("../utils/loginHandler"); // 复用登录逻辑
 // 导入业务依赖
@@ -45,7 +46,7 @@ router.post('/register', [
         }
         // 从请求体中获取注册信息
         const { name, passwd, phone_num, role = 'user' } = req.body;
-        const photo_img = req.file ? req.file.path : null; // 获取上传的头像路径（如果有上传）
+        const photo_img = req.file ? normalizePath(req.file.path) : null; // 获取上传的头像路径（如果有上传）
         // 使用 bcrypt 加密密码（10 是盐值 rounds，值越大加密越慢但越安全）
         const hash = yield bcrypt_1.default.hash(passwd, 10);
         // 调用 UserDAO 写入数据库，返回新用户 ID 和 用户名
@@ -136,11 +137,12 @@ router.patch('/:id', auth_1.auth, upload_1.userUpload.single('photo_img'), // �
             return res.status(403).json({ success: false, error: '无权限更新该用户信息' });
         }
         const updateData = Object.assign({}, req.body);
-        // 处理头像更新
+        // 处理头像更新并规范化
         if (req.file)
-            updateData.photo_img = req.file.path;
+            updateData.photo_img = normalizePath(req.file.path);
         yield UserDao_1.UserDAO.updateById(targetId, updateData);
-        res.json({ success: true });
+        const updatedUser = yield UserDao_1.UserDAO.findById(targetId);
+        res.json({ success: true, photo_img: updatedUser === null || updatedUser === void 0 ? void 0 : updatedUser.photo_img });
     }
     catch (err) {
         next(err);

@@ -18,6 +18,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const express_validator_1 = require("express-validator");
 // 导入共享工具
 const upload_1 = require("../utils/upload"); // 复用管理员上传配置
+const { normalizePath } = upload_1;
 const validators_1 = require("../utils/validators"); // 复用验证规则
 const loginHandler_1 = require("../utils/loginHandler"); // 复用登录逻辑
 // 导入业务依赖
@@ -52,7 +53,7 @@ router.post('/register', auth_1.auth, // 先验证登录状态
         }
         // 提取请求数据
         const { name, passwd, phone_num, authority } = req.body;
-        const photo_img = ((_b = req.file) === null || _b === void 0 ? void 0 : _b.path) || null; // 头像路径
+        const photo_img = req.file ? normalizePath(req.file.path) : null; // 头像路径
         // 设置默认权限为 2（普通管理员）
         const finalAuthority = authority || 2;
         // 密码加密
@@ -150,11 +151,12 @@ router.patch('/:id', auth_1.auth, upload_1.managerUpload.single('photo_img'), //
             return res.status(403).json({ success: false, error: '无权限更新该管理员信息' });
         }
         const updateData = Object.assign({}, req.body);
-        // 如果上传了新头像，更新头像路径
+        // 如果上传了新头像，更新头像路径并规范化
         if (req.file)
-            updateData.photo_img = req.file.path;
+            updateData.photo_img = normalizePath(req.file.path);
         yield ManagerDao_1.ManagerDAO.updateById(targetId, updateData);
-        res.json({ success: true });
+        const updated = yield ManagerDao_1.ManagerDAO.findById(targetId);
+        res.json({ success: true, photo_img: updated === null || updated === void 0 ? void 0 : updated.photo_img });
     }
     catch (err) {
         next(err);

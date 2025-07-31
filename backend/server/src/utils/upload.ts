@@ -115,3 +115,6 @@ export const playerUpload = createUpload('player');
 export const managerUpload = createUpload('manager');
 // 新增礼物图片上传实例
 export const giftUpload = createUpload('gift');
+
+// 将 Windows 路径中的反斜杠统一转换为正斜杠，便于前端加载
+export const normalizePath = (p: string) => p.replace(/\\/g, '/');

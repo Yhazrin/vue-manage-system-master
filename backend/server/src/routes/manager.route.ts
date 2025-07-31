@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 // 导入共享工具
-import { managerUpload } from '../utils/upload'; // 复用管理员上传配置
+import { managerUpload, normalizePath } from '../utils/upload'; // 复用管理员上传配置并提供路径规范化
 import {
     phoneValidator,
     phoneUniqueValidator,
@@ -51,7 +51,7 @@ router.post(
 
             // 提取请求数据
             const { name, passwd, phone_num, authority } = req.body;
-            const photo_img = req.file?.path || null; // 头像路径
+            const photo_img = req.file ? normalizePath(req.file.path) : null; // 头像路径
 
             // 设置默认权限为 2（普通管理员）
             const finalAuthority = authority || 2;
@@ -178,11 +178,13 @@ router.patch(
             }
 
             const updateData: any = { ...req.body };
-            // 如果上传了新头像，更新头像路径
-            if (req.file) updateData.photo_img = req.file.path;
+            // 如果上传了新头像，更新头像路径并标准化
+            if (req.file) updateData.photo_img = normalizePath(req.file.path);
 
             await ManagerDAO.updateById(targetId, updateData);
-            res.json({ success: true });
+
+            const updated = await ManagerDAO.findById(targetId);
+            res.json({ success: true, photo_img: updated?.photo_img });
         } catch (err) {
             next(err);
         }
