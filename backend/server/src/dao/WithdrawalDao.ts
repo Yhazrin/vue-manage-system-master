@@ -57,21 +57,21 @@ export class WithdrawalDAO {
         const offset = (validPage - 1) * validPageSize;
 
         // 基础 SQL 和参数
-        let sql = `SELECT * FROM withdrawals WHERE player_id = ?`;
-        let countSql = `SELECT COUNT(*) as total FROM withdrawals WHERE player_id = ?`;
+        let sql = `SELECT w.*, p.name as player_name, p.phone_num as player_phone FROM withdrawals w LEFT JOIN players p ON w.player_id = p.id WHERE w.player_id = ?`;
+        let countSql = `SELECT COUNT(*) as total FROM withdrawals w WHERE w.player_id = ?`;
         const params: any[] = [player_id];
         const countParams: any[] = [player_id];
 
         // 如果有状态筛选，添加条件
         if (status) {
-            sql += ` AND status = ?`;
-            countSql += ` AND status = ?`;
+            sql += ` AND w.status = ?`;
+            countSql += ` AND w.status = ?`;
             params.push(status);
             countParams.push(status);
         }
 
         // 添加排序和分页 - 使用字符串拼接而不是参数化查询
-        sql += ` ORDER BY created_at DESC LIMIT ${validPageSize} OFFSET ${offset}`;
+        sql += ` ORDER BY w.created_at DESC LIMIT ${validPageSize} OFFSET ${offset}`;
 
         // 执行查询
         const [rows]: any = await pool.execute(sql, params);
@@ -97,15 +97,18 @@ export class WithdrawalDAO {
         let where = '';
         const params: any[] = [];
         if (status) {
-            where = ` WHERE status = ?`;
+            where = ` WHERE w.status = ?`;
             params.push(status);
         }
-        const countSql = `SELECT COUNT(*) as cnt FROM withdrawals${where}`;
+        const countSql = `SELECT COUNT(*) as cnt FROM withdrawals w${where}`;
         const [[{ cnt }]]: any = await pool.execute(countSql, params);
 
         const dataSql = `
-      SELECT * FROM withdrawals${where}
-      ORDER BY created_at DESC LIMIT ${validPageSize} OFFSET ${offset}
+      SELECT w.*, p.name as player_name, p.phone_num as player_phone
+      FROM withdrawals w
+      LEFT JOIN players p ON w.player_id = p.id
+      ${where}
+      ORDER BY w.created_at DESC LIMIT ${validPageSize} OFFSET ${offset}
     `;
         const [rows]: any = await pool.execute(dataSql, params);
         return { total: cnt, withdrawals: rows };

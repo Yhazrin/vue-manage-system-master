@@ -212,10 +212,6 @@ export default function UserProfile() {
                     <p className="text-lg font-bold text-gray-900">{profile.favoritePlayers || 0}</p>
                     <p className="text-xs text-gray-500">收藏陪玩</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.membershipDuration || 0}年</p>
-                    <p className="text-xs text-gray-500">会员时长</p>
-                  </div>
                 </div>
               </div>
             </div>

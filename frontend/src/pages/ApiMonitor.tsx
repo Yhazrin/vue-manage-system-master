@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -154,9 +155,12 @@ const ApiMonitor: React.FC = () => {
   }, [autoRefresh, filters]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">API 监控中心</h1>
+    <div className="bg-theme-background min-h-screen text-theme-text">
+      <Header />
+      
+      <main className="container mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">API 监控中心</h1>
         <div className="flex gap-2">
           <Button
             variant={autoRefresh ? "default" : "outline"}
@@ -417,6 +421,7 @@ const ApiMonitor: React.FC = () => {
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 };

@@ -36,3 +36,8 @@ export const getAllComments = async (): Promise<{ success: boolean; comments: Co
 export const getCommentById = async (id: number): Promise<{ success: boolean; comment: Comment }> => {
   return get(`/comments/${id}`);
 };
+
+// 获取陪玩的所有评价
+export const getPlayerComments = async (playerId: number): Promise<{ success: boolean; comments: any[] }> => {
+  return get(`/comments/player/${playerId}`);
+};

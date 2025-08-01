@@ -7,13 +7,15 @@ import { getPlayers, getPlayerServices } from '@/services/playerService';
 import { useNotifications } from '@/components/NotificationManager';
   // 导入orderService
   import { createOrder } from '@/services/orderService';
+import { getPlayerComments } from '@/services/commentService';
 
 export default function BookingDetail() {
   const { playerId } = useParams<{ playerId: string }>();
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   const [selectedHours, setSelectedHours] = useState(1);
-  const [discount, setDiscount] = useState<number | null>(null);
+  const [customHours, setCustomHours] = useState<string>('');
+  const [useCustomHours, setUseCustomHours] = useState(false);
   const [player, setPlayer] = useState<Player | null>(null);
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +47,6 @@ export default function BookingDetail() {
           return;
         }
         
-        setPlayer(foundPlayer);
-        
         // 获取陪玩的服务信息
         try {
           const playerServices = await getPlayerServices(parseInt(playerId));
@@ -66,6 +66,52 @@ export default function BookingDetail() {
         } catch (serviceError) {
           console.error('获取服务信息失败:', serviceError);
           // 即使服务信息获取失败，也显示陪玩基本信息
+        }
+        
+        // 获取陪玩的评论信息
+        try {
+          const commentsResponse = await getPlayerComments(parseInt(playerId));
+          if (commentsResponse.success && commentsResponse.comments) {
+            // 转换评论数据格式以匹配前端Review接口
+            const reviewList: Review[] = commentsResponse.comments.map((comment: any) => ({
+              id: comment.id,
+              userAvatar: comment.user_avatar || '/default-avatar.png',
+              userName: comment.user_name || '匿名用户',
+              rating: comment.rating,
+              createdAt: new Date(comment.created_at).toLocaleDateString(),
+              comment: comment.content
+            }));
+            
+            // 更新陪玩信息，添加评论列表
+            setPlayer(prev => prev ? {
+              ...prev,
+              reviewList,
+              rating: reviewList.length > 0 ? 
+                reviewList.reduce((sum, review) => sum + review.rating, 0) / reviewList.length : 
+                foundPlayer.rating,
+              reviews: reviewList.length
+            } : null);
+          } else {
+            // 如果没有评论，设置空的评论列表
+            setPlayer(prev => prev ? {
+              ...prev,
+              reviewList: [],
+              reviews: 0
+            } : null);
+          }
+        } catch (commentError) {
+          console.error('获取评论信息失败:', commentError);
+          // 即使评论获取失败，也设置空的评论列表
+          setPlayer(prev => prev ? {
+            ...prev,
+            reviewList: [],
+            reviews: 0
+          } : null);
+        }
+        
+        // 最后设置基础陪玩信息（如果还没有设置）
+        if (!player) {
+          setPlayer(foundPlayer);
         }
         
         setLoading(false);
@@ -134,29 +180,18 @@ export default function BookingDetail() {
     );
   }
   
-  // Calculate price with possible discount
+  // Calculate price
   const calculatePrice = () => {
-    let basePrice;
-    if (selectedGameData && selectedGameData.price) {
-      basePrice = (Number(selectedGameData.price) || 0) * selectedHours;
-    } else if (player?.price) {
-      basePrice = (Number(player.price) || 0) * selectedHours;
-    } else {
-      basePrice = 0;
-    }
-    
-    if (discount && discount > 0) {
-      return basePrice * (1 - discount / 100);
-    }
-    return basePrice;
+    return getBasePrice();
   };
 
   // Get base price without discount for display
   const getBasePrice = () => {
+    const hours = useCustomHours ? (Number(customHours) || 0) : selectedHours;
     if (selectedGameData && selectedGameData.price) {
-      return (Number(selectedGameData.price) || 0) * selectedHours;
+      return (Number(selectedGameData.price) || 0) * hours;
     } else if (player?.price) {
-      return (Number(player.price) || 0) * selectedHours;
+      return (Number(player.price) || 0) * hours;
     } else {
       return 0;
     }
@@ -195,6 +230,30 @@ export default function BookingDetail() {
         return;
       }
       
+      // 验证自定义时长
+      if (useCustomHours) {
+        const customHoursNum = Number(customHours);
+        const minHours = selectedGameData?.min_hours || 1;
+        
+        if (!customHours || customHoursNum <= 0) {
+          addNotification({
+            type: 'system',
+            title: '请输入有效的服务时长',
+            message: '请输入大于0的服务时长'
+          });
+          return;
+        }
+        
+        if (customHoursNum < minHours) {
+          addNotification({
+            type: 'system',
+            title: '服务时长不足',
+            message: `该服务最低时长为${minHours}小时，请重新选择`
+          });
+          return;
+        }
+      }
+      
       // 获取token和用户信息
       const token = localStorage.getItem('token');
       if (!token) {
@@ -227,14 +286,15 @@ export default function BookingDetail() {
       }
       
       // 构建订单数据
+      const finalHours = useCustomHours ? (Number(customHours) || 0) : selectedHours;
       const orderData = {
-        playerId: player.id,
+        player_id: player.id,
         gameType: selectedGame,
-        serviceTime: `${selectedHours}小时`,
-        price: calculatePrice(),
-        description: `预约${player.name}${selectedHours}小时，游戏: ${selectedGame}`,
+        serviceTime: `${finalHours}小时`,
+        amount: calculatePrice(),
+        description: `预约${player.name}${finalHours}小时，游戏: ${selectedGame}`,
         userId: userId,
-        serviceId: selectedGameData.id
+        service_id: selectedGameData.id
       };
       
       // 使用orderService创建订单
@@ -244,7 +304,7 @@ export default function BookingDetail() {
       addNotification({
         type: 'order',
         title: '预约成功！',
-        message: `订单号: ${result.id}\n您已成功预约${player.name}${selectedHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
+        message: `订单号: ${result.id}\n您已成功预约${player.name}${finalHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
       });
       
       navigate('/user/orders'); // 跳转到订单页面
@@ -382,35 +442,77 @@ export default function BookingDetail() {
                 {/* Service Duration */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">服务时长</label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-wrap gap-1">
-                      {[1, 2, 3, 4, 5, 6].map(hour => {
-                        const minHours = selectedGameData?.min_hours || 1;
-                        const isDisabled = hour < minHours;
-                        return (
-                          <button
-                            key={hour}
-                            onClick={() => !isDisabled && setSelectedHours(hour)}
-                            disabled={isDisabled}
-                            className={cn(
-                              "px-3 py-1 text-xs font-medium rounded transition-colors",
-                              isDisabled
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : selectedHours === hour 
-                                  ? "bg-purple-600 text-white" 
-                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            )}
-                          >
-                            {hour}h
-                          </button>
-                        );
-                      })}
+                  <div className="space-y-3">
+                    {/* 预设时长选择 */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap gap-1">
+                        {[1, 2, 3, 4, 5, 6].map(hour => {
+                          const minHours = selectedGameData?.min_hours || 1;
+                          const isDisabled = hour < minHours;
+                          return (
+                            <button
+                              key={hour}
+                              onClick={() => {
+                                if (!isDisabled) {
+                                  setSelectedHours(hour);
+                                  setUseCustomHours(false);
+                                  setCustomHours('');
+                                }
+                              }}
+                              disabled={isDisabled}
+                              className={cn(
+                                "px-3 py-1 text-xs font-medium rounded transition-colors",
+                                isDisabled
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : (!useCustomHours && selectedHours === hour)
+                                    ? "bg-purple-600 text-white" 
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              )}
+                            >
+                              {hour}h
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedGameData?.min_hours && selectedGameData.min_hours > 1 && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          最低{selectedGameData.min_hours}小时
+                        </span>
+                      )}
                     </div>
-                    {selectedGameData?.min_hours && selectedGameData.min_hours > 1 && (
-                      <span className="text-xs text-gray-500 ml-2">
-                        最低{selectedGameData.min_hours}小时
-                      </span>
-                    )}
+                    
+                    {/* 自定义时长输入 */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">或指定时长：</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={selectedGameData?.min_hours || 1}
+                          max="24"
+                          value={customHours}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setCustomHours(value);
+                            if (value && Number(value) > 0) {
+                              setUseCustomHours(true);
+                            } else {
+                              setUseCustomHours(false);
+                            }
+                          }}
+                          placeholder="输入小时数"
+                          className={cn(
+                            "w-20 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500",
+                            useCustomHours ? "border-purple-500" : ""
+                          )}
+                        />
+                        <span className="text-sm text-gray-500">小时</span>
+                      </div>
+                      {useCustomHours && customHours && Number(customHours) < (selectedGameData?.min_hours || 1) && (
+                        <span className="text-xs text-red-500">
+                          不能低于最低时长{selectedGameData?.min_hours || 1}小时
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -444,42 +546,7 @@ export default function BookingDetail() {
                 </div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                {/* Discount Code */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">优惠码 (可选)</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="输入优惠码"
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      onChange={(e) => {
-                        // Simple discount code simulation
-                        const code = e.target.value.trim();
-                        if (code === "NEW5") {
-                          setDiscount(5);
-                        } else if (code === "SUMMER10") {
-                          setDiscount(10);
-                        } else if (code === "") {
-                          setDiscount(null);
-                        } else {
-                          setDiscount(-1); // Invalid code
-                        }
-                      }}
-                    />
-                    {discount === -1 && (
-                      <span className="text-red-500 text-sm flex items-center">
-                        <i className="fa-solid fa-exclamation-circle mr-1"></i> 优惠码无效
-                      </span>
-                    )}
-                    {discount && discount > 0 && (
-                      <span className="text-green-500 text-sm flex items-center">
-                        <i className="fa-solid fa-check-circle mr-1"></i> 优惠{discount}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+
               
               {/* Price Summary */}
               <div className="bg-gray-50 p-5 rounded-lg mb-6">
@@ -490,14 +557,8 @@ export default function BookingDetail() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">时长</span>
-                    <span>{selectedHours}小时</span>
+                    <span>{useCustomHours ? (Number(customHours) || 0) : selectedHours}小时</span>
                   </div>
-                  {discount && discount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>优惠</span>
-                      <span>-¥{(getBasePrice() * discount / 100).toFixed(2)}</span>
-                    </div>
-                  )}
                   <div className="pt-3 border-t border-gray-200 flex justify-between font-semibold text-lg">
                     <span>总价</span>
                     <span>¥{calculatePrice().toFixed(2)}</span>

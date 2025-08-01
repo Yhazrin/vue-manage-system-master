@@ -21,7 +21,7 @@ interface StatisticsData {
 
 // 获取统计数据
 const fetchStatisticsData = async (): Promise<StatisticsData> => {
-  const response = await fetch(`${API_BASE_URL}/statistics`, {
+  const response = await fetch(`${API_BASE_URL}/statistics/global`, {
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('token')}`
     }
@@ -31,7 +31,32 @@ const fetchStatisticsData = async (): Promise<StatisticsData> => {
     throw new Error('Failed to fetch statistics data');
   }
   
-  return response.json();
+  const result = await response.json();
+  
+  // 将后端返回的数据转换为前端需要的格式
+  if (result.success && result.global) {
+    const globalData = result.global;
+    return {
+      orderStatistics: {
+        totalOrders: globalData.total_orders || 0,
+        totalAmount: globalData.total_revenue || 0,
+        totalWithdrawals: globalData.total_withdrawn || 0,
+        totalCommission: globalData.total_platform_profit || 0
+      },
+      orderData: [
+        { name: '本月', orders: globalData.total_orders || 0, amount: globalData.total_revenue || 0 }
+      ],
+      topUsers: [],
+      topPlayers: [],
+      revenueData: [
+        { name: '订单收入', value: globalData.total_revenue || 0 },
+        { name: '平台抽成', value: globalData.total_platform_profit || 0 },
+        { name: '提现金额', value: globalData.total_withdrawn || 0 }
+      ]
+    };
+  }
+  
+  throw new Error('Invalid response format');
 };
 
 // 饼图颜色

@@ -220,74 +220,10 @@ export default function AdminUserManagement() {
             />
           </div>
           
-          {activeTab === 'players' && (
-            <button 
-              onClick={() => setIsAddingPlayer(true)}
-              className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <i className="fa-solid fa-plus mr-2"></i>添加陪玩
-            </button>
-          )}
+
         </div>
         
-        {/* 添加陪玩表单 */}
-        {isAddingPlayer && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">添加陪玩信息</h3>
-              <button 
-                onClick={() => setIsAddingPlayer(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <i className="fa-solid fa-times"></i>
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">陪玩姓名</label>
-                <input
-                  type="text"
-                  value={newPlayer.name}
-                  onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="请输入陪玩姓名"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
-                <input
-                  type="text"
-                  value={newPlayer.phone_num}
-                  onChange={(e) => setNewPlayer({...newPlayer, phone_num: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="请输入联系电话"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">个人介绍</label>
-                <input
-                  type="text"
-                  value={newPlayer.intro}
-                  onChange={(e) => setNewPlayer({...newPlayer, intro: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="请输入个人介绍"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end mt-6">
-              <button 
-                onClick={handleAddPlayer}
-                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                添加陪玩
-              </button>
-            </div>
-          </div>
-        )}
+
         
         {/* 用户/陪玩列表 */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

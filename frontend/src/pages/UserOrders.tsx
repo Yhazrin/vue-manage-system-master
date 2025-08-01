@@ -288,12 +288,18 @@ export default function UserOrders() {
                       </div>
                       
                       {order.status === 'completed' && (
-                        <button 
-                          onClick={() => handleRating(order)}
-                          className="text-theme-primary text-sm hover:text-theme-primary/80"
-                        >
-                          <i className="fa-solid fa-comment mr-1"></i> 评价
-                        </button>
+                        order.isRated ? (
+                          <span className="text-green-600 text-sm">
+                            <i className="fa-solid fa-check-circle mr-1"></i> 已评价
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => handleRating(order)}
+                            className="text-theme-primary text-sm hover:text-theme-primary/80"
+                          >
+                            <i className="fa-solid fa-comment mr-1"></i> 评价
+                          </button>
+                        )
                       )}
                     </div>
                   </div>

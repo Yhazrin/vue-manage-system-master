@@ -82,11 +82,35 @@ export const getWithdrawals = async (): Promise<WithdrawalRecord[]> => {
 // 获取所有提现申请
 export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawals`);
+    const response = await fetch(`${API_BASE_URL}/withdrawals`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch withdrawal requests');
     }
-    return await response.json();
+    const data = await response.json();
+    
+    // 处理后端返回的数据格式
+    if (data.success && data.withdrawals) {
+      return data.withdrawals.map((item: any) => ({
+        id: item.withdrawal_id,
+        playerUid: item.player_id?.toString() || '',
+        playerName: item.player_name || `玩家${item.player_id}`,
+        amount: Number(item.amount || 0),
+        status: item.status === '待审核' ? 'pending' : 
+                item.status === '已通过' ? 'approved' : 
+                item.status === '已拒绝' ? 'rejected' : 'pending',
+        createdAt: item.created_at,
+        processedAt: item.updated_at,
+        processedBy: item.processed_by,
+        notes: item.notes,
+        qrCodeUrl: '' // 暂时为空，后续可以添加
+      }));
+    }
+    
+    return [];
   } catch (error) {
     console.error('Error fetching withdrawal requests:', error);
     // 开发环境下返回空数组
@@ -100,7 +124,7 @@ export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
 // 获取处理记录
 export const getProcessRecords = async (): Promise<ProcessRecord[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawal/records`, {
+    const response = await fetch(`${API_BASE_URL}/withdrawals`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -108,7 +132,19 @@ export const getProcessRecords = async (): Promise<ProcessRecord[]> => {
     if (!response.ok) {
       throw new Error('Failed to fetch process records');
     }
-    return await response.json();
+    const data = await response.json();
+    // 转换后端数据格式为前端需要的ProcessRecord格式
+    if (data.success && data.withdrawals) {
+      return data.withdrawals.map((item: any) => ({
+        id: item.withdrawal_id || item.id,
+        withdrawalId: item.withdrawal_id || item.id,
+        status: item.status,
+        processedBy: item.processed_by || 'system',
+        processedAt: item.updated_at || item.created_at,
+        notes: item.notes || ''
+      }));
+    }
+    return [];
   } catch (error) {
     console.error('Error fetching process records:', error);
     // 开发环境下返回空数组

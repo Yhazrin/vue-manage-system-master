@@ -159,12 +159,14 @@ export class OrderDAO {
             SELECT o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, o.status, o.created_at, o.amount,
                    p.name as player_name, p.photo_img as player_avatar,
                    u.name as user_name, u.photo_img as user_avatar,
-                   g.name as game_name, s.price, s.hours
+                   g.name as game_name, s.price, s.hours,
+                   CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END as is_rated
             FROM orders o
             LEFT JOIN players p ON o.player_id = p.id
             LEFT JOIN users u ON o.user_id = u.id
             LEFT JOIN games g ON o.game_id = g.id
             LEFT JOIN services s ON o.service_id = s.id
+            LEFT JOIN comments c ON o.order_id = c.order_id AND c.user_id = o.user_id
             ${whereClause}
             ORDER BY o.created_at DESC
         `;

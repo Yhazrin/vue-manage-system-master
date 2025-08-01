@@ -74,8 +74,7 @@ router.post(
             const mappedGame = {
                 id: game!.id,
                 name: game!.name,
-                imageUrl: game!.image_url || '',
-                createdAt: new Date().toISOString()
+                image_url: game!.image_url || ''
             };
             res.status(201).json({ success: true, game: mappedGame });
         } catch (err) {
@@ -149,8 +148,7 @@ router.patch(
             const mappedGame = {
                 id: updated!.id,
                 name: updated!.name,
-                imageUrl: updated!.image_url || '',
-                updatedAt: new Date().toISOString()
+                image_url: updated!.image_url || ''
             };
             res.json({ success: true, game: mappedGame });
         } catch (err) {

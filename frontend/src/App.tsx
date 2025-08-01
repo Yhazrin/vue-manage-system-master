@@ -4,7 +4,6 @@ import { Routes, Route, useNavigate } from "react-router-dom";
   import Register from "@/pages/Register";
   import UserHome from "@/pages/UserHome";
   import AdminOverview from "@/pages/AdminOverview";
-  import AdminHome from "@/pages/AdminHome";
   import PlayerHome from "@/pages/PlayerHome";
   import PlayerProfile from "@/pages/PlayerProfile";
   import UserProfile from "@/pages/UserProfile";
@@ -55,6 +54,9 @@ export default function App() {
       // 清除localStorage
       localStorage.removeItem('isAuthenticated');
       localStorage.removeItem('userRole');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userId');
     }
   };
 
@@ -64,6 +66,9 @@ export default function App() {
     // 清除localStorage
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userId');
     navigate('/login');
   };
 
@@ -79,8 +84,7 @@ export default function App() {
            <Route path="/user/dashboard" element={<UserHome />} />
            {/* 陪玩主页 */}
            <Route path="/player/dashboard" element={<PlayerHome />} />
-            {/* 管理员主页 */}
-            <Route path="/admin/dashboard" element={<AdminHome />} />
+
             {/* 管理员数据概览 */}
             <Route path="/admin/overview" element={<AdminOverview />} />
             {/* 管理员统计分析 */}

@@ -44,6 +44,21 @@ export class CommentDAO {
         return rows;
     }
 
+    /** 根据陪玩ID查询该陪玩的所有评论（包含用户信息） */
+    static async findByPlayerId(playerId: number): Promise<any[]> {
+        const sql = `
+            SELECT 
+                c.*,
+                u.name as user_name
+            FROM comments c
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE c.player_id = ?
+            ORDER BY c.created_at DESC
+        `;
+        const [rows]: any = await pool.execute(sql, [playerId]);
+        return rows;
+    }
+
     /** 查询所有评论 */
     static async findAll(): Promise<Comment[]> {
         const sql = `SELECT * FROM comments ORDER BY created_at DESC`;

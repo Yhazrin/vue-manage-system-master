@@ -1,5 +1,6 @@
 import { get, post } from '@/services/api';
 import { API_BASE_URL } from '@/config/api';
+import { getCurrentUserId } from '@/utils/jwt';
 
 // 定义提现记录接口
 export interface WithdrawalRecord {
@@ -26,8 +27,14 @@ export interface FundsOverview {
 // 获取资金概览
 export const getFundsOverview = async (): Promise<FundsOverview> => {
   try {
+    // 从JWT token中获取用户ID
+    const userId = getCurrentUserId();
+    if (!userId) {
+      throw new Error('用户未登录或token无效');
+    }
+
     // 尝试从统计API获取数据
-    const response = await fetch(`${API_BASE_URL}/statistics/player/${localStorage.getItem('userId') || '1'}`, {
+    const response = await fetch(`${API_BASE_URL}/statistics/player/${userId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -43,9 +50,9 @@ export const getFundsOverview = async (): Promise<FundsOverview> => {
         
         return {
           availableBalance: Math.max(0, availableBalance), // 确保不为负数
-          monthlyEarnings: data.monthlyIncome || 0,
-          totalWithdrawals: data.total_withdrawn || 0,
-          withdrawalCount: data.withdrawalCount || 0 // 这个字段后端可能没有，使用默认值
+          monthlyEarnings: Number(data.monthlyIncome) || 0,
+          totalWithdrawals: Number(data.total_withdrawn) || 0,
+          withdrawalCount: Number(data.withdrawalCount) || 0 // 这个字段后端可能没有，使用默认值
         };
       }
     }
@@ -62,22 +69,70 @@ export const getFundsOverview = async (): Promise<FundsOverview> => {
   };
 };
 
-// 获取收益趋势数据 (暂时返回模拟数据，因为后端没有这个API)
+// 获取收益趋势数据
 export const getEarningsTrend = async (days: number = 30): Promise<EarningsData[]> => {
-  // 生成模拟的收益趋势数据
-  const mockData: EarningsData[] = [];
+  try {
+    // 获取陪玩的已完成订单
+    const response = await fetch(`${API_BASE_URL}/orders/player?status=completed`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.orders) {
+        // 按日期分组计算收益
+        const earningsMap = new Map<string, number>();
+        const today = new Date();
+        
+        // 初始化最近days天的数据
+        for (let i = days - 1; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          earningsMap.set(dateStr, 0);
+        }
+        
+        // 计算每天的收益
+        data.orders.forEach((order: any) => {
+          if (order.created_at && order.amount) {
+            const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+            if (earningsMap.has(orderDate)) {
+              earningsMap.set(orderDate, (earningsMap.get(orderDate) || 0) + Number(order.amount));
+            }
+          }
+        });
+        
+        // 转换为数组格式
+        const result: EarningsData[] = [];
+        earningsMap.forEach((earnings, date) => {
+          result.push({ date, earnings });
+        });
+        
+        return result.sort((a, b) => a.date.localeCompare(b.date));
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching earnings trend:', error);
+  }
+  
+  // 如果API调用失败，返回空数据
+  const emptyData: EarningsData[] = [];
   const today = new Date();
   
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    mockData.push({
+    emptyData.push({
       date: date.toISOString().split('T')[0],
-      earnings: Math.random() * 200 + 50 // 50-250之间的随机收益
+      earnings: 0
     });
   }
   
-  return Promise.resolve(mockData);
+  return emptyData;
 };
 
 // 获取提现记录
@@ -120,14 +175,14 @@ export const getWithdrawalRecords = async (): Promise<WithdrawalRecord[]> => {
 
 // 申请提现
 export const requestWithdrawal = async (amount: number): Promise<WithdrawalRecord> => {
-  const userId = localStorage.getItem('userId');
+  const userId = getCurrentUserId();
   if (!userId) {
-    throw new Error('用户未登录');
+    throw new Error('用户未登录或token无效');
   }
   
   const response = await post<any>('/withdrawals', { 
     withdrawal_id: `WD${Date.now()}`,
-    player_id: parseInt(userId),
+    player_id: userId,
     amount 
   });
   
@@ -150,29 +205,45 @@ export interface RecentEarning {
   date: string;
 }
 
-// 获取最近订单收益 (暂时返回模拟数据，因为后端没有这个具体API)
+// 获取最近订单收益
 export const getRecentEarnings = async (limit: number = 10): Promise<RecentEarning[]> => {
-  // 返回模拟的最近收益数据
-  const mockEarnings: RecentEarning[] = [
-    {
-      orderId: 'ORD001',
-      gameName: '王者荣耀',
-      amount: 120,
-      date: '2024-01-15 14:30'
-    },
-    {
-      orderId: 'ORD002',
-      gameName: '英雄联盟',
-      amount: 80,
-      date: '2024-01-15 10:15'
-    },
-    {
-      orderId: 'ORD003',
-      gameName: '和平精英',
-      amount: 150,
-      date: '2024-01-14 20:45'
+  try {
+    // 获取陪玩的已完成订单
+    const response = await fetch(`${API_BASE_URL}/orders/player?status=completed`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.orders) {
+        // 按创建时间排序，取最近的订单
+        const recentOrders = data.orders
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, limit);
+        
+        // 转换为前端需要的格式
+        return recentOrders.map((order: any) => ({
+          orderId: order.order_id,
+          gameName: order.game_name || '游戏陪玩',
+          amount: Number(order.amount || 0),
+          date: new Date(order.created_at).toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        }));
+      }
     }
-  ];
+  } catch (error) {
+    console.error('Error fetching recent earnings:', error);
+  }
   
-  return Promise.resolve(mockEarnings.slice(0, limit));
+  // 如果API调用失败，返回空数组
+  return [];
 };

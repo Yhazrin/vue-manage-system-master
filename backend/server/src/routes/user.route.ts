@@ -1,4 +1,5 @@
 // backend/server/src/routes/user.route.ts
+console.log('🔥 user.route.ts 文件被加载了！');
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
@@ -14,6 +15,8 @@ import {
 import { createLoginHandler } from '../utils/loginHandler'; // 复用登录逻辑
 // 导入业务依赖
 import { UserDAO } from '../dao/UserDao';
+import { FavoriteDAO } from '../dao/FavoriteDao';
+import { pool } from '../db';
 import { auth } from '../middleware/auth'; // 权限中间件
 import { signToken } from '../middleware/auth'; // 签发token
 
@@ -79,25 +82,82 @@ router.post(
 );
 
 /**
+ * @route   GET /api/users/count
+ * @desc    获取用户总数
+ * @access  仅管理员可访问
+ */
+router.get('/count', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
+    try {
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可查看用户总数' });
+        }
+
+        const count = await UserDAO.countAll();
+        res.json({ success: true, count });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
  * @route   GET /api/users/:id
  * @desc    获取用户资料
  */
 router.get('/:id', auth, async (req: Request & {user?: any}, res: Response, next: NextFunction) => {
+    console.log('🚀 用户资料路由被调用！参数ID:', req.params.id);
     try {
+        console.log('=== 开始获取用户资料 ===');
+        console.log('请求参数 ID:', req.params.id);
+        console.log('请求URL:', req.url);
+        console.log('请求方法:', req.method);
+        
         const targetId = Number(req.params.id);
         const currentUserId = req.user?.id;
         const currentRole = req.user?.role;
 
         // 权限判断：仅本人或管理员可访问
         if (currentRole !== 'manager' && currentUserId !== targetId) {
+            console.log('权限验证失败');
             return res.status(403).json({ success: false, error: '无权限访问该用户资料' });
         }
 
+        console.log('正在获取用户基本信息...');
         const user = await UserDAO.findById(targetId);
-        if (!user) return res.status(404).json({ success: false, error: '用户不存在' });
+        if (!user) {
+            console.log('用户不存在');
+            return res.status(404).json({ success: false, error: '用户不存在' });
+        }
 
-        res.json({ success: true, user });
+        console.log('获取到用户基本信息:', user);
+
+        // 获取用户的订单数量和收藏数量
+        console.log('开始查询用户统计数据，用户ID:', targetId);
+        
+        // 查询用户订单总数
+        console.log('正在查询用户订单数量...');
+        const [[{ orderCount }]]: any = await pool.execute(
+            `SELECT COUNT(*) as orderCount FROM orders WHERE user_id = ?`,
+            [targetId]
+        );
+        console.log('订单数量查询结果:', orderCount);
+        
+        // 查询用户收藏的陪玩数量
+        console.log('正在查询用户收藏陪玩数量...');
+        const favoritePlayers = await FavoriteDAO.getUserFavoriteCount(targetId);
+        console.log('收藏数量查询结果:', favoritePlayers);
+
+        // 构建响应数据，包含真实的订单和收藏数据
+        const userWithStats = {
+            ...user,
+            orderCount: Number(orderCount) || 0,
+            favoritePlayers: Number(favoritePlayers) || 0
+        };
+        console.log('最终用户数据:', userWithStats);
+        console.log('=== 用户资料获取完成 ===');
+
+        res.json({ success: true, user: userWithStats });
     } catch (err) {
+        console.error('获取用户资料时出错:', err);
         next(err);
     }
 });
@@ -230,24 +290,6 @@ router.delete('/:id', auth, async (req: Request & { user?: any }, res: Response,
         const id = Number(req.params.id);
         await UserDAO.deleteById(id);
         res.json({ success: true });
-    } catch (err) {
-        next(err);
-    }
-});
-
-/**
- * @route   GET /api/users/count
- * @desc    获取用户总数
- * @access  仅管理员可访问
- */
-router.get('/count', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
-    try {
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看用户总数' });
-        }
-
-        const count = await UserDAO.countAll();
-        res.json({ success: true, count });
     } catch (err) {
         next(err);
     }

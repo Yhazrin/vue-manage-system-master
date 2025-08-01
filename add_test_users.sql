@@ -1,4 +1,4 @@
-INSERT INTO managers (name, phone_num, passwd) VALUES ('测试管理员', '13900000001', '$2b$10$KYTU.pk3OXM8uZV8dXlgZ.MD6Yzra.tigJyzML.xf9sI.zhqju28u');
+INSERT INTO managers (name, phone_num, passwd, authority) VALUES ('测试管理员', '13900000001', '$2b$10$KYTU.pk3OXM8uZV8dXlgZ.MD6Yzra.tigJyzML.xf9sI.zhqju28u', 1);
 
 INSERT INTO users (name, phone_num, passwd) VALUES ('测试用户', '13900000002', '$2b$10$JeYzVpbEklo29uQuqq7fpOpCSmNK75W.RbSusKJuXS7p35oDkIbZS');
 

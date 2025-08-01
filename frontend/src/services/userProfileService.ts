@@ -13,7 +13,6 @@ export interface UserProfileData {
   // 扩展字段
   orderCount?: number;
   favoritePlayers?: number;
-  membershipDuration?: number;
 }
 
 export interface UpdateProfileRequest {

@@ -31,7 +31,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSubmit(rating, comment.trim());
-      toast.success('评价提交成功');
+      // 移除重复的成功提示，由父组件处理
       onClose();
       setComment('');
       setRating(5);

@@ -52,6 +52,7 @@ export default function Login() {
         // 存储token和用户信息
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        localStorage.setItem('userId', response.data.user.id.toString());
         
         // Set authentication with selected role
         setIsAuthenticated(true, activeRole);
@@ -73,7 +74,7 @@ export default function Login() {
         setTimeout(() => {
           switch(activeRole) {
             case 'admin':
-              navigate('/admin/dashboard');
+              navigate('/admin/overview');
               break;
             case 'player':
               navigate('/player/dashboard');

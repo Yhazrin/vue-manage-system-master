@@ -10,6 +10,7 @@ export interface Order {
   status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
   serviceTime: string;
   description?: string;
+  isRated?: boolean; // 添加评价状态字段
   user: {
     id: string;
     nickname: string;
@@ -36,6 +37,7 @@ export const getUserOrders = async (status?: string): Promise<Order[]> => {
     status: mapOrderStatus(order.status),
     serviceTime: order.hours ? `${order.hours}小时` : (order.serviceTime || '未知'),
     description: order.description,
+    isRated: Boolean(order.is_rated), // 添加评价状态
     user: {
       id: order.user_id?.toString() || order.user?.id || '',
       nickname: order.user_name || order.user?.nickname || '用户',

@@ -24,6 +24,7 @@ import statisticsRouter from './routes/statistics.route';
 import serviceRouter from './routes/service.route';
 import monitorRouter from './routes/monitor.route';
 import favoriteRouter from './routes/favorite.route';
+import notificationRouter from './routes/notification.route';
 import { apiMonitorMiddleware } from './middleware/apiMonitor';
 
 // 检查路由是否正确导入
@@ -41,6 +42,7 @@ const routes = [
     { name: 'serviceRouter', router: serviceRouter },
     { name: 'monitorRouter', router: monitorRouter },
     { name: 'favoriteRouter', router: favoriteRouter },
+    { name: 'notificationRouter', router: notificationRouter },
 ];
 
 routes.forEach(({ name, router }) => {
@@ -65,6 +67,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // 全局调试中间件
 app.use((req: Request, res: Response, next: NextFunction) => {
+    console.log('🚨🚨🚨 全局中间件被调用！🚨🚨🚨');
     console.log(`🌐 全局中间件收到请求: ${req.method} ${req.originalUrl}`);
     console.log('请求头:', req.headers);
     console.log('请求体:', req.body);
@@ -90,6 +93,7 @@ app.use('/api/statistics', statisticsRouter);
 app.use('/api/services', serviceRouter);
 app.use('/api/monitor', monitorRouter);
 app.use('/api/favorites', favoriteRouter);
+app.use('/api/notifications', notificationRouter);
 
 // 添加一个简单的测试路由
 app.post('/api/test-managers', (req, res) => {

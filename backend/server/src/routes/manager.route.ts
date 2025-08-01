@@ -222,6 +222,37 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
 });
 
 /**
+ * @route   GET /api/managers/credentials
+ * @desc    获取所有管理员的账号密码信息（仅超级管理员可查看）
+ * @access  仅顶级管理员可访问
+ */
+router.get('/credentials', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 权限判断：仅顶级管理员可访问
+        if (req.user?.role !== 'manager' || req.user.authority !== 1) {
+            return res.status(403).json({ success: false, error: '仅超级管理员可查看管理员账号密码' });
+        }
+
+        const result = await ManagerDAO.findAll(1, 1000); // 获取所有管理员
+        
+        // 返回包含密码的管理员信息
+        const managersWithCredentials = result.managers.map(manager => ({
+            id: manager.id.toString(),
+            username: manager.name,
+            password: manager.passwd, // 返回加密后的密码
+            role: manager.authority === 1 ? 'super_admin' : 
+                  manager.authority === 2 ? 'customer_service' : 'shareholder',
+            status: manager.status ? 'active' : 'inactive',
+            createdAt: manager.created_at
+        }));
+
+        res.json(managersWithCredentials);
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
  * @route   GET /api/managers/:id
  * @desc    获取管理员资料
  */
@@ -284,37 +315,6 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
         });
 
         res.json(formattedManagers);
-    } catch (err) {
-        next(err);
-    }
-});
-
-/**
- * @route   GET /api/managers/credentials
- * @desc    获取所有管理员的账号密码信息（仅超级管理员可查看）
- * @access  仅顶级管理员可访问
- */
-router.get('/credentials', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-        // 权限判断：仅顶级管理员可访问
-        if (req.user?.role !== 'manager' || req.user.authority !== 1) {
-            return res.status(403).json({ success: false, error: '仅超级管理员可查看管理员账号密码' });
-        }
-
-        const result = await ManagerDAO.findAll(1, 1000); // 获取所有管理员
-        
-        // 返回包含密码的管理员信息
-        const managersWithCredentials = result.managers.map(manager => ({
-            id: manager.id.toString(),
-            username: manager.name,
-            password: manager.passwd, // 返回加密后的密码
-            role: manager.authority === 1 ? 'super_admin' : 
-                  manager.authority === 2 ? 'customer_service' : 'shareholder',
-            status: manager.status ? 'active' : 'inactive',
-            createdAt: manager.created_at
-        }));
-
-        res.json(managersWithCredentials);
     } catch (err) {
         next(err);
     }
