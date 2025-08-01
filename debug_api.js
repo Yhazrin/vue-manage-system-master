@@ -20,7 +20,7 @@ const debugAPI = async () => {
   
   // 测试陪玩API
   try {
-    console.log('🎮 调试陪玩API响应:');
+    console.log('📱 调试陪玩API响应:');
     const response = await fetch(`${baseURL}/players`);
     const data = await response.json();
     console.log('状态码:', response.status);

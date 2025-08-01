@@ -20,7 +20,7 @@ const testPlayerData = {
   game_id: 1
 };
 
-console.log('🎮 开始测试陪玩完整工作流程');
+console.log('📱 开始测试陪玩完整工作流程');
 console.log('测试陪玩数据:', testPlayerData);
 
 async function testCompleteWorkflow() {

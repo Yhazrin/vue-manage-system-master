@@ -320,10 +320,8 @@ router.patch(
         if (req.file) updateData.photo_img = normalizePath(req.file.path);
 
         await PlayerDAO.updateById(targetId, updateData);
-        
-        // 返回更新后的用户数据
-        const updatedPlayer = await PlayerDAO.findById(targetId);
-        res.json({ success: true, player: updatedPlayer });
+
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }

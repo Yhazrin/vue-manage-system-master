@@ -16,14 +16,10 @@ const getStatusStyle = (status: Order['status']) => {
         label: '待接单' 
       };
     case 'accepted':
-      return { 
-        className: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300', 
-        label: '已接单' 
-      };
     case 'in_progress':
-      return { 
+      return {
         className: 'bg-theme-primary/10 text-theme-primary', 
-        label: '服务中' 
+        label: '进行中' 
       };
     case 'completed':
       return { 
@@ -187,14 +183,9 @@ export default function PlayerOrders() {
   // 筛选订单
   const filteredOrders = activeFilter === 'all' 
     ? orders 
-    : orders.filter(order => {
-        if (activeFilter === 'pending') return order.status === 'pending';
-        if (activeFilter === 'accepted') return order.status === 'accepted';
-        if (activeFilter === 'in_progress') return order.status === 'in_progress';
-        if (activeFilter === 'completed') return order.status === 'completed';
-        if (activeFilter === 'cancelled') return order.status === 'cancelled';
-        return true;
-      });
+    : activeFilter === 'in_progress'
+      ? orders.filter(order => order.status === 'accepted' || order.status === 'in_progress')
+      : orders.filter(order => order.status === activeFilter);
   
   
   if (loading) {
@@ -302,7 +293,7 @@ export default function PlayerOrders() {
                   : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
               )}
             >
-              服务中
+              进行中
             </button>
             <button 
               onClick={() => setActiveFilter('completed')}
@@ -325,17 +316,6 @@ export default function PlayerOrders() {
               )}
             >
               已取消
-            </button>
-            <button 
-              onClick={() => setActiveFilter('accepted')}
-              className={cn(
-                "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
-                activeFilter === 'accepted' 
-                  ? "bg-theme-primary text-white" 
-                  : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
-              )}
-            >
-              已接单
             </button>
           </div>
         </div>

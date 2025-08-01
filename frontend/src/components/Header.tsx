@@ -53,6 +53,7 @@ export default function Header() {
                 { label: '订单管理', path: '/admin/orders', icon: '📋' },
                 { label: '用户/陪玩管理', path: '/admin/users', icon: '👥' },
                 { label: '礼物管理', path: '/admin/gifts', icon: '🎁' },
+                { label: '游戏管理', path: '/admin/games', icon: '🎮' },
                 { label: '提现管理', path: '/admin/withdrawals', icon: '💰' },
             { label: '权限管理', path: '/admin/permissions', icon: '🔑' },
             { label: '通知管理', path: '/admin/notifications', icon: '🔔' },
@@ -81,7 +82,7 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <div className="text-theme-primary font-bold text-xl flex items-center">
-              <span className="mr-2">🎮</span>
+              <img src="/VITA.png" alt="VITA Icon" className="w-8 h-8 mr-2" />
                      Vita
             </div>
           </div>

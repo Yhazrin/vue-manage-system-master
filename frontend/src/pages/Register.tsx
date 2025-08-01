@@ -75,7 +75,7 @@ export default function Register() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
            <div className="text-theme-primary font-bold text-2xl flex items-center justify-center mb-2">
-            <span className="mr-2">🎮</span>
+            <img src="/VITA.png" alt="VITA Icon" className="w-8 h-8 mr-2" />
            Vita
           </div>
           <h1 className="text-2xl font-bold text-theme-text">创建账号</h1>

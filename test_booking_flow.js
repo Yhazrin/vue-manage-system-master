@@ -85,7 +85,7 @@ async function getPlayers(token) {
 // 获取指定陪玩的服务列表
 async function getPlayerServices(token, playerId) {
     try {
-        console.log(`\n🎮 获取陪玩 ${playerId} 的服务列表...`);
+        console.log(`\n📱 获取陪玩 ${playerId} 的服务列表...`);
         const response = await fetch(`${BASE_URL}/services/player/${playerId}`);
         
         const data = await response.json();

@@ -111,7 +111,7 @@ export const getOrderById = async (orderId: string): Promise<Order> => {
 
 // 创建订单
 export const createOrder = async (orderData: {
-  playerId: string;
+  playerId: number;
   gameType: string;
   serviceTime: string;
   price: number;

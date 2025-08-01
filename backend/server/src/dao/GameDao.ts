@@ -3,13 +3,15 @@ import { pool } from '../db';
 export interface Game {
     id: number;
     name: string;
+    image_url?: string;
 }
 
 export class GameDAO {
     /** 创建新游戏 */
-    static async create(name: { name: string }): Promise<number> {
-        const sql = `INSERT INTO games (name) VALUES (?)`;
-        const [result]: any = await pool.execute(sql, [name]);
+    static async create(gameData: { name: string; image_url?: string }): Promise<number> {
+        const { name, image_url } = gameData;
+        const sql = `INSERT INTO games (name, image_url) VALUES (?, ?)`;
+        const [result]: any = await pool.execute(sql, [name, image_url]);
         return result.insertId;
     }
 
@@ -34,10 +36,29 @@ export class GameDAO {
         return rows;
     }
 
-    /** 更新游戏名称 */
-    static async updateById(id: number, name: string): Promise<void> {
-        const sql = `UPDATE games SET name = ? WHERE id = ?`;
-        await pool.execute(sql, [name, id]);
+    /** 更新游戏信息 */
+    static async updateById(id: number, gameData: { name?: string; image_url?: string }): Promise<void> {
+        const { name, image_url } = gameData;
+        const updates = [];
+        const params = [];
+
+        if (name !== undefined) {
+            updates.push('name = ?');
+            params.push(name);
+        }
+
+        if (image_url !== undefined) {
+            updates.push('image_url = ?');
+            params.push(image_url);
+        }
+
+        if (updates.length === 0) {
+            throw new Error('No fields to update');
+        }
+
+        params.push(id);
+        const sql = `UPDATE games SET ${updates.join(', ')} WHERE id = ?`;
+        await pool.execute(sql, params);
     }
 
     /** 删除游戏 */

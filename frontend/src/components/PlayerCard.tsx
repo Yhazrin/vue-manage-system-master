@@ -129,26 +129,42 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
           {player.intro || '这位陪玩还没有填写个人介绍'}
         </p>
         
-        {/* Games */}
+        {/* Services */}
         <div className="mb-4">
-          <h4 className="text-xs font-semibold text-theme-text mb-2">可接受的游戏</h4>
+          <h4 className="text-xs font-semibold text-theme-text mb-2">可提供的服务</h4>
           <div className="flex flex-wrap gap-2">
-            {player.games && player.games.length > 0 ? (
-              player.games.map((game, index) => (
-                <span 
-                  key={index} 
-                  className="px-2 py-1 bg-theme-primary/10 text-theme-primary text-xs rounded-full"
-                >
-                  {game}
-                </span>
-              ))
-            ) : player.game_name ? (
-              <span className="px-2 py-1 bg-theme-primary/10 text-theme-primary text-xs rounded-full">
-                {player.game_name}
-              </span>
-            ) : (
-              <span className="text-xs text-theme-text/70">暂未设置游戏</span>
-            )}
+            {(() => {
+              // 合并games和services数组，并去除重复项
+              const allServices = new Set<string>();
+              
+              // 添加games数组中的项目
+              if (player.games && player.games.length > 0) {
+                player.games.forEach(game => allServices.add(game));
+              }
+              // 由于 Player 类型上不存在 game_name 属性，移除该判断分支
+// 由于 Player 类型上不存在 game_name 属性，移除该行代码
+// allServices.add(player.game_name);
+              
+              
+              // 添加services数组中的项目
+              if (player.services && player.services.length > 0) {
+                player.services.forEach(service => allServices.add(service));
+              }
+              
+              // 显示合并后的服务
+              if (allServices.size > 0) {
+                return Array.from(allServices).map((service, index) => (
+                  <span 
+                    key={index} 
+                    className="px-2 py-1 bg-theme-primary/10 text-theme-primary text-xs rounded-full"
+                  >
+                    {service}
+                  </span>
+                ));
+              } else {
+                return <span className="text-xs text-theme-text/70">暂未设置服务</span>;
+              }
+            })()}
           </div>
         </div>
         

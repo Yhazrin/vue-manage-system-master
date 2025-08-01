@@ -5,6 +5,8 @@ import { Player, Review } from "@/types";
 import { cn } from "@/lib/utils";
 import { getPlayers, getPlayerServices } from '@/services/playerService';
 import { useNotifications } from '@/components/NotificationManager';
+  // 导入orderService
+  import { createOrder } from '@/services/orderService';
 
 export default function BookingDetail() {
   const { playerId } = useParams<{ playerId: string }>();
@@ -226,44 +228,26 @@ export default function BookingDetail() {
       
       // 构建订单数据
       const orderData = {
-        user_id: userId,
-        player_id: player.id,
-        service_id: selectedGameData.id,
-        amount: calculatePrice(),
-        hours: selectedHours
+        playerId: player.id,
+        gameType: selectedGame,
+        serviceTime: `${selectedHours}小时`,
+        price: calculatePrice(),
+        description: `预约${player.name}${selectedHours}小时，游戏: ${selectedGame}`,
+        userId: userId,
+        serviceId: selectedGameData.id
       };
       
-      // 发送订单创建请求
-      const response = await fetch('http://localhost:3000/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(orderData)
+      // 使用orderService创建订单
+      const result = await createOrder(orderData);
+      
+      // 使用通知系统显示成功消息
+      addNotification({
+        type: 'order',
+        title: '预约成功！',
+        message: `订单号: ${result.id}\n您已成功预约${player.name}${selectedHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        
-        // 使用通知系统显示成功消息
-        addNotification({
-          type: 'order',
-          title: '预约成功！',
-          message: `订单号: ${result.order_id}\n您已成功预约${player.name}${selectedHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
-        });
-        
-        navigate('/user/orders'); // 跳转到订单页面
-      } else {
-        const error = await response.json();
-        
-        // 使用通知系统显示错误消息
-        addNotification({
-          type: 'system',
-          title: '预约失败',
-          message: error.message || '未知错误'
-        });
-      }
+      navigate('/user/orders'); // 跳转到订单页面
     } catch (error) {
       console.error('预约失败:', error);
       
@@ -271,10 +255,11 @@ export default function BookingDetail() {
       addNotification({
         type: 'system',
         title: '预约失败',
-        message: '网络错误，请稍后重试'
+        message: error instanceof Error ? error.message : '网络错误，请稍后重试'
       });
     }
   };
+
   
   // Get avatar image
   const getAvatar = () => {

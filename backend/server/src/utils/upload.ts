@@ -42,6 +42,10 @@ export const createUpload = (type: string) => {
             if (type === 'gift') {
                 dir = `uploads/gift/images/`; // 礼物图片专用目录
             }
+            // 新增game类型处理
+            else if (type === 'game') {
+                dir = `uploads/game/images/`; // 游戏图片专用目录
+            }
 
             // 特殊处理：player类型区分头像、二维码和录音目录
             else if (type === 'player') {
@@ -134,3 +138,5 @@ export const playerUpload = createUpload('player');
 export const managerUpload = createUpload('manager');
 // 新增礼物图片上传实例
 export const giftUpload = createUpload('gift');
+// 新增游戏图片上传实例
+export const gameUpload = createUpload('game');

@@ -1,10 +1,12 @@
 // server/src/routes/game.route.ts
-import {NextFunction, Router} from 'express';
+import {NextFunction, Router, Request} from 'express';
 import { GameDAO } from '../dao/GameDao';
 import { PlayerDAO } from '../dao/PlayerDao';
 import { auth, AuthRequest } from "../middleware/auth";
 import { body, param, validationResult } from "express-validator";
 import { Response } from "express";
+import { gameUpload } from '../utils/upload'; // 导入游戏上传实例
+import path from 'path';
 
 const router = Router();
 
@@ -40,17 +42,42 @@ router.get('/search', async (req, res, next) => {
 router.post(
     '/',
     auth,
+    (req: Request, res: Response, next: NextFunction) => {
+        // 使文件上传变为可选
+        gameUpload.single('image')(req, res, (err) => {
+            if (err) {
+                console.error('文件上传错误:', err);
+                // 如果是文件上传错误但不是必需的，继续处理
+                if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+                    return next();
+                }
+                return res.status(400).json({ success: false, error: '文件上传失败' });
+            }
+            next();
+        });
+    },
     [
-        body('name').isString().notEmpty().withMessage('name 不能为空')
+        body('name').isString().notEmpty().withMessage('name 不能为空'),
+        body('image_url').optional().isString().withMessage('image_url 必须是字符串')
     ],
     async (req: AuthRequest, res: Response, next:NextFunction) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
         if (req.user?.role !== 'manager') return res.status(403).json({ success: false, error: '仅管理员可创建游戏' });
         try {
-            const { name } = req.body;
-            const id = await GameDAO.create({ name });
-            res.status(201).json({ success: true, id });
+            const { name, image_url } = req.body;
+            // 优先使用上传的文件，如果没有文件则使用前端传来的image_url
+            const imageUrl = req.file ? req.file.path : (image_url || null);
+            const id = await GameDAO.create({ name, image_url: imageUrl });
+            // 返回创建的游戏详情
+            const game = await GameDAO.findById(id);
+            const mappedGame = {
+                id: game!.id,
+                name: game!.name,
+                imageUrl: game!.image_url || '',
+                createdAt: new Date().toISOString()
+            };
+            res.status(201).json({ success: true, game: mappedGame });
         } catch (err) {
             next(err);
         }
@@ -97,9 +124,11 @@ router.get('/', async (req, res, next) => {
 router.patch(
     '/:id',
     auth,
+    gameUpload.single('image'),
     [
         param('id').isInt().withMessage('id 必须是整数'),
-        body('name').optional().isString().notEmpty().withMessage('name 不能为空')
+        body('name').optional().isString().notEmpty().withMessage('name 不能为空'),
+        body('image_url').optional().isString().withMessage('image_url 必须是字符串')
     ],
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         const errors = validationResult(req);
@@ -107,8 +136,23 @@ router.patch(
         if (req.user?.role !== 'manager') return res.status(403).json({ success: false, error: '仅管理员可更新游戏' });
         try {
             const id = Number(req.params.id);
-            await GameDAO.updateById(id, req.body);
-            res.json({ success: true });
+            const { name, image_url } = req.body;
+            let imageUrl: string | undefined;
+            if (req.file) {
+                imageUrl = req.file.path;
+            } else if (image_url) {
+                imageUrl = image_url;
+            }
+            await GameDAO.updateById(id, { name, image_url: imageUrl });
+            // 返回更新后的游戏详情
+            const updated = await GameDAO.findById(id);
+            const mappedGame = {
+                id: updated!.id,
+                name: updated!.name,
+                imageUrl: updated!.image_url || '',
+                updatedAt: new Date().toISOString()
+            };
+            res.json({ success: true, game: mappedGame });
         } catch (err) {
             next(err);
         }

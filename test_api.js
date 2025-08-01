@@ -17,7 +17,7 @@ const testAPI = async () => {
   
   // 测试2: 获取陪玩列表
   try {
-    console.log('\n🎮 测试2: 获取陪玩列表');
+    console.log('\n📱 测试2: 获取陪玩列表');
     const response = await fetch(`${baseURL}/players`);
     const players = await response.json();
     console.log('✅ 陪玩列表获取成功:', players.length, '个陪玩');

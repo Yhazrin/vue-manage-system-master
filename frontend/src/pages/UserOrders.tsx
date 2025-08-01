@@ -9,30 +9,30 @@ import { createComment } from '@/services/commentService';
 
 // 获取订单状态样式
 const getStatusStyle = (status: Order['status']) => {
-  if (status === 'accepted' || status === 'in_progress') {
-    return {
-      className: "bg-blue-50 text-blue-700",
-      label: "进行中"
-    };
-  }
   switch(status) {
     case 'pending':
-      return { 
+      return {
         className: "bg-yellow-50 text-yellow-700", 
-        label: "进行中" 
+        label: "待确认" 
+      };
+    case 'accepted':
+    case 'in_progress':
+      return {
+        className: "bg-purple-50 text-purple-700",
+        label: "进行中"
       };
     case 'completed':
-      return { 
+      return {
         className: "bg-green-50 text-green-700", 
         label: "已完成" 
       };
     case 'cancelled':
-      return { 
+      return {
         className: "bg-gray-50 text-gray-700", 
         label: "已取消" 
       };
     default:
-      return { 
+      return {
         className: "bg-gray-50 text-gray-700", 
         label: "未知状态" 
       };
@@ -121,7 +121,9 @@ export default function UserOrders() {
   // 筛选订单
   const filteredOrders = activeFilter === 'all'
     ? orders
-    : orders.filter(order => order.status === activeFilter);
+    : activeFilter === 'in_progress'
+      ? orders.filter(order => order.status === 'accepted' || order.status === 'in_progress')
+      : orders.filter(order => order.status === activeFilter);
 
   if (loading) {
     return (
@@ -195,6 +197,17 @@ export default function UserOrders() {
               className={cn(
                 "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
                 activeFilter === 'pending' 
+                  ? "bg-theme-primary text-white" 
+                  : "bg-theme-background text-theme-text hover:bg-theme-border"
+              )}
+            >
+              待确认
+            </button>
+            <button 
+              onClick={() => setActiveFilter('in_progress')}
+              className={cn(
+                "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
+                activeFilter === 'in_progress' 
                   ? "bg-theme-primary text-white" 
                   : "bg-theme-background text-theme-text hover:bg-theme-border"
               )}

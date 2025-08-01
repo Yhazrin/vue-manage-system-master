@@ -110,13 +110,13 @@ export default function GamePlayersPage() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex items-center gap-4">
             <img
-              src={game.imageUrl}
-              alt={game.name}
-              className="w-16 h-16 rounded-lg object-cover"
-            />
+                src={game.image_url}
+                alt={game.name}
+                className="w-16 h-16 rounded-lg object-cover"
+              />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{game.name}</h1>
-              <p className="text-gray-600">{game.description}</p>
+              <p className="text-gray-600">{game.description || ''}</p>
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-sm text-gray-500">
                   {filteredPlayers.length} 位陪玩可选

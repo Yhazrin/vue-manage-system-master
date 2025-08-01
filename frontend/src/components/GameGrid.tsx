@@ -158,7 +158,7 @@ export default function GameGrid() {
             // 为缺失的字段提供默认值
             const gameWithDefaults = {
               ...game,
-              imageUrl: game.imageUrl || '/images/default-game.jpg',
+              imageUrl: game.image_url || '/images/default-game.jpg',
               category: game.category || '游戏',
               description: game.description || game.name
             };
@@ -171,7 +171,7 @@ export default function GameGrid() {
           >
             <div className="relative pb-[100%] bg-theme-background">
               <img 
-                src={gameWithDefaults.imageUrl} 
+                src={gameWithDefaults.image_url} 
                 alt={game.name}
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => {

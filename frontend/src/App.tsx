@@ -18,6 +18,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
   import PlayerFunds from "@/pages/PlayerFunds";
   import PlayerGuide from "@/pages/PlayerGuide";
 import AdminGiftManagement from "@/pages/AdminGiftManagement";
+import AdminGameManagement from "@/pages/AdminGameManagement";
 import AdminWithdrawalManagement from "@/pages/AdminWithdrawalManagement";
 import AdminNotificationPage from "@/pages/AdminNotificationPage";
 import ApiMonitor from "@/pages/ApiMonitor";
@@ -90,6 +91,8 @@ export default function App() {
              <Route path="/admin/users" element={<AdminUserManagement />} />
              {/* 礼物管理 */}
              <Route path="/admin/gifts" element={<AdminGiftManagement />} />
+             {/* 游戏管理 */}
+             <Route path="/admin/games" element={<AdminGameManagement />} />
               {/* 提现管理 */}
               <Route path="/admin/withdrawals" element={<AdminWithdrawalManagement />} />
               {/* 权限管理 */}

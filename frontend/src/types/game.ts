@@ -2,6 +2,7 @@
 export interface Game {
   id: number;
   name: string;
+  image_url?: string;
 }
 
 // 扩展游戏接口，用于前端展示（可选字段）

@@ -74,7 +74,7 @@ const testAPIComplete = async () => {
   // 测试4: 获取陪玩列表（需要认证）
   if (userToken) {
     try {
-      console.log('\n🎮 测试4: 获取陪玩列表（用户身份）');
+      console.log('\n📱 测试4: 获取陪玩列表（用户身份）');
       const response = await fetch(`${baseURL}/players`, {
         headers: {
           'Authorization': `Bearer ${userToken}`
