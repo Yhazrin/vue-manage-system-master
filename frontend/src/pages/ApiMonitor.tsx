@@ -122,11 +122,11 @@ const ApiMonitor: React.FC = () => {
 
   // 获取状态颜色
   const getStatusColor = (status?: number) => {
-    if (!status) return 'bg-yellow-500';
-    if (status < 300) return 'bg-green-500';
-    if (status < 400) return 'bg-blue-500';
-    if (status < 500) return 'bg-orange-500';
-    return 'bg-red-500';
+    if (!status) return 'bg-theme-warning';
+    if (status < 300) return 'bg-theme-success';
+    if (status < 400) return 'bg-theme-accent';
+    if (status < 500) return 'bg-theme-warning';
+    return 'bg-theme-error';
   };
 
   // 获取状态图标
@@ -160,7 +160,7 @@ const ApiMonitor: React.FC = () => {
       
       <main className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">API 监控中心</h1>
+          <h1 className="text-3xl font-bold text-theme-text">API 监控中心</h1>
         <div className="flex gap-2">
           <Button
             variant={autoRefresh ? "default" : "outline"}
@@ -182,61 +182,61 @@ const ApiMonitor: React.FC = () => {
 
       {/* 统计卡片 */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <Card className="bg-theme-surface border-theme-border">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">总请求数</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-sm text-theme-text/70">总请求数</p>
+                  <p className="text-2xl font-bold text-theme-text">{stats.total}</p>
                 </div>
                 <span className="text-2xl">📊</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-theme-surface border-theme-border">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">成功请求</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.success}</p>
+                  <p className="text-sm text-theme-text/70">成功请求</p>
+                  <p className="text-2xl font-bold text-theme-success">{stats.success}</p>
                 </div>
                 <span className="text-2xl">✅</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-theme-surface border-theme-border">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">错误请求</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.errors}</p>
+                  <p className="text-sm text-theme-text/70">错误请求</p>
+                  <p className="text-2xl font-bold text-theme-error">{stats.errors}</p>
                 </div>
                 <span className="text-2xl">❌</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-theme-surface border-theme-border">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">待处理</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                  <p className="text-sm text-theme-text/70">待处理</p>
+                  <p className="text-2xl font-bold text-theme-warning">{stats.pending}</p>
                 </div>
                 <span className="text-2xl">⏳</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="bg-theme-surface border-theme-border">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">平均响应时间</p>
-                  <p className="text-2xl font-bold">{stats.avgResponseTime}ms</p>
+                  <p className="text-sm text-theme-text/70">平均响应时间</p>
+                  <p className="text-2xl font-bold text-theme-text">{stats.avgResponseTime}ms</p>
                 </div>
                 <span className="text-2xl">⚡</span>
               </div>
@@ -246,43 +246,43 @@ const ApiMonitor: React.FC = () => {
       )}
 
       <Tabs defaultValue="requests" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="requests">请求记录</TabsTrigger>
-          <TabsTrigger value="stats">路径统计</TabsTrigger>
+        <TabsList className="bg-theme-surface border-theme-border">
+          <TabsTrigger value="requests" className="data-[state=active]:bg-theme-primary data-[state=active]:text-white text-theme-text">请求记录</TabsTrigger>
+          <TabsTrigger value="stats" className="data-[state=active]:bg-theme-primary data-[state=active]:text-white text-theme-text">路径统计</TabsTrigger>
         </TabsList>
 
         <TabsContent value="requests" className="space-y-4">
           {/* 过滤器 */}
-          <Card>
+          <Card className="bg-theme-surface border-theme-border">
             <CardHeader>
-              <CardTitle>过滤器</CardTitle>
+              <CardTitle className="text-theme-text">过滤器</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Select value={filters.method} onValueChange={(value) => setFilters({...filters, method: value})}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-theme-background border-theme-border text-theme-text">
                     <SelectValue placeholder="请求方法" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">全部</SelectItem>
-                    <SelectItem value="GET">GET</SelectItem>
-                    <SelectItem value="POST">POST</SelectItem>
-                    <SelectItem value="PUT">PUT</SelectItem>
-                    <SelectItem value="DELETE">DELETE</SelectItem>
+                    <SelectItem value="" className="text-theme-text hover:bg-theme-background">全部</SelectItem>
+                    <SelectItem value="GET" className="text-theme-text hover:bg-theme-background">GET</SelectItem>
+                    <SelectItem value="POST" className="text-theme-text hover:bg-theme-background">POST</SelectItem>
+                    <SelectItem value="PUT" className="text-theme-text hover:bg-theme-background">PUT</SelectItem>
+                    <SelectItem value="DELETE" className="text-theme-text hover:bg-theme-background">DELETE</SelectItem>
                   </SelectContent>
                 </Select>
 
                 <Select value={filters.status} onValueChange={(value) => setFilters({...filters, status: value})}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-theme-background border-theme-border text-theme-text">
                     <SelectValue placeholder="状态码" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">全部</SelectItem>
-                    <SelectItem value="200">200</SelectItem>
-                    <SelectItem value="400">400</SelectItem>
-                    <SelectItem value="401">401</SelectItem>
-                    <SelectItem value="404">404</SelectItem>
-                    <SelectItem value="500">500</SelectItem>
+                  <SelectContent className="bg-theme-surface border-theme-border text-theme-text">
+                    <SelectItem value="" className="text-theme-text hover:bg-theme-background">全部</SelectItem>
+                    <SelectItem value="200" className="text-theme-text hover:bg-theme-background">200</SelectItem>
+                    <SelectItem value="400" className="text-theme-text hover:bg-theme-background">400</SelectItem>
+                    <SelectItem value="401" className="text-theme-text hover:bg-theme-background">401</SelectItem>
+                    <SelectItem value="404" className="text-theme-text hover:bg-theme-background">404</SelectItem>
+                    <SelectItem value="500" className="text-theme-text hover:bg-theme-background">500</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -290,6 +290,7 @@ const ApiMonitor: React.FC = () => {
                   placeholder="路径过滤"
                   value={filters.path}
                   onChange={(e) => setFilters({...filters, path: e.target.value})}
+                  className="bg-theme-background border-theme-border text-theme-text placeholder:text-theme-text/50"
                 />
 
                 <Button onClick={() => setFilters({method: '', status: '', path: '', page: 1, limit: 20})}>
@@ -300,21 +301,21 @@ const ApiMonitor: React.FC = () => {
           </Card>
 
           {/* 请求列表 */}
-          <Card>
+          <Card className="bg-theme-surface border-theme-border">
             <CardHeader>
-              <CardTitle>API 请求记录</CardTitle>
+              <CardTitle className="text-theme-text">API 请求记录</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {loading ? (
-                  <div className="text-center py-8">加载中...</div>
+                  <div className="text-center py-8 text-theme-text">加载中...</div>
                 ) : requests.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">暂无请求记录</div>
+                  <div className="text-center py-8 text-theme-text/70">暂无请求记录</div>
                 ) : (
                   requests.map((request) => (
                     <div
                       key={request.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center justify-between p-4 border border-theme-border rounded-lg hover:bg-theme-background cursor-pointer"
                       onClick={() => fetchRequestDetail(request.id)}
                     >
                       <div className="flex items-center space-x-4">
@@ -323,10 +324,10 @@ const ApiMonitor: React.FC = () => {
                         </Badge>
                         <div className="flex items-center space-x-2">
                           {getStatusIcon(request.status)}
-                          <span className="font-mono text-sm">{request.url}</span>
+                          <span className="font-mono text-sm text-theme-text">{request.url}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <div className="flex items-center space-x-4 text-sm text-theme-text/70">
                         <span>{request.status || 'Pending'}</span>
                         <span>{request.responseTime ? `${request.responseTime}ms` : '-'}</span>
                         <span>{formatTime(request.timestamp)}</span>
@@ -342,26 +343,26 @@ const ApiMonitor: React.FC = () => {
 
         <TabsContent value="stats">
           {/* 路径统计 */}
-          <Card>
+          <Card className="bg-theme-surface border-theme-border">
             <CardHeader>
-              <CardTitle>API 路径统计</CardTitle>
+              <CardTitle className="text-theme-text">API 路径统计</CardTitle>
             </CardHeader>
             <CardContent>
               {stats?.pathStats ? (
                 <div className="space-y-2">
                   {Object.entries(stats.pathStats).map(([path, pathStat]) => (
-                    <div key={path} className="flex items-center justify-between p-3 border rounded">
-                      <span className="font-mono text-sm">{path}</span>
-                      <div className="flex items-center space-x-4 text-sm">
+                    <div key={path} className="flex items-center justify-between p-3 border border-theme-border rounded">
+                      <span className="font-mono text-sm text-theme-text">{path}</span>
+                      <div className="flex items-center space-x-4 text-sm text-theme-text">
                         <span>请求: {pathStat.count}</span>
-                        <span className="text-red-600">错误: {pathStat.errors}</span>
+                        <span className="text-theme-error">错误: {pathStat.errors}</span>
                         <span>平均: {Math.round(pathStat.avgTime)}ms</span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">暂无统计数据</div>
+                <div className="text-center py-8 text-theme-text/70">暂无统计数据</div>
               )}
             </CardContent>
           </Card>
@@ -371,17 +372,17 @@ const ApiMonitor: React.FC = () => {
       {/* 请求详情模态框 */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-auto">
+          <div className="bg-theme-surface rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-auto border border-theme-border">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">请求详情</h3>
+              <h3 className="text-lg font-bold text-theme-text">请求详情</h3>
               <Button variant="outline" onClick={() => setSelectedRequest(null)}>
                 关闭
               </Button>
             </div>
             <div className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-2">基本信息</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <h4 className="font-semibold mb-2 text-theme-text">基本信息</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm text-theme-text">
                   <div>方法: {selectedRequest.method}</div>
                   <div>状态: {selectedRequest.status || 'Pending'}</div>
                   <div>URL: {selectedRequest.url}</div>
@@ -393,8 +394,8 @@ const ApiMonitor: React.FC = () => {
               
               {selectedRequest.body && Object.keys(selectedRequest.body).length > 0 && (
                 <div>
-                  <h4 className="font-semibold mb-2">请求体</h4>
-                  <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto">
+                  <h4 className="font-semibold mb-2 text-theme-text">请求体</h4>
+                  <pre className="bg-theme-background p-3 rounded text-xs overflow-auto text-theme-text border border-theme-border">
                     {JSON.stringify(selectedRequest.body, null, 2)}
                   </pre>
                 </div>
@@ -402,8 +403,8 @@ const ApiMonitor: React.FC = () => {
               
               {selectedRequest.responseData && (
                 <div>
-                  <h4 className="font-semibold mb-2">响应数据</h4>
-                  <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-40">
+                  <h4 className="font-semibold mb-2 text-theme-text">响应数据</h4>
+                  <pre className="bg-theme-background p-3 rounded text-xs overflow-auto max-h-40 text-theme-text border border-theme-border">
                     {JSON.stringify(selectedRequest.responseData, null, 2)}
                   </pre>
                 </div>
@@ -411,8 +412,8 @@ const ApiMonitor: React.FC = () => {
               
               {selectedRequest.error && (
                 <div>
-                  <h4 className="font-semibold mb-2 text-red-600">错误信息</h4>
-                  <pre className="bg-red-50 p-3 rounded text-xs text-red-700">
+                  <h4 className="font-semibold mb-2 text-theme-error">错误信息</h4>
+                  <pre className="bg-theme-error/10 p-3 rounded text-xs text-theme-error border border-theme-error/20">
                     {selectedRequest.error}
                   </pre>
                 </div>

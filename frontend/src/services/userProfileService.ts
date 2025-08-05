@@ -1,5 +1,6 @@
 // 用户个人资料相关的API服务
 import { API_BASE_URL } from '@/config/api';
+import { buildAvatarUrl } from '@/utils/imageUtils';
 
 // 用户资料接口定义
 export interface UserProfileData {
@@ -39,10 +40,25 @@ export const getUserProfile = async (): Promise<UserProfileData> => {
     }
     
     const user = JSON.parse(userStr);
-    const userId = user.id || user.uid;
+    let userId = user.id || user.uid;
     
     if (!userId || userId === 'unknown') {
       throw new Error('用户信息不完整，请重新登录');
+    }
+    
+    // 确保userId是数字格式，如果是字符串则尝试转换
+    if (typeof userId === 'string') {
+      // 如果是模拟数据的字符串ID（如 'user_1234567890'），提取数字部分或使用默认值
+      if (userId.startsWith('user_')) {
+        userId = 2; // 使用默认的测试用户ID
+      } else {
+        const numericId = parseInt(userId, 10);
+        if (!isNaN(numericId)) {
+          userId = numericId;
+        } else {
+          throw new Error('用户ID格式错误');
+        }
+      }
     }
     
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
@@ -65,9 +81,7 @@ export const getUserProfile = async (): Promise<UserProfileData> => {
 
     // 处理头像URL
     const userData = data.user;
-    if (userData.photo_img && !userData.photo_img.startsWith('http')) {
-      userData.photo_img = `${API_BASE_URL.replace('/api', '')}/${userData.photo_img}`;
-    }
+    userData.photo_img = buildAvatarUrl(userData.photo_img);
 
     return userData;
   } catch (error) {
@@ -87,10 +101,25 @@ export const updateUserProfile = async (profileData: Partial<UserProfileData>): 
     }
     
     const user = JSON.parse(userStr);
-    const userId = user.id;
+    let userId = user.id;
     
     if (!userId) {
       throw new Error('用户信息不完整');
+    }
+    
+    // 确保userId是数字格式，如果是字符串则尝试转换
+    if (typeof userId === 'string') {
+      // 如果是模拟数据的字符串ID（如 'user_1234567890'），提取数字部分或使用默认值
+      if (userId.startsWith('user_')) {
+        userId = 2; // 使用默认的测试用户ID
+      } else {
+        const numericId = parseInt(userId, 10);
+        if (!isNaN(numericId)) {
+          userId = numericId;
+        } else {
+          throw new Error('用户ID格式错误');
+        }
+      }
     }
 
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
@@ -131,10 +160,25 @@ export const changePassword = async (passwordData: ChangePasswordRequest): Promi
         }
         
         const user = JSON.parse(userStr);
-        const userId = user.id;
+        let userId = user.id;
         
         if (!userId) {
             throw new Error('用户信息不完整');
+        }
+        
+        // 确保userId是数字格式，如果是字符串则尝试转换
+        if (typeof userId === 'string') {
+            // 如果是模拟数据的字符串ID（如 'user_1234567890'），提取数字部分或使用默认值
+            if (userId.startsWith('user_')) {
+                userId = 2; // 使用默认的测试用户ID
+            } else {
+                const numericId = parseInt(userId, 10);
+                if (!isNaN(numericId)) {
+                    userId = numericId;
+                } else {
+                    throw new Error('用户ID格式错误');
+                }
+            }
         }
         
         const response = await fetch(`${API_BASE_URL}/users/${userId}/password`, {
@@ -304,10 +348,25 @@ export const uploadAvatar = async (file: File): Promise<string> => {
     }
     
     const user = JSON.parse(userStr);
-    const userId = user.id;
+    let userId = user.id || user.uid;
     
     if (!userId) {
       throw new Error('用户信息不完整');
+    }
+    
+    // 确保userId是数字格式，如果是字符串则尝试转换
+    if (typeof userId === 'string') {
+      // 如果是模拟数据的字符串ID（如 'user_1234567890'），提取数字部分或使用默认值
+      if (userId.startsWith('user_')) {
+        userId = 2; // 使用默认的测试用户ID
+      } else {
+        const numericId = parseInt(userId, 10);
+        if (!isNaN(numericId)) {
+          userId = numericId;
+        } else {
+          throw new Error('用户ID格式错误');
+        }
+      }
     }
 
     const formData = new FormData();

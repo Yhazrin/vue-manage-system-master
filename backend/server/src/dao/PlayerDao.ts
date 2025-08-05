@@ -7,6 +7,7 @@ export interface Player {
     passwd: string;
     phone_num: string;
     status: boolean;
+    online_status: boolean;
     QR_img: string | null;
     game_id: number | null;
     money: number;
@@ -15,6 +16,7 @@ export interface Player {
     intro: string | null;
     created_at: string;
     photo_img: string | null;
+    last_login: string | null;
 }
 
 export class PlayerDAO {
@@ -26,11 +28,12 @@ export class PlayerDAO {
         game_id?: number,
         QR_img?: string | null,
         intro?: string,
-        photo_img?: string | null
+        photo_img?: string | null,
+        plain_passwd?: string | null
     ): Promise<number> {
         const sql = `
-            INSERT INTO players (name, passwd, phone_num, game_id, QR_img, intro, photo_img)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO players (name, passwd, phone_num, game_id, QR_img, intro, photo_img, plain_passwd)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const [result]: any = await pool.execute(sql, [
             name,
@@ -39,7 +42,8 @@ export class PlayerDAO {
             game_id || null,
             QR_img || null,
             intro || null,
-            photo_img || null
+            photo_img || null,
+            plain_passwd || null
         ]);
         return result.insertId;
     }
@@ -78,7 +82,7 @@ export class PlayerDAO {
         pageSize: number = 20,
         status?: boolean,
         keyword?: string
-    ): Promise<{ total: number; players: Player[] }> {
+    ): Promise<{ total: number; players: any[] }> {
         // 确保参数是有效的整数
         const validPage = Math.max(1, Math.floor(Number(page) || 1));
         const validPageSize = Math.max(1, Math.min(100, Math.floor(Number(pageSize) || 20)));
@@ -88,22 +92,27 @@ export class PlayerDAO {
         const params: any[] = [];
         
         if (status !== undefined) {
-            where += ` AND status = ?`;
+            where += ` AND p.status = ?`;
             params.push(status ? 1 : 0);
         }
         if (keyword) {
-            where += ` AND name LIKE ?`;
+            where += ` AND p.name LIKE ?`;
             params.push(`%${keyword}%`);
         }
         
         // 总数查询
-        const countSql = `SELECT COUNT(*) as cnt FROM players WHERE 1=1 ${where}`;
+        const countSql = `SELECT COUNT(*) as cnt FROM players p WHERE 1=1 ${where}`;
         const [[{ cnt }]]: any = await pool.execute(countSql, params);
         
-        // 数据查询 - 直接拼接LIMIT和OFFSET到SQL字符串中
+        // 数据查询 - 使用LEFT JOIN获取订单数，包含明文密码和在线状态
         const dataSql = `
-            SELECT * FROM players WHERE 1=1 ${where}
-            ORDER BY created_at DESC
+            SELECT p.id, p.name, p.passwd, p.plain_passwd, p.phone_num, p.status, p.online_status, p.QR_img, p.game_id, p.money, p.profit, p.voice, p.intro, p.created_at, p.photo_img, p.last_login,
+                   COALESCE(COUNT(o.order_id), 0) as orderCount
+            FROM players p 
+            LEFT JOIN orders o ON p.id = o.player_id
+            WHERE 1=1 ${where}
+            GROUP BY p.id, p.name, p.passwd, p.plain_passwd, p.phone_num, p.status, p.online_status, p.QR_img, p.game_id, p.money, p.profit, p.voice, p.intro, p.created_at, p.photo_img, p.last_login
+            ORDER BY p.id ASC
             LIMIT ${validPageSize} OFFSET ${offset}
         `;
         const [rows]: any = await pool.execute(dataSql, params);
@@ -141,10 +150,16 @@ export class PlayerDAO {
         await pool.execute(sql, params);
     }
 
-    /** 更新状态 */
+    /** 更新封禁状态 */
     static async updateStatus(id: number, status: boolean): Promise<void> {
         const sql = `UPDATE players SET status = ? WHERE id = ?`;
         await pool.execute(sql, [status ? 1 : 0, id]);
+    }
+
+    /** 更新在线状态 */
+    static async updateOnlineStatus(id: number, onlineStatus: boolean): Promise<void> {
+        const sql = `UPDATE players SET online_status = ? WHERE id = ?`;
+        await pool.execute(sql, [onlineStatus ? 1 : 0, id]);
     }
 
     /** 更新余额和提现金额 */
@@ -170,9 +185,9 @@ export class PlayerDAO {
     }
 
     /** 更新密码 */
-    static async updatePassword(id: number, newPassword: string): Promise<void> {
-        const sql = `UPDATE players SET passwd = ? WHERE id = ?`;
-        await pool.execute(sql, [newPassword, id]);
+    static async updatePassword(id: number, newPassword: string, plainPasswd?: string): Promise<void> {
+        const sql = `UPDATE players SET passwd = ?, plain_passwd = ? WHERE id = ?`;
+        await pool.execute(sql, [newPassword, plainPasswd || null, id]);
     }
 
     /** 删除玩家 */
@@ -186,5 +201,11 @@ export class PlayerDAO {
         const sql = `SELECT COUNT(*) as cnt FROM players`;
         const [[{ cnt }]]: any = await pool.execute(sql);
         return cnt;
+    }
+
+    /** 更新最后登录时间 */
+    static async updateLastLogin(id: number): Promise<void> {
+        const sql = `UPDATE players SET last_login = CURRENT_TIMESTAMP WHERE id = ?`;
+        await pool.execute(sql, [id]);
     }
 }

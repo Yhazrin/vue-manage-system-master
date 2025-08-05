@@ -15,6 +15,7 @@ export interface CreateCommentRequest {
   order_id: string;
   content: string;
   rating: number;
+  gifts?: Array<{giftId: number, quantity: number}>;
 }
 
 // 创建评价

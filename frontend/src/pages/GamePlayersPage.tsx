@@ -8,6 +8,7 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { getGameById } from '@/services/gameService';
 import { Game } from '@/types';
 import { toast } from 'sonner';
+import { buildGameImageUrl } from '@/utils/imageUtils';
 
 export default function GamePlayersPage() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -110,7 +111,7 @@ export default function GamePlayersPage() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex items-center gap-4">
             <img
-                src={game.image_url}
+                src={buildGameImageUrl(game.image_url)}
                 alt={game.name}
                 className="w-16 h-16 rounded-lg object-cover"
               />
@@ -128,6 +129,20 @@ export default function GamePlayersPage() {
 
         {/* Search and Filter */}
         <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-theme-text">{game?.name} - 陪玩列表</h1>
+            <button 
+              onClick={() => navigate('/user/home')}
+              className="py-1.5 px-3 bg-theme-text/60 text-white text-sm font-medium rounded-lg hover:bg-theme-text/70 transition-colors"
+            >
+              <i className="fa-solid fa-arrow-left mr-1"></i> 返回首页
+            </button>
+          </div>
+          <p className="text-theme-text/70">为 {game?.name} 寻找专业陪玩</p>
+        </div>
+
+        {/* 筛选器 */}
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-6 mb-6">
           <SearchFilter />
         </div>
 
@@ -153,9 +168,7 @@ export default function GamePlayersPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">暂无陪玩</h3>
             <p className="text-gray-600">该游戏暂时没有可用的陪玩，请稍后再试。</p>
           </div>
-        ) : (
-          <PlayerList players={filteredPlayers} />
-        )}
+        ) : (          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">            {filteredPlayers.map(player => (              <div key={player.id} className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden hover:shadow-md transition-shadow">                <div className="p-6">                  <div className="flex items-center space-x-4 mb-4">                    <img                      src={player.avatar || '/default-avatar.png'}                      alt={player.username}                      className="w-16 h-16 rounded-full object-cover"                    />                    <div className="flex-1">                      <h3 className="font-semibold text-theme-text">{player.username}</h3>                      <div className="flex items-center space-x-2 mt-1">                        <div className="flex items-center">                          {[...Array(5)].map((_, i) => (                            <i                              key={i}                              className={`fa-solid fa-star text-sm ${                                i < Math.floor(player.rating) ? 'text-yellow-400' : 'text-theme-text/30'                              }`}                            />                          ))}                        </div>                        <span className="text-sm text-theme-text/70">({player.rating})</span>                      </div>                      <p className="text-sm text-theme-text/70 mt-1">{player.orderCount} 单完成</p>                    </div>                  </div>                                    <div className="space-y-2 mb-4">                    <div className="flex justify-between">                      <span className="text-sm text-theme-text/70">价格:</span>                      <span className="font-medium text-theme-primary">¥{player.price}/小时</span>                    </div>                    <div className="flex justify-between">                      <span className="text-sm text-theme-text/70">最少时长:</span>                      <span className="text-sm text-theme-text">{player.hours}小时</span>                    </div>                  </div>                                    <div className="flex space-x-2">                    <button                      onClick={() => handleViewProfile(player.id)}                      className="flex-1 px-4 py-2 bg-theme-background text-theme-text text-sm font-medium rounded-lg hover:bg-theme-primary/10 transition-colors border border-theme-border"                    >                      查看详情                    </button>                    <button                      onClick={() => handleBookPlayer(player)}                      className="flex-1 px-4 py-2 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"                    >                      立即预约                    </button>                  </div>                </div>              </div>            ))}          </div>        )}
       </div>
     </div>
   );

@@ -8,9 +8,11 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { debounce } from "@/lib/utils";
 import { toast } from 'sonner';
 import { getFavoritePlayers, FavoritePlayer } from "@/services/favoriteService";
+import { useLocation } from "react-router-dom";
 
 export default function UserHome() {
   const { logout } = useContext(AuthContext);
+  const location = useLocation();
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGame, setSelectedGame] = useState<number | null>(null);
@@ -26,6 +28,24 @@ export default function UserHome() {
     fetchPlayers();
     loadFavorites();
   }, [fetchPlayers]);
+
+  // 处理URL查询参数，支持从首页热门游戏跳转时自动筛选
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const gameParam = searchParams.get('game');
+    
+    if (gameParam) {
+      const gameId = parseInt(gameParam, 10);
+      if (!isNaN(gameId) && selectedGame !== gameId) {
+        console.log('从URL参数设置游戏筛选:', gameId);
+        setSelectedGame(gameId);
+        setGameFilterEnabled(true);
+        
+        // 只在首次设置或游戏ID变化时显示提示信息
+        toast.success(`已为您筛选游戏ID为 ${gameId} 的陪玩`);
+      }
+    }
+  }, [location.search]);
 
   // 加载收藏列表
   const loadFavorites = async () => {
@@ -48,19 +68,47 @@ export default function UserHome() {
 
     let filtered = [...players];
 
-    // 搜索筛选 - 支持陪玩名称和游戏名称搜索
+    // 搜索筛选 - 支持陪玩名称、游戏名称和介绍搜索
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(player =>
-        player.name.toLowerCase().includes(searchLower) ||
-        (player.game_name && player.game_name.toLowerCase().includes(searchLower)) ||
-        (player.intro && player.intro.toLowerCase().includes(searchLower))
-      );
+      filtered = filtered.filter(player => {
+        // 搜索陪玩名称
+        if (player.name.toLowerCase().includes(searchLower)) return true;
+        
+        // 搜索介绍
+        if (player.intro && player.intro.toLowerCase().includes(searchLower)) return true;
+        
+        // 搜索陪玩提供的所有游戏服务
+        if (player.games && Array.isArray(player.games)) {
+          return player.games.some(gameName => 
+            gameName && gameName.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        // 搜索服务中的游戏名称（备用）
+        if (player.services && Array.isArray(player.services)) {
+          return player.services.some(service => 
+            service.game_name && service.game_name.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        return false;
+      });
     }
 
-    // 游戏筛选 - 只有在启用且选择了游戏时才筛选
+    // 游戏筛选 - 检查陪玩是否提供指定游戏的服务
     if (gameFilterEnabled && selectedGame) {
-      filtered = filtered.filter(player => player.game_id === selectedGame);
+      filtered = filtered.filter(player => {
+        // 检查陪玩的主要游戏ID
+        if (player.game_id === selectedGame) return true;
+        
+        // 检查陪玩提供的服务中是否包含该游戏
+        if (player.services && Array.isArray(player.services)) {
+          return player.services.some(service => service.game_id === selectedGame);
+        }
+        
+        return false;
+      });
     }
 
     // 价格范围筛选 - 只有在启用时才筛选
@@ -150,7 +198,7 @@ export default function UserHome() {
           </div>
         ) : error ? (
           <div className="text-center py-10">
-            <p className="text-red-500">加载陪玩失败: {error}</p>
+            <p className="text-theme-error">加载陪玩失败: {error?.message || String(error)}</p>
             <button 
               onClick={fetchPlayers}
               className="mt-2 text-theme-primary hover:underline"

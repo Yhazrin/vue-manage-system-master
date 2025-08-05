@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/config/api';
+import { buildAvatarUrl, buildImageUrl, buildVoiceUrl } from '@/utils/imageUtils';
 
 // 陪玩个人资料数据接口
 export interface PlayerProfileData {
@@ -7,6 +8,7 @@ export interface PlayerProfileData {
   phone_num: string;
   photo_img: string | null;
   status: boolean;
+  online_status: boolean;
   intro: string | null;
   game_id: number | null;
   voice: string | null;
@@ -103,19 +105,13 @@ export async function getPlayerProfile(): Promise<PlayerProfileData> {
     }
 
     // 处理头像URL
-    if (player.photo_img && !player.photo_img.startsWith('http')) {
-      player.photo_img = `${API_BASE_URL}/${player.photo_img}`;
-    }
+    player.photo_img = buildAvatarUrl(player.photo_img);
 
     // 处理二维码URL
-    if (player.QR_img && !player.QR_img.startsWith('http')) {
-      player.QR_img = `${API_BASE_URL}/${player.QR_img}`;
-    }
+    player.QR_img = buildImageUrl(player.QR_img);
 
     // 处理录音URL
-    if (player.voice && !player.voice.startsWith('http')) {
-      player.voice = `${API_BASE_URL}/${player.voice}`;
-    }
+    player.voice = buildVoiceUrl(player.voice);
 
     return player;
   } catch (error) {
@@ -199,82 +195,9 @@ export async function uploadAvatar(file: File): Promise<string> {
     }
 
     // 处理头像URL
-    let avatarUrl = player?.photo_img;
-    if (avatarUrl && !avatarUrl.startsWith('http')) {
-      avatarUrl = `${API_BASE_URL}/${avatarUrl}`;
-    }
-
-    return avatarUrl || '';
+    return buildAvatarUrl(player?.photo_img);
   } catch (error) {
     console.error('Error uploading avatar:', error);
-    throw error;
-  }
-}
-
-// 上传二维码
-export async function uploadQRCode(file: File): Promise<string> {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('请先登录');
-    }
-
-    // 从token中解析用户ID
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const playerId = payload.id;
-
-    const formData = new FormData();
-    formData.append('QR_img', file);
-
-    const response = await fetch(`${API_BASE_URL}/players/${playerId}/qr`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || '上传二维码失败');
-    }
-
-    // 上传成功后重新获取用户资料以获取新的二维码URL
-    const updatedProfile = await getPlayerProfile();
-    return updatedProfile.QR_img || '';
-  } catch (error) {
-    console.error('Error uploading QR code:', error);
-    throw error;
-  }
-}
-
-// 删除二维码
-export async function deleteQRCode(): Promise<void> {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('请先登录');
-    }
-
-    // 从token中解析用户ID
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const playerId = payload.id;
-
-    const response = await fetch(`${API_BASE_URL}/players/${playerId}/qr`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ QR_img: null }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || '删除二维码失败');
-    }
-  } catch (error) {
-    console.error('Error deleting QR code:', error);
     throw error;
   }
 }
@@ -306,6 +229,37 @@ export async function updateStatus(status: boolean): Promise<void> {
     }
   } catch (error) {
     console.error('Error updating status:', error);
+    throw error;
+  }
+}
+
+// 更新在线状态（新的API）
+export async function updateOnlineStatus(onlineStatus: boolean): Promise<void> {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('请先登录');
+    }
+
+    // 从token中解析用户ID
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const playerId = payload.id;
+
+    const response = await fetch(`${API_BASE_URL}/players/${playerId}/online-status`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ onlineStatus }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '更新在线状态失败');
+    }
+  } catch (error) {
+    console.error('Error updating online status:', error);
     throw error;
   }
 }
@@ -346,6 +300,7 @@ export async function uploadVoice(file: File): Promise<string> {
     throw error;
   }
 }
+
 // 获取收益统计
 export async function getEarningsStats(): Promise<{
   todayEarnings: number;

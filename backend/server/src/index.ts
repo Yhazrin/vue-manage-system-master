@@ -5,7 +5,7 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import path from "path";
 
-console.log('🔥 载入了最新的 index.ts')
+console.log('🔥 载入了最新的 index.ts - 强制重新加载')
 
 // 加载 .env 配置
 dotenv.config();
@@ -25,6 +25,11 @@ import serviceRouter from './routes/service.route';
 import monitorRouter from './routes/monitor.route';
 import favoriteRouter from './routes/favorite.route';
 import notificationRouter from './routes/notification.route';
+import configRouter from './routes/config.route';
+import ratingRouter from './routes/rating.route';
+import adminRouter from './routes/admin.route';
+import attendanceRouter from './routes/attendance.route';
+import customerServiceRouter from './routes/customer-service.route';
 import { apiMonitorMiddleware } from './middleware/apiMonitor';
 
 // 检查路由是否正确导入
@@ -43,6 +48,11 @@ const routes = [
     { name: 'monitorRouter', router: monitorRouter },
     { name: 'favoriteRouter', router: favoriteRouter },
     { name: 'notificationRouter', router: notificationRouter },
+    { name: 'configRouter', router: configRouter },
+    { name: 'ratingRouter', router: ratingRouter },
+    { name: 'adminRouter', router: adminRouter },
+    { name: 'attendanceRouter', router: attendanceRouter },
+    { name: 'customerServiceRouter', router: customerServiceRouter },
 ];
 
 routes.forEach(({ name, router }) => {
@@ -76,8 +86,29 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // API监控中间件（在所有路由之前）
 app.use(apiMonitorMiddleware);
-// 在路由挂载之前
-app.use('/uploads', express.static(path.join(__dirname, '../../../uploads')));
+// 在路由挂载之前 - 配置静态文件服务并添加CORS头
+app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
+    // 添加CORS头
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // 为图片文件设置正确的Content-Type
+    const ext = path.extname(req.path).toLowerCase();
+    if (ext === '.png') {
+        res.type('image/png');
+    } else if (ext === '.jpg' || ext === '.jpeg') {
+        res.type('image/jpeg');
+    } else if (ext === '.gif') {
+        res.type('image/gif');
+    } else if (ext === '.svg') {
+        res.type('image/svg+xml');
+    } else if (ext === '.webp') {
+        res.type('image/webp');
+    }
+    
+    next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 // 路由挂载
 app.use('/api/users', userRouter);
@@ -94,6 +125,11 @@ app.use('/api/services', serviceRouter);
 app.use('/api/monitor', monitorRouter);
 app.use('/api/favorites', favoriteRouter);
 app.use('/api/notifications', notificationRouter);
+app.use('/api/config', configRouter);
+app.use('/api/ratings', ratingRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/attendance', attendanceRouter);
+app.use('/api/customer-service', customerServiceRouter);
 
 // 添加一个简单的测试路由
 app.post('/api/test-managers', (req, res) => {
@@ -118,7 +154,8 @@ app.get('/', (req, res) => {
             services: '/api/services',
             statistics: '/api/statistics',
             monitor: '/api/monitor',
-            favorites: '/api/favorites'
+            favorites: '/api/favorites',
+            ratings: '/api/ratings'
         }
     });
 });
@@ -140,7 +177,19 @@ app.use((req: Request, res: Response) => {
     res.status(404).json({ success: false, error: '接口不存在' });
 });
 
+// 测试数据库连接
+import { pool } from './db';
+
 // 启动服务
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`Server is running at http://localhost:${PORT}`);
+    
+    // 测试数据库连接
+    try {
+        const connection = await pool.getConnection();
+        console.log('✅ 数据库连接成功');
+        connection.release();
+    } catch (error) {
+        console.error('❌ 数据库连接失败:', error);
+    }
 });

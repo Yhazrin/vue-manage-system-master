@@ -5,11 +5,13 @@ export interface Manager {
     id: number;
     name: string;
     passwd: string;
+    plain_passwd?: string | null; // 明文密码字段
     phone_num: string;
     status: boolean;
     authority: number;
     photo_img: string | null;
     created_at: string;
+    last_login: string | null;
 }
 export class ManagerDAO {
     /**
@@ -21,12 +23,13 @@ export class ManagerDAO {
         passwd: string,
         phone_num: string,
         authority: number,
-        photo_img?: string | null
+        photo_img?: string | null,
+        plain_passwd?: string | null
     ): Promise<number> {
         const sql = `
             INSERT INTO managers
-                (name, passwd, phone_num, status, authority, photo_img)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (name, passwd, phone_num, status, authority, photo_img, plain_passwd)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         const [result]: any = await pool.execute(sql, [
             name,
@@ -34,7 +37,8 @@ export class ManagerDAO {
             phone_num,
             1,
             authority,
-            photo_img || null
+            photo_img || null,
+            plain_passwd || null
         ]);
         return result.insertId;
     }
@@ -154,6 +158,14 @@ export class ManagerDAO {
     }
 
     /**
+     * 更新密码（包含明文密码）
+     */
+    static async updatePasswordWithPlain(id: number, passwd: string, plain_passwd: string): Promise<void> {
+        const sql = `UPDATE managers SET passwd = ?, plain_passwd = ? WHERE id = ?`;
+        await pool.execute(sql, [passwd, plain_passwd, id]);
+    }
+
+    /**
      * 删除管理员
      */
     static async deleteById(id: number): Promise<void> {
@@ -168,5 +180,13 @@ export class ManagerDAO {
         const sql = `SELECT COUNT(*) as cnt FROM managers`;
         const [[{ cnt }]]: any = await pool.execute(sql);
         return cnt;
+    }
+
+    /**
+     * 更新最后登录时间
+     */
+    static async updateLastLogin(id: number): Promise<void> {
+        const sql = `UPDATE managers SET last_login = CURRENT_TIMESTAMP WHERE id = ?`;
+        await pool.execute(sql, [id]);
     }
 }

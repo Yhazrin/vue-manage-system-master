@@ -4,6 +4,7 @@ import { GiftRecordDAO } from '../dao/GiftRecordDao';
 import { auth, AuthRequest } from '../middleware/auth'; // 导入权限中间件
 import { Request, Response, NextFunction } from "express";
 import {body, param, validationResult} from 'express-validator';
+import { pool } from '../db';
 
 const router = Router();
 
@@ -99,6 +100,43 @@ router.get(
 );
 
 /**
+ * @route   GET /api/gift-records/all
+ * @desc    查询所有礼物记录（管理员专用）
+ * @access  仅管理员可访问
+ */
+router.get(
+    '/all',
+    auth,
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            // 仅管理员可查看所有记录
+            if (req.user?.role !== 'manager') {
+                return res.status(403).json({ success: false, error: '无权限查看所有礼物记录' });
+            }
+            
+            // 获取所有礼物记录，包含关联信息
+            const sql = `
+                SELECT 
+                    gr.*,
+                    u.name as user_name,
+                    p.name as player_name,
+                    g.name as gift_name,
+                    g.price as gift_price
+                FROM gift_records gr
+                LEFT JOIN users u ON gr.user_id = u.id
+                LEFT JOIN players p ON gr.player_id = p.id
+                LEFT JOIN gifts g ON gr.gift_id = g.id
+                ORDER BY gr.created_at DESC
+            `;
+            const [rows]: any = await pool.execute(sql);
+            res.json({ success: true, records: rows });
+        } catch (err) {
+            next(err);
+        }
+    }
+);
+
+/**
  * @route   GET /api/gift-records/user/:userId
  * @desc    查询某用户所有打赏记录
  * @access  登录用户本人或管理员
@@ -125,6 +163,54 @@ router.get(
             }
             const records = await GiftRecordDAO.findAllByUser(userId);
             res.json({ success: true, records });
+        } catch (err) {
+            next(err);
+        }
+    }
+);
+
+/**
+ * @route   GET /api/gift-records/player/:playerId
+ * @desc    查询某陪玩收到的所有礼物记录
+ * @access  陪玩本人或管理员
+ */
+router.get(
+    '/player/:playerId',
+    auth,
+    [param('playerId').isInt().withMessage('playerId 必须是整数')],
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
+        try {
+            const playerId = Number(req.params.playerId);
+            if (isNaN(playerId)) {
+                return res.status(400).json({ success: false, error: '无效的陪玩ID' });
+            }
+            
+            // 仅陪玩本人或管理员可查
+            if (
+                !(req.user?.role === 'manager') &&
+                !(req.user?.role === 'player' && req.user.id === playerId)
+            ) {
+                return res.status(403).json({ success: false, error: '无权限查看此陪玩的礼物记录' });
+            }
+            
+            // 查询陪玩收到的礼物记录，包含关联信息
+            const sql = `
+                SELECT 
+                    gr.*,
+                    u.name as user_name,
+                    g.name as gift_name,
+                    g.price as gift_price
+                FROM gift_records gr
+                LEFT JOIN users u ON gr.user_id = u.id
+                LEFT JOIN gifts g ON gr.gift_id = g.id
+                WHERE gr.player_id = ?
+                ORDER BY gr.created_at DESC
+            `;
+            const [rows]: any = await pool.execute(sql, [playerId]);
+            res.json({ success: true, records: rows });
         } catch (err) {
             next(err);
         }

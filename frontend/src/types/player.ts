@@ -13,7 +13,8 @@ export interface Player {
   name: string;
   photo_img?: string;
   intro?: string;
-  status: number | boolean; // 后端返回number(0/1)，前端可能需要boolean
+  status: number | boolean; // 账号状态：后端返回number(0/1)，前端可能需要boolean
+  online_status?: number | boolean; // 在线状态：后端返回number(0/1)，前端可能需要boolean
   voice?: string;
   game_id?: number;
   

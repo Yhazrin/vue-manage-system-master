@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from "@/components/Header";
 import { toast } from "sonner";
+import { fetchJson } from '@/utils/fetchWrapper';
 
 interface Game {
   id: number;
@@ -52,12 +53,7 @@ export default function PlayerServices() {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/services/my', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await fetchJson('http://localhost:3000/api/services/my');
       if (data.success) {
         setServices(data.services || []);
       } else {
@@ -81,12 +77,8 @@ export default function PlayerServices() {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/services', {
+      const data = await fetchJson('http://localhost:3000/api/services', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
         body: JSON.stringify({
           game_id: parseInt(formData.game_id),
           price: parseFloat(formData.price),
@@ -94,7 +86,6 @@ export default function PlayerServices() {
         })
       });
 
-      const data = await response.json();
       if (data.success) {
         toast.success('服务创建成功');
         setIsAdding(false);
@@ -119,12 +110,8 @@ export default function PlayerServices() {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/services/${editingService.id}`, {
+      const data = await fetchJson(`http://localhost:3000/api/services/${editingService.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
         body: JSON.stringify({
           game_id: parseInt(formData.game_id),
           price: parseFloat(formData.price),
@@ -132,7 +119,6 @@ export default function PlayerServices() {
         })
       });
 
-      const data = await response.json();
       if (data.success) {
         toast.success('服务更新成功');
         setEditingService(null);
@@ -154,14 +140,10 @@ export default function PlayerServices() {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/services/${serviceId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const data = await fetchJson(`http://localhost:3000/api/services/${serviceId}`, {
+        method: 'DELETE'
       });
 
-      const data = await response.json();
       if (data.success) {
         toast.success('服务删除成功');
         fetchServices();
@@ -217,43 +199,43 @@ export default function PlayerServices() {
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">服务管理</h1>
+            <h1 className="text-2xl font-bold text-theme-text">服务管理</h1>
             <div className="flex space-x-3">
               {!isAdding && !editingService && (
                 <button 
                   onClick={() => setIsAdding(true)}
-                  className="py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  className="py-1.5 px-3 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
                 >
                   <i className="fa-solid fa-plus mr-1"></i> 添加服务
                 </button>
               )}
               <button 
                 onClick={() => navigate('/player/dashboard')}
-                className="py-1.5 px-3 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                className="py-1.5 px-3 bg-theme-text/60 text-white text-sm font-medium rounded-lg hover:bg-theme-text/70 transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-1"></i> 返回大厅
               </button>
             </div>
           </div>
-          <p className="text-gray-500">管理您的陪玩服务和价格设置</p>
+          <p className="text-theme-text/70">管理您的陪玩服务和价格设置</p>
         </div>
 
         {/* 添加/编辑服务表单 */}
         {(isAdding || editingService) && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-6 mb-6">
+            <h2 className="text-lg font-semibold text-theme-text mb-4">
               {editingService ? '编辑服务' : '添加新服务'}
             </h2>
             <form onSubmit={editingService ? handleUpdateService : handleCreateService}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-theme-text mb-2">
                     游戏类型 <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.game_id}
                     onChange={(e) => setFormData({ ...formData, game_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-theme-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-theme-background text-theme-text"
                     required
                   >
                     <option value="">请选择游戏</option>
@@ -263,7 +245,7 @@ export default function PlayerServices() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-theme-text mb-2">
                     服务价格 (元/小时) <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -272,13 +254,13 @@ export default function PlayerServices() {
                     min="0"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-theme-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-theme-background text-theme-text"
                     placeholder="请输入价格"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-theme-text mb-2">
                     最少服务时长 (小时)
                   </label>
                   <input
@@ -286,7 +268,7 @@ export default function PlayerServices() {
                     min="1"
                     value={formData.hours}
                     onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-theme-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-theme-background text-theme-text"
                     placeholder="最少服务时长"
                   />
                 </div>
@@ -294,14 +276,14 @@ export default function PlayerServices() {
               <div className="flex space-x-3">
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  className="px-4 py-2 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
                 >
                   {editingService ? '更新服务' : '创建服务'}
                 </button>
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                  className="px-4 py-2 bg-theme-text/60 text-white text-sm font-medium rounded-lg hover:bg-theme-text/70 transition-colors"
                 >
                   取消
                 </button>
@@ -311,16 +293,16 @@ export default function PlayerServices() {
         )}
 
         {/* 服务列表 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden">
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">我的服务列表</h2>
+            <h2 className="text-lg font-semibold text-theme-text mb-4">我的服务列表</h2>
             {services.length === 0 ? (
               <div className="text-center py-12">
-                <i className="fa-solid fa-gamepad text-4xl text-gray-300 mb-4"></i>
-                <p className="text-gray-500 mb-4">您还没有设置任何服务</p>
+                <i className="fa-solid fa-gamepad text-4xl text-theme-text/30 mb-4"></i>
+                <p className="text-theme-text/70 mb-4">您还没有设置任何服务</p>
                 <button 
                   onClick={() => setIsAdding(true)}
-                  className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  className="px-4 py-2 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
                 >
                   添加第一个服务
                 </button>
@@ -330,19 +312,19 @@ export default function PlayerServices() {
                 {services.map(service => {
                   const game = games.find(g => g.id === service.game_id);
                   return (
-                    <div key={service.id} className="border border-gray-200 rounded-lg p-4 hover:border-purple-200 transition-colors">
+                    <div key={service.id} className="border border-theme-border rounded-lg p-4 hover:border-purple-200 transition-colors">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium text-gray-900">{game?.name || '未知游戏'}</h3>
+                        <h3 className="font-medium text-theme-text">{game?.name || '未知游戏'}</h3>
                         <div className="flex space-x-2">
                           <button
                             onClick={() => startEditService(service)}
-                            className="text-blue-600 hover:text-blue-700 text-sm"
+                            className="text-theme-primary hover:text-theme-primary/80 text-sm"
                           >
                             <i className="fa-solid fa-edit"></i>
                           </button>
                           <button
                             onClick={() => handleDeleteService(service.id)}
-                            className="text-red-600 hover:text-red-700 text-sm"
+                            className="text-red-500 hover:text-red-700 text-sm"
                           >
                             <i className="fa-solid fa-trash"></i>
                           </button>
@@ -350,16 +332,16 @@ export default function PlayerServices() {
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">价格:</span>
-                          <span className="text-sm font-medium text-purple-600">¥{service.price}/小时</span>
+                          <span className="text-sm text-theme-text/70">价格:</span>
+                          <span className="text-sm font-medium text-theme-primary">¥{service.price}/小时</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">最少时长:</span>
-                          <span className="text-sm text-gray-900">{service.hours}小时</span>
+                          <span className="text-sm text-theme-text/70">最少时长:</span>
+                          <span className="text-sm text-theme-text">{service.hours}小时</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">创建时间:</span>
-                          <span className="text-sm text-gray-900">
+                          <span className="text-sm text-theme-text/70">创建时间:</span>
+                          <span className="text-sm text-theme-text">
                             {new Date(service.created_at).toLocaleDateString('zh-CN')}
                           </span>
                         </div>

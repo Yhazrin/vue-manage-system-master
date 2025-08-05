@@ -4,19 +4,20 @@ import { Game } from "@/types";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import { useGames } from "@/hooks/useGames";
+import { buildGameImageUrl } from "@/utils/imageUtils";
  
 export default function GameGrid() {
   const navigate = useNavigate();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [autoScrollInterval, setAutoScrollInterval] = useState<number | null>(null);
-  const [isMouseOver, setIsMouseOver] = useState(false);
+
   const { games, loading, error } = useGames();
   
 
   const handleGameClick = (gameId: number) => {
-    navigate(`/game/${gameId}/players`);
+    // 跳转到陪玩大厅并传递游戏ID作为查询参数
+    navigate(`/lobby?game=${gameId}`);
   };
   
   const handleScroll = (direction: 'left' | 'right') => {
@@ -49,24 +50,7 @@ export default function GameGrid() {
     }
   };
   
-  // 自动滚动函数
-  const startAutoScroll = useCallback(() => {
-    if (autoScrollInterval || isMouseOver) return;
-    
-    const interval = setInterval(() => {
-      handleScroll('right');
-    }, 3000); // 每3秒自动滚动一次
-    
-    setAutoScrollInterval(interval as unknown as number);
-  }, [autoScrollInterval, isMouseOver]);
-  
-  // 停止自动滚动
-  const stopAutoScroll = useCallback(() => {
-    if (autoScrollInterval) {
-      clearInterval(autoScrollInterval);
-      setAutoScrollInterval(null);
-    }
-  }, [autoScrollInterval]);
+
   
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -75,43 +59,11 @@ export default function GameGrid() {
       container.addEventListener('scroll', checkScrollPosition);
       checkScrollPosition(); // 初始检查
       
-      // 鼠标悬停事件监听
-      container.addEventListener('mouseenter', () => {
-        setIsMouseOver(true);
-        stopAutoScroll();
-      });
-      
-      container.addEventListener('mouseleave', () => {
-        setIsMouseOver(false);
-        startAutoScroll();
-      });
-      
-      // 初始启动自动滚动
-      startAutoScroll();
-      
       return () => {
         container.removeEventListener('scroll', checkScrollPosition);
-        container.removeEventListener('mouseenter', () => {
-          setIsMouseOver(true);
-          stopAutoScroll();
-        });
-        container.removeEventListener('mouseleave', () => {
-          setIsMouseOver(false);
-          startAutoScroll();
-        });
-        stopAutoScroll();
       };
     }
-  }, [startAutoScroll, stopAutoScroll]);
-  
-  // 当isMouseOver变化时控制自动滚动
-  useEffect(() => {
-    if (isMouseOver) {
-      stopAutoScroll();
-    } else {
-      startAutoScroll();
-    }
-  }, [isMouseOver, startAutoScroll, stopAutoScroll]);
+  }, []);
   
   return (
     <div className="relative">
@@ -146,7 +98,7 @@ export default function GameGrid() {
             ))
           ) : error ? (
             <div className="text-center py-10 w-full">
-              <p className="text-red-500">加载游戏失败: {error}</p>
+              <p className="text-red-500">加载游戏失败: {error?.message || String(error)}</p>
               <button 
                 onClick={() => window.location.reload()}
                 className="mt-2 text-theme-primary hover:underline"
@@ -155,14 +107,6 @@ export default function GameGrid() {
               </button>
             </div>
           ) : games?.map(game => {
-            // 为缺失的字段提供默认值
-            const gameWithDefaults = {
-              ...game,
-              imageUrl: game.image_url || '/images/default-game.jpg',
-              category: game.category || '游戏',
-              description: game.description || game.name
-            };
-            
             return (
           <div 
             key={game.id}
@@ -171,16 +115,16 @@ export default function GameGrid() {
           >
             <div className="relative pb-[100%] bg-theme-background">
               <img 
-                src={gameWithDefaults.image_url} 
+                src={buildGameImageUrl(game.image_url)} 
                 alt={game.name}
                 className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => {
+onError={(e) => {
                   // 如果图片加载失败，显示默认图片或占位符
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
                   target.parentElement!.innerHTML = `
                     <div class="absolute inset-0 w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
-                      <span class="text-white font-bold text-lg">${game.name.charAt(0)}</span>
+                      <span class="text-theme-surface font-bold text-lg">${game.name.charAt(0)}</span>
                     </div>
                   `;
                 }}
@@ -188,7 +132,7 @@ export default function GameGrid() {
             </div>
             <div className="p-3 text-center">
               <h3 className="font-medium text-theme-text text-sm line-clamp-1">{game.name}</h3>
-              <p className="text-xs text-theme-text/70 mt-1">{gameWithDefaults.category}</p>
+              <p className="text-xs text-theme-text/70 mt-1">热门游戏</p>
             </div>
           </div>
         )})}

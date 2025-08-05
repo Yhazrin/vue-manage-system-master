@@ -25,6 +25,44 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
             return res.status(403).json({ success: false, error: '只有普通用户可以创建订单' });
         }
         
+        // 验证必填字段
+        if (!player_id || !service_id || !hours || !amount) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '缺少必填字段：player_id, service_id, hours, amount' 
+            });
+        }
+        
+        // 验证时长是否符合服务的最低要求
+        const { ServiceDAO } = require('../dao/ServiceDao');
+        const service = await ServiceDAO.findById(service_id);
+        
+        if (!service) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '指定的服务不存在' 
+            });
+        }
+        
+        // 检查用户提交的时长是否满足最低要求
+        const requestedHours = Number(hours);
+        const minHours = Number(service.hours);
+        
+        if (requestedHours < minHours) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `预约时长不能少于${minHours}小时，您当前选择的是${requestedHours}小时` 
+            });
+        }
+        
+        // 验证陪玩是否存在且提供该服务
+        if (service.player_id !== Number(player_id)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '该陪玩不提供指定的服务' 
+            });
+        }
+        
         // 生成唯一订单ID (限制在20字符内)
         const timestamp = Date.now().toString().slice(-8); // 取时间戳后8位
         const random = Math.random().toString(36).substr(2, 6); // 6位随机字符
@@ -32,6 +70,7 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
         
         console.log('生成的订单ID:', order_id);
         console.log('订单ID长度:', order_id.length);
+        console.log('时长验证通过:', { requestedHours, minHours });
         
         // 创建订单
         const orderId = await OrderDAO.create({
@@ -201,8 +240,84 @@ router.patch('/:order_id/status', auth, async (req: AuthRequest, res: Response, 
             return res.status(403).json({ success: false, error: '权限不足' });
         }
         
-        await OrderDAO.updateStatus(order_id, status);
+        // 特殊处理：陪玩接受订单时直接进入in_progress状态
+        if (req.user.role === 'player' && status === 'accepted') {
+            await OrderDAO.updateStatus(order_id, 'in_progress');
+        } else {
+            await OrderDAO.updateStatus(order_id, status);
+        }
         res.json({ success: true });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   PATCH /api/orders/:order_id/payment
+ * @desc    更新订单打款状态
+ * @body    { is_paid }
+ */
+router.patch('/:order_id/payment', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const { order_id } = req.params;
+        const { is_paid } = req.body;
+        
+        if (!req.user?.id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
+        
+        // 只有管理员可以更新打款状态
+        if (req.user.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '只有管理员可以更新打款状态' });
+        }
+        
+        // 获取订单信息以验证订单存在
+        const order = await OrderDAO.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ success: false, error: '订单不存在' });
+        }
+        
+        await OrderDAO.updatePaymentStatus(order_id, is_paid);
+        res.json({ success: true, message: '打款状态更新成功' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   PATCH /api/orders/:order_id/confirm-end
+ * @desc    确认结束订单（用户或陪玩）
+ * @body    { role: 'user' | 'player' }
+ */
+router.patch('/:order_id/confirm-end', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const { order_id } = req.params;
+        
+        if (!req.user?.id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
+        
+        // 获取订单信息以验证权限
+        const order = await OrderDAO.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ success: false, error: '订单不存在' });
+        }
+        
+        // 只有进行中的订单才能确认结束
+        if (order.status !== 'in_progress') {
+            return res.status(400).json({ success: false, error: '只有进行中的订单才能确认结束' });
+        }
+        
+        // 根据用户角色确认结束
+        if (req.user.role === 'user' && order.user_id === req.user.id) {
+            await OrderDAO.confirmEndByUser(order_id);
+            res.json({ success: true, message: '用户确认结束成功' });
+        } else if (req.user.role === 'player' && order.player_id === req.user.id) {
+            await OrderDAO.confirmEndByPlayer(order_id);
+            res.json({ success: true, message: '陪玩确认结束成功' });
+        } else {
+            return res.status(403).json({ success: false, error: '只能确认结束自己的订单' });
+        }
     } catch (err) {
         next(err);
     }

@@ -75,8 +75,21 @@ export class GiftDAO {
         return rows;
     }
 
+    /** 检查礼物是否有关联的送礼记录 */
+    static async hasRelatedRecords(id: number): Promise<boolean> {
+        const sql = `SELECT COUNT(*) as cnt FROM gift_records WHERE gift_id = ?`;
+        const [[{ cnt }]]: any = await pool.execute(sql, [id]);
+        return cnt > 0;
+    }
+
     /** 按 ID 删除礼物 */
     static async deleteById(id: number): Promise<void> {
+        // 检查是否存在关联的送礼记录
+        const hasRecords = await this.hasRelatedRecords(id);
+        if (hasRecords) {
+            throw new Error('无法删除礼物：存在相关的送礼记录');
+        }
+        
         const sql = `DELETE FROM gifts WHERE id = ?`;
         await pool.execute(sql, [id]);
     }

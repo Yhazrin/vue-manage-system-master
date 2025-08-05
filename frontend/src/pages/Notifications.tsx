@@ -12,20 +12,18 @@ import {
 } from '@/services/userNotificationService';
 
 // 定义通知类型标签组件
-function NotificationTypeBadge({ type }: { type: string }) {
+const NotificationTypeBadge = ({ type }: { type?: string }) => {
   switch (type) {
     case 'booking':
-      return <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">订单</span>;
+      return <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">预约</span>;
     case 'message':
-      return <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">消息</span>;
+      return <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">消息</span>;
     case 'system':
-      return <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full">系统</span>;
-    case 'promotion':
-      return <span className="px-2 py-0.5 bg-orange-50 text-orange-700 text-xs rounded-full">优惠</span>;
+      return <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-xs rounded-full">系统</span>;
     default:
-      return <span className="px-2 py-0.5 bg-gray-50 text-gray-700 text-xs rounded-full">通知</span>;
+      return <span className="px-2 py-0.5 bg-theme-background text-theme-text/70 text-xs rounded-full">通知</span>;
   }
-}
+};
 
 // 定义通知项组件
 function NotificationItem({ 
@@ -56,8 +54,8 @@ function NotificationItem({
   
   return (
     <div className={cn(
-      "flex items-start p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors",
-      !notification.read ? "bg-purple-50" : ""
+      "flex items-start p-4 border-b border-theme-border hover:bg-theme-background transition-colors cursor-pointer",
+      !notification.read ? "bg-theme-primary/5" : ""
     )}>
       <div className="mr-4 mt-0.5">
         {notification.type === 'booking' && <i className="fa-solid fa-calendar-check text-green-500" />}
@@ -69,14 +67,14 @@ function NotificationItem({
       
       <div className="flex-1 min-w-0" onClick={handleClick}>
         <div className="flex justify-between items-start">
-          <h3 className="font-medium text-gray-900 text-sm">{notification.title}</h3>
-          <span className="text-xs text-gray-500">{notification.createdAt}</span>
+          <h3 className="font-medium text-theme-text text-sm">{notification.title}</h3>
+          <span className="text-xs text-theme-text/60">{notification.createdAt}</span>
         </div>
-        <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+        <p className="text-sm text-theme-text/80 mt-1">{notification.message}</p>
         <div className="mt-2 flex items-center gap-2">
           <NotificationTypeBadge type={notification.type} />
           {!notification.read && (
-            <span className="text-xs text-purple-600">新</span>
+            <span className="text-xs text-theme-primary">新</span>
           )}
         </div>
       </div>
@@ -86,7 +84,7 @@ function NotificationItem({
           e.stopPropagation();
           onDelete(notification.id);
         }}
-        className="text-gray-400 hover:text-red-500 transition-colors"
+        className="text-theme-text/40 hover:text-red-500 transition-colors"
       >
         <i className="fa-solid fa-trash-alt text-sm"></i>
       </button>
@@ -179,34 +177,34 @@ export default function Notifications() {
       
       <main className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">通知中心</h1>
+          <h1 className="text-2xl font-bold text-theme-text">通知中心</h1>
           <button 
             onClick={() => navigate('/lobby')}
-            className="py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+            className="py-1.5 px-3 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
           >
             <i className="fa-solid fa-arrow-left mr-1"></i> 返回大厅
           </button>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden">
           {/* 通知头部 */}
-          <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="p-4 border-b border-theme-border flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">通知</h2>
+              <h2 className="text-lg font-semibold text-theme-text">通知</h2>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                <span className="px-2 py-0.5 bg-theme-primary/10 text-theme-primary text-xs rounded-full">
                   {unreadCount}条未读
                 </span>
               )}
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="flex bg-gray-100 rounded-lg p-1">
+              <div className="flex bg-theme-background rounded-lg p-1">
                 <button 
                   onClick={() => setActiveFilter('all')}
                   className={cn(
                     "px-3 py-1 text-xs rounded-md",
-                    activeFilter === 'all' ? "bg-white text-purple-600 shadow-sm" : "text-gray-700"
+                    activeFilter === 'all' ? "bg-theme-surface text-theme-primary shadow-sm" : "text-theme-text/70"
                   )}
                 >
                   全部
@@ -215,7 +213,7 @@ export default function Notifications() {
                   onClick={() => setActiveFilter('booking')}
                   className={cn(
                     "px-3 py-1 text-xs rounded-md",
-                    activeFilter === 'booking' ? "bg-white text-purple-600 shadow-sm" : "text-gray-700"
+                    activeFilter === 'booking' ? "bg-theme-surface text-theme-primary shadow-sm" : "text-theme-text/70"
                   )}
                 >
                   订单
@@ -224,7 +222,7 @@ export default function Notifications() {
                   onClick={() => setActiveFilter('message')}
                   className={cn(
                     "px-3 py-1 text-xs rounded-md",
-                    activeFilter === 'message' ? "bg-white text-purple-600 shadow-sm" : "text-gray-700"
+                    activeFilter === 'message' ? "bg-theme-surface text-theme-primary shadow-sm" : "text-theme-text/70"
                   )}
                 >
                   消息
@@ -233,7 +231,7 @@ export default function Notifications() {
                   onClick={() => setActiveFilter('system')}
                   className={cn(
                     "px-3 py-1 text-xs rounded-md",
-                    activeFilter === 'system' ? "bg-white text-purple-600 shadow-sm" : "text-gray-700"
+                    activeFilter === 'system' ? "bg-theme-surface text-theme-primary shadow-sm" : "text-theme-text/70"
                   )}
                 >
                   系统
@@ -243,7 +241,7 @@ export default function Notifications() {
               <button 
                 onClick={handleMarkAllAsRead}
                 disabled={unreadCount === 0}
-                className="text-xs text-purple-600 hover:text-purple-700 disabled:text-gray-400"
+                className="text-xs text-theme-primary hover:text-theme-primary/80 disabled:text-theme-text/40"
               >
                 全部标为已读
               </button>
@@ -253,7 +251,7 @@ export default function Notifications() {
           {/* 加载状态 */}
           {loading && (
             <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-theme-primary"></div>
             </div>
           )}
 
@@ -263,7 +261,7 @@ export default function Notifications() {
               <p className="text-red-500 mb-4">{error}</p>
               <button 
                 onClick={fetchNotifications}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90 transition-colors"
               >
                 重试
               </button>
@@ -272,7 +270,7 @@ export default function Notifications() {
           
           {/* 通知列表 */}
           {!loading && !error && (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-theme-border">
               {filteredNotifications.length > 0 ? (
                 filteredNotifications
                   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -285,9 +283,9 @@ export default function Notifications() {
                     />
                   ))
               ) : (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-theme-text/60">
                   <i className="fa-solid fa-inbox text-3xl mb-3 block"></i>
-                  <h3 className="text-lg font-medium mb-1">暂无通知</h3>
+                  <h3 className="text-lg font-medium mb-1 text-theme-text">暂无通知</h3>
                   <p className="text-sm">这里将显示您的所有通知</p>
                 </div>
               )}

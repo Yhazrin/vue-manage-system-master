@@ -1,11 +1,15 @@
 // API基础配置
 import { API_BASE_URL } from '@/config/api';
+import { toast } from 'sonner';
 
 // 请求头配置
-const getHeaders = () => {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
+const getHeaders = (isFormData: boolean = false) => {
+  const headers: HeadersInit = {};
+  
+  // 只有在非FormData时才设置Content-Type
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
   
   // 添加认证token
   const token = localStorage.getItem('token');
@@ -22,20 +26,54 @@ export const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`;
-  const headers = getHeaders();
+  
+  // 检查是否是FormData请求
+  const isFormData = options.body instanceof FormData;
+  const headers = getHeaders(isFormData);
+  
+  // 如果是FormData，不要设置Content-Type，让浏览器自动设置
+  const finalHeaders = isFormData 
+    ? { Authorization: headers.Authorization } 
+    : { ...headers, ...options.headers };
   
   try {
     const response = await fetch(url, {
       ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
+      headers: finalHeaders,
     });
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.message || `API请求失败: ${response.status}`);
+      
+      // 详细记录400错误信息
+      if (response.status === 400) {
+        console.error('400 Bad Request 详细信息:', {
+          url,
+          method: options.method || 'GET',
+          requestBody: options.body,
+          responseData: errorData,
+          headers: finalHeaders
+        });
+      }
+      
+      const errorMessage = errorData?.message || errorData?.error || `API请求失败: ${response.status}`;
+      
+      // 处理401认证错误
+      if (response.status === 401) {
+        console.warn('认证失败，清除本地认证数据');
+        localStorage.removeItem('token');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('user');
+        
+        // 如果当前不在登录页，则跳转到登录页
+        if (!window.location.pathname.includes('/login')) {
+          toast.error('登录已过期，请重新登录');
+          window.location.href = '/login';
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
     
     // 处理空响应
@@ -62,7 +100,7 @@ export const get = <T>(endpoint: string, options?: RequestInit) => {
 export const post = <T>(endpoint: string, data?: any, options?: RequestInit) => {
   return apiRequest<T>(endpoint, {
     method: 'POST',
-    body: data ? JSON.stringify(data) : undefined,
+    body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
     ...options,
   });
 };
@@ -71,7 +109,7 @@ export const post = <T>(endpoint: string, data?: any, options?: RequestInit) => 
 export const put = <T>(endpoint: string, data?: any, options?: RequestInit) => {
   return apiRequest<T>(endpoint, {
     method: 'PUT',
-    body: data ? JSON.stringify(data) : undefined,
+    body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
     ...options,
   });
 };

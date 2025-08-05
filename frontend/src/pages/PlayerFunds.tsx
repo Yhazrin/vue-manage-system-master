@@ -173,7 +173,7 @@ export default function PlayerFunds() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-10">
-            <p className="text-red-500 mb-4">加载失败: {error}</p>
+            <p className="text-red-500 mb-4">加载失败: {error?.message || String(error)}</p>
             <button 
               onClick={loadData}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
@@ -197,20 +197,20 @@ export default function PlayerFunds() {
               <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-purple-100 flex items-center justify-center">
                 <i className="fa-solid fa-lock text-2xl text-purple-600"></i>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">需要登录</h2>
-              <p className="text-gray-500 mb-8">
+              <h2 className="text-2xl font-bold text-theme-text mb-4">需要登录</h2>
+              <p className="text-theme-text/70 mb-8">
                 您需要登录后才能查看资金信息和进行提现操作
               </p>
               <div className="space-y-3">
                 <Link 
                   to="/login"
-                  className="block w-full py-3 px-6 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  className="block w-full py-3 px-6 bg-theme-primary text-theme-surface font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
                 >
                   立即登录
                 </Link>
                 <Link 
                   to="/register"
-                  className="block w-full py-3 px-6 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  className="block w-full py-3 px-6 border border-theme-border text-theme-text font-medium rounded-lg hover:bg-theme-background transition-colors"
                 >
                   注册账号
                 </Link>
@@ -239,75 +239,75 @@ export default function PlayerFunds() {
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">资金与提现</h1>
-          <p className="text-gray-500">管理您的收益和提现</p>
+          <h1 className="text-2xl font-bold text-theme-text mb-2">资金与提现</h1>
+          <p className="text-theme-text/70">管理您的收益和提现</p>
         </div>
         
         {/* 资金概览卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-100 p-5">
-            <p className="text-sm text-gray-500 mb-1">可用余额</p>
+          <div className="bg-theme-surface rounded-xl border border-theme-border p-5 shadow-sm">
+            <p className="text-sm text-theme-text/70 mb-1">可用余额</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-bold text-gray-900">¥{fundsOverview?.availableBalance.toFixed(2) || '0.00'}</h3>
+              <h3 className="text-2xl font-bold text-theme-primary">¥{fundsOverview?.availableBalance.toFixed(2) || '0.00'}</h3>
               <button 
                 onClick={() => setActiveTab('withdraw')}
-                className="py-1 px-3 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                className="py-1 px-3 bg-theme-primary text-theme-surface text-xs font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
               >
                 提现
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-3">可提现至您绑定的收款账户</p>
+            <p className="text-xs text-theme-text/60 mt-3">可提现至您绑定的收款账户</p>
           </div>
           
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-100 p-5">
-            <p className="text-sm text-gray-500 mb-1">本月收益</p>
-            <h3 className="text-2xl font-bold text-gray-900">¥{fundsOverview?.monthlyEarnings.toFixed(2) || '0.00'}</h3>
-            <p className="text-xs text-green-600 mt-3 flex items-center">
-              <i className="fa-arrow-up mr-1"></i> 较上月增长 12.5%
+          <div className="bg-theme-surface rounded-xl border border-theme-border p-5 shadow-sm">
+            <p className="text-sm text-theme-text/70 mb-1">本月收益</p>
+            <h3 className="text-2xl font-bold text-theme-accent">¥{fundsOverview?.monthlyEarnings.toFixed(2) || '0.00'}</h3>
+            <p className="text-xs text-theme-text/60 mt-3">
+              本月累计收益金额
             </p>
           </div>
           
-          <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl border border-green-100 p-5">
-            <p className="text-sm text-gray-500 mb-1">累计提现</p>
-            <h3 className="text-2xl font-bold text-gray-900">¥{fundsOverview?.totalWithdrawals.toFixed(2) || '0.00'}</h3>
-            <p className="text-xs text-gray-500 mt-3">共 {fundsOverview?.withdrawalCount || 0} 笔提现记录</p>
+          <div className="bg-theme-surface rounded-xl border border-theme-border p-5 shadow-sm">
+            <p className="text-sm text-theme-text/70 mb-1">累计提现</p>
+            <h3 className="text-2xl font-bold text-theme-success">¥{fundsOverview?.totalWithdrawals.toFixed(2) || '0.00'}</h3>
+            <p className="text-xs text-theme-text/60 mt-3">共 {fundsOverview?.withdrawalCount || 0} 笔提现记录</p>
           </div>
         </div>
         
         {/* 功能标签页 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-          <div className="border-b border-gray-100">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden mb-6">
+          <div className="border-b border-theme-border">
             <div className="flex">
               <button
                 onClick={() => setActiveTab("overview")}
                 className={cn(
-                  "py-3 px-6 text-sm font-medium transition-colors",
-                  activeTab === "overview" 
-                    ? "text-purple-600 border-b-2 border-purple-600" 
-                    : "text-gray-500 hover:text-gray-700"
-                )}
+                    "py-3 px-6 text-sm font-medium transition-colors",
+                    activeTab === "overview" 
+                      ? "text-theme-primary border-b-2 border-theme-primary" 
+                      : "text-theme-text/70 hover:text-theme-text"
+                  )}
               >
                 资金概览
               </button>
               <button
                 onClick={() => setActiveTab("withdraw")}
                 className={cn(
-                  "py-3 px-6 text-sm font-medium transition-colors",
-                  activeTab === "withdraw" 
-                    ? "text-purple-600 border-b-2 border-purple-600" 
-                    : "text-gray-500 hover:text-gray-700"
-                )}
+                    "py-3 px-6 text-sm font-medium transition-colors",
+                    activeTab === "withdraw" 
+                      ? "text-theme-primary border-b-2 border-theme-primary" 
+                      : "text-theme-text/70 hover:text-theme-text"
+                  )}
               >
                 提现申请
               </button>
               <button
                 onClick={() => setActiveTab("history")}
                 className={cn(
-                  "py-3 px-6 text-sm font-medium transition-colors",
-                  activeTab === "history" 
-                    ? "text-purple-600 border-b-2 border-purple-600" 
-                    : "text-gray-500 hover:text-gray-700"
-                )}
+                    "py-3 px-6 text-sm font-medium transition-colors",
+                    activeTab === "history" 
+                      ? "text-theme-primary border-b-2 border-theme-primary" 
+                      : "text-theme-text/70 hover:text-theme-text"
+                  )}
               >
                 提现历史
               </button>
@@ -319,27 +319,29 @@ export default function PlayerFunds() {
             {activeTab === "overview" && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">收益趋势</h3>
+                  <h3 className="text-lg font-semibold text-theme-text mb-4">收益趋势</h3>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={earningsTrend}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis dataKey="date" axisLine={false} tickLine={false} />
-                        <YAxis axisLine={false} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-theme-border" />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} className="text-theme-text/60" />
+                        <YAxis axisLine={false} tickLine={false} className="text-theme-text/60" />
                         <Tooltip 
                           contentStyle={{ 
                             borderRadius: '12px', 
                             border: 'none', 
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)' 
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                            backgroundColor: 'var(--theme-surface)',
+                            color: 'var(--theme-text)'
                           }} 
                         />
                         <Line 
                           type="monotone" 
                           dataKey="earnings" 
-                          stroke="#9333ea" 
+                          className="stroke-theme-primary" 
                           strokeWidth={2}
-                          dot={{ r: 4, fill: "#9333ea" }}
-                          activeDot={{ r: 6, fill: "#9333ea" }}
+                          dot={{ r: 4, className: "fill-theme-primary" }}
+                          activeDot={{ r: 6, className: "fill-theme-primary" }}
                           name="收益 (¥)"
                         />
                       </LineChart>
@@ -348,25 +350,25 @@ export default function PlayerFunds() {
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">最近订单收益</h3>
+                  <h3 className="text-lg font-semibold text-theme-text mb-4">最近订单收益</h3>
                   <div className="space-y-3">
                     {recentEarnings.length > 0 ? (
                       recentEarnings.map((earning, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div key={index} className="flex items-center justify-between p-3 bg-theme-background rounded-lg border border-theme-border">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                            <div className="w-8 h-8 rounded-full bg-theme-primary/10 flex items-center justify-center text-theme-primary">
                               <i className="fa-gamepad"></i>
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-900">{earning.gameName || '游戏陪玩'}</p>
-                              <p className="text-xs text-gray-500">{earning.date}</p>
+                              <p className="text-sm font-medium text-theme-text">{earning.gameName || '游戏陪玩'}</p>
+                              <p className="text-xs text-theme-text/60">{earning.date}</p>
                             </div>
                           </div>
-                          <p className="font-medium text-gray-900">+¥{earning.amount.toFixed(2)}</p>
+                          <p className="font-medium text-theme-success">+¥{earning.amount.toFixed(2)}</p>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
+                      <div className="text-center py-8 text-theme-text/60">
                         <p>暂无收益记录</p>
                       </div>
                     )}
@@ -379,51 +381,39 @@ export default function PlayerFunds() {
             {activeTab === "withdraw" && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">提现申请</h3>
-                  <p className="text-sm text-gray-500">将您的收益提现至绑定的收款账户</p>
+                  <h3 className="text-lg font-semibold text-theme-text mb-1">提现申请</h3>
+                  <p className="text-sm text-theme-text/70">将您的收益提现至绑定的收款账户</p>
                 </div>
                 
-                <div className="bg-gray-50 p-5 rounded-lg">
+                <div className="bg-theme-background p-5 rounded-lg">
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">提现金额 (元)</label>
+                    <label className="block text-sm font-medium text-theme-text mb-2">提现金额 (元)</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">¥</span>
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-theme-text/60">¥</span>
                       <input
                         type="number"
                         value={withdrawalAmount}
                         onChange={(e) => setWithdrawalAmount(e.target.value)}
                         placeholder="请输入提现金额"
-                        className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full pl-8 pr-4 py-3 border border-theme-border rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text"
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-theme-text/60 mt-2">
                       最低提现金额：100元，当前可用余额：¥{fundsOverview?.availableBalance.toFixed(2) || '0.00'}
                     </p>
                   </div>
                   
-                  <div className="mb-6">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">收款账户</h4>
-                    <div className="flex items-center p-3 bg-white border border-gray-200 rounded-lg">
-                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-3">
-                        <i className="fa-qrcode"></i>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">微信支付 (张三)</p>
-                        <p className="text-xs text-gray-500">点击更换收款账户</p>
-                      </div>
-                      <i className="fa-angle-right text-gray-400"></i>
-                    </div>
-                  </div>
+
                   
                   <button 
                     onClick={handleWithdrawal}
                     disabled={isWithdrawing}
-                    className="w-full py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-theme-primary text-theme-surface font-medium rounded-lg hover:bg-theme-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isWithdrawing ? '提交中...' : '确认提现'}
                   </button>
                   
-                  <div className="mt-4 text-xs text-gray-500 text-center">
+                  <div className="mt-4 text-xs text-theme-text/60 text-center">
                     <p>提现申请提交后，将在1-3个工作日内处理</p>
                   </div>
                 </div>
@@ -434,27 +424,27 @@ export default function PlayerFunds() {
             {activeTab === "history" && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">提现历史</h3>
-                  <p className="text-sm text-gray-500">查看您的所有提现记录</p>
+                  <h3 className="text-lg font-semibold text-theme-text mb-1">提现历史</h3>
+                  <p className="text-sm text-theme-text/70">查看您的所有提现记录</p>
                 </div>
                 
                 <div className="space-y-4">
                   {withdrawalRecords.map(record => {
                     const statusInfo = getWithdrawalStatusStyle(record.status);
                     return (
-                      <div key={record.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
+                      <div key={record.id} className="flex items-center justify-between p-4 border border-theme-border rounded-lg">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-gray-900">¥{record.amount.toFixed(2)}</h4>
+                            <h4 className="font-medium text-theme-text">¥{Number(record.amount).toFixed(2)}</h4>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.className}`}>
                               {statusInfo.label}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-500">订单号: {record.id}</p>
+                          <p className="text-sm text-theme-text/60">订单号: {record.id}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-gray-900">{record.date}</p>
-                          <p className="text-xs text-gray-500">预计到账时间: {record.status === 'pending' ? '审核后1-3个工作日' : '已完成'}</p>
+                          <p className="font-medium text-theme-text">{record.date}</p>
+                          <p className="text-xs text-theme-text/60">预计到账时间: {record.status === 'pending' ? '审核后1-3个工作日' : '已完成'}</p>
                         </div>
                       </div>
                     );

@@ -102,6 +102,26 @@ class WebSocketService {
       console.warn('WebSocket 未连接，无法发送消息');
     }
   }
+
+  // 触发测试通知（用于开发测试）
+  triggerTestNotification(): void {
+    console.log('触发测试通知：模拟新订单通知');
+    
+    // 模拟发送新订单通知
+    const testMessage: WebSocketMessage = {
+      type: 'new_order',
+      data: {
+        message: '收到新订单',
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    // 由于WebSocket连接暂未实现，这里只是打印日志
+    console.log('模拟WebSocket消息:', testMessage);
+    
+    // 在实际项目中，这里应该通过WebSocket发送消息
+    // this.sendMessage(testMessage);
+  }
 }
 
 export default WebSocketService;

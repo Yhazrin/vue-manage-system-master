@@ -9,7 +9,9 @@ export interface Withdrawal {
     platform_fee: number;
     final_amount: number;
     created_at: string;
-    status: '待审核' | '已通过' | '已拒绝';
+    updated_at?: string;
+    notes?: string;
+    status: '待审核' | '已批准' | '已拒绝' | '已打款';
 }
 
 export class WithdrawalDAO {
@@ -20,9 +22,8 @@ export class WithdrawalDAO {
             player_id: number;
             amount: number;
         }) {
-        // 1) 拿当前抽成率
-        const rate = await ConfigDAO.getCommissionRate(); // e.g. 10
-        const platform_fee = +(withdrawal.amount * rate / 100).toFixed(2);
+        // 不再收取提现抽成，platform_fee设为0
+        const platform_fee = 0;
 
         const sql = `
       INSERT INTO withdrawals (withdrawal_id, player_id, amount, platform_fee)
@@ -112,5 +113,89 @@ export class WithdrawalDAO {
     `;
         const [rows]: any = await pool.execute(dataSql, params);
         return { total: cnt, withdrawals: rows };
+    }
+
+    /** 更新提现状态 */
+    static async updateStatus(
+        withdrawal_id: string,
+        status: '待审核' | '已批准' | '已拒绝' | '已打款',
+        notes?: string
+    ): Promise<boolean> {
+        // 开始事务
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // 获取当前提现记录的状态
+            const currentStatusSql = `SELECT status, player_id, amount FROM withdrawals WHERE withdrawal_id = ?`;
+            const [currentRows]: any = await connection.execute(currentStatusSql, [withdrawal_id]);
+            
+            if (currentRows.length === 0) {
+                await connection.rollback();
+                return false;
+            }
+
+            const { status: currentStatus, player_id, amount } = currentRows[0];
+
+            // 更新提现记录状态
+            const updateSql = `
+                UPDATE withdrawals 
+                SET status = ?, notes = ?, updated_at = NOW() 
+                WHERE withdrawal_id = ?
+            `;
+            const [result]: any = await connection.execute(updateSql, [status, notes || null, withdrawal_id]);
+            
+            if (result.affectedRows === 0) {
+                await connection.rollback();
+                return false;
+            }
+
+            // 处理余额和已提现金额的更新
+            if (status === '已批准') {
+                // 如果状态变为"已批准"，需要从陪玩余额中扣除提现金额
+                const playerSql = `SELECT money FROM players WHERE id = ?`;
+                const [playerRows]: any = await connection.execute(playerSql, [player_id]);
+                
+                if (playerRows.length > 0) {
+                    const currentMoney = Number(playerRows[0].money) || 0;
+                    const newMoney = Math.max(0, currentMoney - Number(amount));
+                    
+                    // 更新陪玩余额
+                    const updatePlayerSql = `UPDATE players SET money = ? WHERE id = ?`;
+                    await connection.execute(updatePlayerSql, [newMoney, player_id]);
+                }
+            } else if (status === '已打款') {
+                // 如果状态直接变为"已打款"，需要同时处理余额扣除和已提现金额增加
+                const playerSql = `SELECT money, profit FROM players WHERE id = ?`;
+                const [playerRows]: any = await connection.execute(playerSql, [player_id]);
+                
+                if (playerRows.length > 0) {
+                    const currentMoney = Number(playerRows[0].money) || 0;
+                    const currentProfit = Number(playerRows[0].profit) || 0;
+                    
+                    // 如果之前状态不是"已批准"，需要先扣除余额
+                    let newMoney = currentMoney;
+                    if (currentStatus !== '已批准') {
+                        newMoney = Math.max(0, currentMoney - Number(amount));
+                    }
+                    
+                    // 增加已提现金额
+                    const newProfit = currentProfit + Number(amount);
+                    
+                    // 同时更新余额和已提现金额
+                    const updatePlayerSql = `UPDATE players SET money = ?, profit = ? WHERE id = ?`;
+                    await connection.execute(updatePlayerSql, [newMoney, newProfit, player_id]);
+                }
+            }
+
+            await connection.commit();
+            return true;
+        } catch (error) {
+            await connection.rollback();
+            console.error('更新提现状态失败:', error);
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 }

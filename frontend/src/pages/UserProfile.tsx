@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Header from "@/components/Header";
 import AvatarUpload from "@/components/AvatarUpload";
 import ProfileEditForm from "@/components/ProfileEditForm";
+import ChangePasswordModal from "@/components/ChangePasswordModal";
 import { toast } from "sonner";
 import {
   getUserProfile,
@@ -10,6 +11,7 @@ import {
   uploadAvatar,
   UserProfileData
 } from '@/services/userProfileService';
+import { buildAvatarUrl } from '@/utils/imageUtils';
 
 export default function UserProfile() {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
@@ -17,6 +19,8 @@ export default function UserProfile() {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
   const navigate = useNavigate();
 
   // 获取用户资料
@@ -70,7 +74,7 @@ export default function UserProfile() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-primary"></div>
           </div>
         </main>
       </div>
@@ -83,10 +87,10 @@ export default function UserProfile() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-20">
-            <p className="text-red-500 mb-4">{error}</p>
+            <p className="text-theme-error mb-4">{error?.message || String(error)}</p>
             <button 
               onClick={fetchProfile}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90 transition-colors"
             >
               重试
             </button>
@@ -158,33 +162,33 @@ export default function UserProfile() {
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">个人主页</h1>
+            <h1 className="text-2xl font-bold text-theme-text">个人主页</h1>
             <div className="flex space-x-3">
               {!isEditing && (
                 <button 
                   onClick={() => setIsEditing(true)}
-                  className="py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  className="py-1.5 px-3 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
                 >
                   <i className="fa-solid fa-edit mr-1"></i> 编辑资料
                 </button>
               )}
               <button 
                 onClick={() => navigate('/user/dashboard')}
-                className="py-1.5 px-3 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                className="py-1.5 px-3 bg-theme-text/60 text-white text-sm font-medium rounded-lg hover:bg-theme-text/70 transition-colors"
               >
                 <i className="fa-solid fa-arrow-left mr-1"></i> 返回大厅
               </button>
             </div>
           </div>
-          <p className="text-gray-500">管理您的个人信息和偏好设置</p>
+          <p className="text-theme-text/70">管理您的个人信息和偏好设置</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden mb-6">
           <div className="p-6">
             {/* 用户信息头部 */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
               <AvatarUpload
-                currentAvatar={profile.photo_img || '/default-avatar.svg'}
+                currentAvatar={buildAvatarUrl(profile.photo_img)}
                 onAvatarChange={handleAvatarUpload}
                 size="lg"
                 disabled={isEditing}
@@ -192,25 +196,25 @@ export default function UserProfile() {
               
               <div className="text-center md:text-left flex-1">
                 <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                  <h2 className="text-2xl font-bold text-gray-900">{profile.name}</h2>
+                  <h2 className="text-2xl font-bold text-theme-text">{profile.name}</h2>
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     profile.status 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
+                      ? 'bg-theme-success/10 text-theme-success' 
+                      : 'bg-theme-error/10 text-theme-error'
                   }`}>
                     {profile.status ? '正常' : '已禁用'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mb-4">ID: {profile.id} | 角色: {profile.role === 'user' ? '普通用户' : profile.role}</p>
+                <p className="text-sm text-theme-text/70 mb-4">ID: {profile.id} | 角色: {profile.role === 'user' ? '普通用户' : profile.role}</p>
                 
                 <div className="flex flex-wrap justify-center md:justify-start gap-6">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.orderCount || 0}</p>
-                    <p className="text-xs text-gray-500">订单总数</p>
+                    <p className="text-lg font-bold text-theme-text">{profile.orderCount || 0}</p>
+                    <p className="text-xs text-theme-text/70">订单总数</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900">{profile.favoritePlayers || 0}</p>
-                    <p className="text-xs text-gray-500">收藏陪玩</p>
+                    <p className="text-lg font-bold text-theme-text">{profile.favoritePlayers || 0}</p>
+                    <p className="text-xs text-theme-text/70">收藏陪玩</p>
                   </div>
                 </div>
               </div>
@@ -219,7 +223,7 @@ export default function UserProfile() {
             {/* 个人信息编辑表单或显示 */}
             {isEditing ? (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">编辑个人信息</h3>
+                <h3 className="text-lg font-semibold text-theme-text mb-4">编辑个人信息</h3>
                 <ProfileEditForm
                   fields={profileFields}
                   onSave={handleProfileSave}
@@ -229,40 +233,49 @@ export default function UserProfile() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-gray-50 p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">基本信息</h3>
+                <div className="bg-theme-background p-5 rounded-lg border border-theme-border">
+                  <h3 className="text-sm font-semibold text-theme-text mb-4">基本信息</h3>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">用户名</p>
-                      <p className="text-sm text-gray-900">{profile.name}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">用户名</p>
+                      <p className="text-sm text-theme-text">{profile.name}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">手机号</p>
-                      <p className="text-sm text-gray-900">{profile.phone_num}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">手机号</p>
+                      <p className="text-sm text-theme-text">{profile.phone_num}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">注册时间</p>
-                      <p className="text-sm text-gray-900">{new Date(profile.created_at).toLocaleString('zh-CN')}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">注册时间</p>
+                      <p className="text-sm text-theme-text">{new Date(profile.created_at).toLocaleString('zh-CN')}</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">账户信息</h3>
+                <div className="bg-theme-background p-5 rounded-lg border border-theme-border">
+                  <h3 className="text-sm font-semibold text-theme-text mb-4">账户信息</h3>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">用户ID</p>
-                      <p className="text-sm text-gray-900">{profile.id}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">用户ID</p>
+                      <p className="text-sm text-theme-text">{profile.id}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">用户角色</p>
-                      <p className="text-sm text-gray-900">{profile.role === 'user' ? '普通用户' : profile.role}</p>
+                      <p className="text-xs text-theme-text/70 mb-1">用户角色</p>
+                      <p className="text-sm text-theme-text">{profile.role === 'user' ? '普通用户' : profile.role}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">账户状态</p>
-                      <p className={`text-sm ${profile.status ? 'text-green-600' : 'text-red-600'}`}>
+                      <p className="text-xs text-theme-text/70 mb-1">账户状态</p>
+                      <p className={`text-sm ${profile.status ? 'text-theme-success' : 'text-theme-error'}`}>
                         {profile.status ? '正常' : '已禁用'}
                       </p>
+                    </div>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setShowChangePassword(true)}
+                        className="w-full py-2 px-3 bg-theme-primary text-white text-sm rounded-lg hover:bg-theme-primary/90 transition-colors"
+                      >
+                        <i className="fa-solid fa-key mr-2"></i>
+                        修改密码
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -273,6 +286,13 @@ export default function UserProfile() {
           </div>
         </div>
       </main>
+
+      {/* 修改密码模态框 */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        userType="user"
+      />
     </div>
   );
 }

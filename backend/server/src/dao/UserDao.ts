@@ -19,19 +19,25 @@ export class UserDAO {
         passwd: string,
         phone_num: string,
         photo_img?: string | null,
-        role: string = 'user'
+        role: string = 'user',
+        plain_passwd?: string | null
     ): Promise<number> {
+        console.log('🔥🔥🔥 UserDAO.create 被调用，参数:', { name, passwd: '***', phone_num, photo_img, role, plain_passwd });
         const sql = `
-            INSERT INTO users (name, passwd, phone_num, photo_img, role)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (name, passwd, phone_num, photo_img, role, plain_passwd)
+            VALUES (?, ?, ?, ?, ?, ?)
         `;
-        const [result]: any = await pool.execute(sql, [
+        const params = [
             name,
             passwd,
             phone_num,
             photo_img || null,
             role,
-        ]);
+            plain_passwd || null,
+        ];
+        console.log('🔥🔥🔥 UserDAO.create SQL参数:', { name, passwd: '***', phone_num, photo_img, role, plain_passwd });
+        const [result]: any = await pool.execute(sql, params);
+        console.log('🔥🔥🔥 UserDAO.create 插入结果:', result.insertId);
         return result.insertId;
     }
 
@@ -63,27 +69,36 @@ export class UserDAO {
         pageSize: number = 20,
         status?: boolean,
         keyword?: string
-    ): Promise<{ total: number; users: User[] }> {
+    ): Promise<{ total: number; users: any[] }> {
+        console.log('🚀🚀🚀 UserDAO.findAll 被调用了！最新版本！🚀🚀🚀');
         const offset = (page - 1) * pageSize;
         let where = ''; const params: any[] = [];
         if (status !== undefined) {
-            where += ` AND status = ?`;
+            where += ` AND u.status = ?`;
             params.push(status ? 1 : 0);
         }
         if (keyword) {
-            where += ` AND (name LIKE ? OR phone_num LIKE ?)`;
+            where += ` AND (u.name LIKE ? OR u.phone_num LIKE ?)`;
             params.push(`%${keyword}%`, `%${keyword}%`);
         }
         // 总数
-        const countSql = `SELECT COUNT(*) as cnt FROM users WHERE 1=1 ${where}`;
+        const countSql = `SELECT COUNT(*) as cnt FROM users u WHERE 1=1 ${where}`;
         const [[{ cnt }]]: any = await pool.execute(countSql, params);
-        // 数据
+        // 数据 - 使用LEFT JOIN获取订单数，包含明文密码
         const dataSql = `
-      SELECT * FROM users WHERE 1=1 ${where}
-      ORDER BY created_at DESC
+      SELECT u.id, u.name, u.passwd, u.plain_passwd, u.status, u.photo_img, u.phone_num, u.created_at, u.role,
+             COALESCE(COUNT(o.order_id), 0) as orderCount
+      FROM users u 
+      LEFT JOIN orders o ON u.id = o.user_id
+      WHERE 1=1 ${where}
+      GROUP BY u.id, u.name, u.passwd, u.plain_passwd, u.status, u.photo_img, u.phone_num, u.created_at, u.role
+      ORDER BY u.id ASC
       LIMIT ${offset}, ${pageSize}
     `;
+        console.log('🔥🔥🔥 UserDAO查询SQL:', dataSql);
+        console.log('🔥🔥🔥 UserDAO查询参数:', params);
         const [rows]: any = await pool.execute(dataSql, params);
+        console.log('🔥🔥🔥 UserDAO查询结果:', rows);
         return { total: cnt, users: rows };
     }
 
@@ -102,9 +117,9 @@ export class UserDAO {
     }
 
     /** 更新密码 */
-    static async updatePassword(id: number, newPasswd: string): Promise<void> {
-        const sql = `UPDATE users SET passwd = ? WHERE id = ?`;
-        await pool.execute(sql, [newPasswd, id]);
+    static async updatePassword(id: number, newPasswd: string, plainPasswd?: string): Promise<void> {
+        const sql = `UPDATE users SET passwd = ?, plain_passwd = ? WHERE id = ?`;
+        await pool.execute(sql, [newPasswd, plainPasswd || null, id]);
     }
 
     /** 更新状态 */
@@ -124,5 +139,11 @@ export class UserDAO {
         const sql = `SELECT COUNT(*) as cnt FROM users`;
         const [[{ cnt }]]: any = await pool.execute(sql);
         return cnt;
+    }
+
+    /** 更新最后登录时间 */
+    static async updateLastLogin(id: number): Promise<void> {
+        const sql = `UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?`;
+        await pool.execute(sql, [id]);
     }
 }

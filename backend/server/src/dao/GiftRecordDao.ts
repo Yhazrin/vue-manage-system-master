@@ -6,6 +6,7 @@ export interface GiftRecord {
     id: number;
     user_id: number;
     player_id: number;
+    order_id?: string;
     gift_id: number;
     quantity: number;
     total_price: number;
@@ -17,6 +18,7 @@ export class GiftRecordDAO {
     static async create(record: {
         user_id: number;
         player_id: number;
+        order_id?: string;
         gift_id: number;
         quantity: number;
     }) {
@@ -27,18 +29,19 @@ export class GiftRecordDAO {
         );
         const total_price = gift.price * record.quantity;
 
-        // 2) 算抽成
-        const rate = await ConfigDAO.getCommissionRate();
+        // 2) 算抽成 - 使用礼物专用抽成率
+        const rate = await ConfigDAO.getGiftCommissionRate();
         const platform_fee = +(total_price * rate / 100).toFixed(2);
 
         // 3) 插入打赏记录
         const sql = `
-      INSERT INTO gift_records (user_id, player_id, gift_id, quantity, total_price)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO gift_records (user_id, player_id, order_id, gift_id, quantity, total_price, platform_fee)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
         const [result]: any = await pool.execute(sql, [
             record.user_id,
             record.player_id,
+            record.order_id || null,
             record.gift_id,
             record.quantity,
             total_price,

@@ -5,6 +5,9 @@ import { useState, useEffect } from "react";
 import { addFavoritePlayer, removeFavoritePlayer } from "@/services/favoriteService";
 import { Heart } from "lucide-react";
 import { toast } from "sonner";
+import { buildAvatarUrl } from '@/utils/imageUtils';
+import { getPlayerRatingSummary, PlayerRatingSummary, formatRating } from '@/services/ratingService';
+import RatingDetail from './RatingDetail';
 
 interface PlayerCardProps {
   player: Player;
@@ -16,10 +19,26 @@ interface PlayerCardProps {
 export default function PlayerCard({ player, className, isFavorite = false, onFavoriteChange }: PlayerCardProps) {
   const [isLocalFavorite, setIsLocalFavorite] = useState(isFavorite);
   const [isLoading, setIsLoading] = useState(false);
+  const [ratingData, setRatingData] = useState<PlayerRatingSummary | null>(null);
+  const [showRatingDetail, setShowRatingDetail] = useState(false);
 
   useEffect(() => {
     setIsLocalFavorite(isFavorite);
   }, [isFavorite]);
+
+  // 加载评分数据
+  useEffect(() => {
+    const loadRatingData = async () => {
+      try {
+        const data = await getPlayerRatingSummary(player.id);
+        setRatingData(data);
+      } catch (error) {
+        console.error('加载评分数据失败:', error);
+      }
+    };
+
+    loadRatingData();
+  }, [player.id]);
 
   // 处理收藏/取消收藏
   const handleFavoriteToggle = async (e: React.MouseEvent) => {
@@ -51,14 +70,14 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
   };
   // Get status color based on online status
   const getStatusColor = () => {
-    // 后端返回的status是number(0/1)或boolean
-    const isOnline = player.status === 1 || player.status === true;
-    return isOnline ? 'bg-green-500' : 'bg-gray-300';
+    // 后端返回的online_status是number(0/1)或boolean
+    const isOnline = player.online_status === 1 || player.online_status === true;
+    return isOnline ? 'bg-theme-success' : 'bg-theme-text/30';
   };
   
   // Get status text based on online status
   const getStatusText = () => {
-    const isOnline = player.status === 1 || player.status === true;
+    const isOnline = player.online_status === 1 || player.online_status === true;
     return isOnline ? '在线' : '离线';
   };
   
@@ -69,7 +88,7 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
       return (
         <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
           <img 
-            src={player.photo_img} 
+            src={buildAvatarUrl(player.photo_img)} 
             alt={player.name}
             className="w-full h-full object-cover"
           />
@@ -116,10 +135,32 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
         </div>
         <div className="flex items-center text-xs text-theme-text/80">
           <div className="flex items-center">
-            <i className="fa-solid fa-star text-yellow-400 mr-1"></i>
-            <span>{player.rating || '5.0'}</span>
+            <i className="fa-solid fa-star text-theme-warning mr-1"></i>
+            <span>
+              {ratingData && ratingData.success 
+                ? formatRating(ratingData.averageRating) 
+                : (player.rating || '5.0')
+              }
+            </span>
           </div>
-          <span className="mx-1">({player.reviews || 0}条评价)</span>
+          <span className="mx-1">
+            ({ratingData && ratingData.success 
+              ? ratingData.totalReviews 
+              : (player.reviews || 0)
+            }条评价)
+          </span>
+          {ratingData && ratingData.success && ratingData.totalReviews > 0 && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowRatingDetail(true);
+              }}
+              className="ml-1 text-theme-primary hover:underline"
+            >
+              详情
+            </button>
+          )}
         </div>
           </div>
         </div>
@@ -185,8 +226,8 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
               className={cn(
                 "w-8 h-8 flex items-center justify-center transition-colors rounded-full",
                 isLocalFavorite 
-                  ? "text-red-500 hover:text-red-600" 
-                  : "text-theme-text/30 hover:text-red-500",
+                  ? "text-theme-error hover:text-theme-error/80" 
+                  : "text-theme-text/30 hover:text-theme-error",
                 isLoading && "opacity-50 cursor-not-allowed"
               )}
             >
@@ -203,6 +244,13 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
           </div>
         </div>
       </div>
+      
+      {/* 评分详情弹窗 */}
+      <RatingDetail
+        playerId={player.id}
+        isOpen={showRatingDetail}
+        onClose={() => setShowRatingDetail(false)}
+      />
     </Link>
   );
 }

@@ -1,11 +1,24 @@
 import Header from "@/components/Header";
 import GameGrid from "@/components/GameGrid";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "@/contexts/authContext";
 
 export default function Home() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [currentTheme, setCurrentTheme] = useState<string>('default');
   const navigate = useNavigate();
+  const { isAuthenticated, userRole } = useContext(AuthContext);
+
+  // 主题切换函数
+  const switchTheme = (theme: string) => {
+    setCurrentTheme(theme);
+    if (theme === 'default') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  };
   
   // FAQ数据
   const faqItems = [
@@ -31,72 +44,65 @@ export default function Home() {
     <div className="bg-theme-background min-h-screen">
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
-        {/* 英雄区域 */}
-        <section className="bg-theme-primary rounded-2xl overflow-hidden mb-12">
-          <div className="grid md:grid-cols-2 gap-8 p-8 md:p-12 items-center">
-            <div className="text-white">
-              <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-           Vita<br />找到你的游戏伙伴
+      <main>
+        {/* Hero Section - 左右顶格 */}
+        <section className="relative hero-gradient-fullwidth py-20 px-4 overflow-hidden">
+          <div className="relative z-10 max-w-6xl mx-auto text-center">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight hero-text-primary">
+              找到最适合的游戏陪玩
             </h1>
-              <p className="text-lg mb-8 text-white/80">
-                无论你是想提升游戏技巧，还是寻找组队开黑的伙伴，我们都能满足你的需求。
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <button 
-                onClick={() => navigate('/user/dashboard')}
-                className="px-6 py-3 bg-theme-surface text-theme-primary font-semibold rounded-lg hover:bg-theme-border transition-colors"
-              >
-                立即体验
-              </button>
+            <p className="text-xl md:text-2xl mb-8 hero-text-secondary max-w-3xl mx-auto">
+              专业陪玩，让游戏更有趣
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button 
-                onClick={() => navigate('/player/guide')}
-                className="px-6 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white/10 transition-colors"
+                onClick={() => navigate('/lobby')}
+                className="hero-btn-primary hover:scale-105"
               >
-                成为陪玩
+                开始寻找陪玩
               </button>
-              </div>
-            </div>
-            <div className="hidden md:block relative">
-              <img 
-                src="https://space.coze.cn/api/coze_space/gen_image?image_size=landscape_16_9&prompt=game%20controller%20with%20players%2C%20vibrant%20colors%2C%20modern%20gaming%20aesthetic&sign=3811405250805873faae7924fc7cf6e0" 
-                alt="游戏陪玩" 
-                className="rounded-lg shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500"
-              />
+              {/* 只有在用户未登录或不是普通用户时才显示"成为陪玩"按钮 */}
+              {(!isAuthenticated || userRole !== 'user') && (
+                <button 
+                  onClick={() => navigate('/player/register')}
+                  className="hero-btn-secondary hover:scale-105"
+                >
+                  成为陪玩
+                </button>
+              )}
             </div>
           </div>
         </section>
         
-        {/* 平台特点 */}
-        <section className="mb-12">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-theme-text mb-3">为什么选择我们</h2>
-            <p className="text-theme-text/70 max-w-2xl mx-auto">我们提供专业、安全、便捷的游戏陪玩服务，让你的游戏体验更加精彩</p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-theme-surface p-6 rounded-xl shadow-sm border border-theme-border hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-theme-primary/10 rounded-lg flex items-center justify-center text-theme-primary mb-4">
-                <i className="fa-solid fa-user-check text-xl"></i>
+        <div className="container mx-auto px-4 py-8">
+          {/* Features Section */}
+          <section className="py-16 bg-theme-background">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center text-theme-text mb-12">
+              为什么选择我们
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-theme-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fa-solid fa-shield-halved text-theme-primary text-2xl"></i>
+                </div>
+                <h3 className="text-xl font-semibold text-theme-text mb-2">安全可靠</h3>
+                <p className="text-theme-text/70">严格的陪玩认证体系，保障您的游戏体验</p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">严格筛选</h3>
-              <p className="text-theme-text/70">每位陪玩都经过严格审核，确保技术水平和服务质量</p>
-            </div>
-            
-            <div className="bg-theme-surface p-6 rounded-xl shadow-sm border border-theme-border hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-600 mb-4">
-                <i className="fa-solid fa-shield-alt text-xl"></i>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-theme-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fa-solid fa-star text-theme-accent text-2xl"></i>
+                </div>
+                <h3 className="text-xl font-semibold text-theme-text mb-2">专业服务</h3>
+                <p className="text-theme-text/70">经验丰富的陪玩团队，提供优质服务</p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">安全交易</h3>
-              <p className="text-theme-text/70">平台担保交易，资金安全有保障，让你放心消费</p>
-            </div>
-            
-            <div className="bg-theme-surface p-6 rounded-xl shadow-sm border border-theme-border hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center text-green-600 mb-4">
-                <i className="fa-solid fa-gamepad text-xl"></i>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-theme-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fa-solid fa-clock text-theme-success text-2xl"></i>
+                </div>
+                <h3 className="text-xl font-semibold text-theme-text mb-2">24小时服务</h3>
+                <p className="text-theme-text/70">24小时在线，随时为您提供陪玩服务</p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">多样选择</h3>
-              <p className="text-theme-text/70">覆盖多种热门游戏，无论你喜欢什么类型，都能找到合适的陪玩</p>
             </div>
           </div>
         </section>
@@ -120,19 +126,19 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-16 h-16 bg-theme-primary/10 rounded-full flex items-center justify-center text-theme-primary text-2xl font-bold mx-auto mb-4">1</div>
-              <h3 className="text-xl font-semibold mb-2">注册账号</h3>
+              <h3 className="text-xl font-semibold mb-2 text-theme-text">注册账号</h3>
               <p className="text-theme-text/70">创建账号并完善个人信息，设置你的游戏偏好</p>
             </div>
             
             <div className="text-center">
               <div className="w-16 h-16 bg-theme-primary/10 rounded-full flex items-center justify-center text-theme-primary text-2xl font-bold mx-auto mb-4">2</div>
-              <h3 className="text-xl font-semibold mb-2">选择陪玩</h3>
+              <h3 className="text-xl font-semibold mb-2 text-theme-text">选择陪玩</h3>
               <p className="text-theme-text/70">浏览陪玩列表，根据游戏类型和价格筛选合适的陪玩</p>
             </div>
             
             <div className="text-center">
               <div className="w-16 h-16 bg-theme-primary/10 rounded-full flex items-center justify-center text-theme-primary text-2xl font-bold mx-auto mb-4">3</div>
-              <h3 className="text-xl font-semibold mb-2">开始游戏</h3>
+              <h3 className="text-xl font-semibold mb-2 text-theme-text">开始游戏</h3>
               <p className="text-theme-text/70">预约时间并支付，与陪玩一起享受游戏乐趣</p>
             </div>
           </div>
@@ -152,7 +158,7 @@ export default function Home() {
                 className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden"
               >
                 <button
-                  className="w-full px-6 py-4 text-left font-medium flex justify-between items-center"
+                  className="w-full px-6 py-4 text-left font-medium flex justify-between items-center text-theme-text"
                   onClick={() => setActiveFaq(activeFaq === index ? null : index)}
                 >
                   <span>{item.question}</span>
@@ -171,13 +177,14 @@ export default function Home() {
         {/* 行动召唤 */}
         <section className="bg-theme-primary/10 rounded-2xl p-8 text-center mb-8">
           <h2 className="text-3xl font-bold text-theme-text mb-4">准备好开始你的游戏之旅了吗？</h2>
-          <p className="text-lg text-theme-text/70 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg text-theme-text/70 max-w-2xl mx-auto">
+          
             加入我们，找到你的游戏伙伴，一起享受游戏的乐趣
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button 
               onClick={() => navigate('/register')}
-              className="px-8 py-3 bg-theme-primary text-white font-semibold rounded-lg hover:bg-theme-primary/90 transition-colors"
+              className="px-8 py-3 bg-theme-primary text-theme-surface font-semibold rounded-lg hover:bg-theme-primary/90 transition-colors"
             >
               立即注册
             </button>
@@ -189,50 +196,47 @@ export default function Home() {
             </button>
           </div>
         </section>
+        </div>
       </main>
       
       {/* 页脚 */}
-      <footer className="bg-gray-900 text-gray-300 py-12">
+      <footer className="bg-theme-text text-theme-surface py-12">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-white text-xl font-bold mb-4">游戏陪玩平台</h3>
-              <p className="mb-4">连接游戏玩家，打造高品质游戏体验</p>
+              <h3 className="text-theme-surface text-xl font-bold mb-4">游戏陪玩平台</h3>
+              <p className="mb-4 text-theme-surface/80">连接游戏玩家，打造高品质游戏体验</p>
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-theme-surface/60 hover:text-theme-surface transition-colors">
                   <i className="fa-brands fa-weixin text-xl"></i>
                 </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-theme-surface/60 hover:text-theme-surface transition-colors">
                   <i className="fa-brands fa-weibo text-xl"></i>
                 </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-theme-surface/60 hover:text-theme-surface transition-colors">
                   <i className="fa-brands fa-qq text-xl"></i>
                 </a>
               </div>
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4">快速链接</h4>
+              <h4 className="text-theme-surface font-semibold mb-4">快速链接</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition-colors">首页</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">浏览陪玩</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">成为陪玩</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">关于我们</a></li>
+                <li><a href="#" className="hover:text-theme-surface transition-colors">首页</a></li>
+                <li><a href="#" className="hover:text-theme-surface transition-colors">关于我们</a></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4">支持</h4>
+              <h4 className="text-theme-surface font-semibold mb-4">支持</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-white transition-colors">帮助中心</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">常见问题</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">联系我们</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">用户协议</a></li>
+                <li><a href="#" className="hover:text-theme-surface transition-colors">帮助中心</a></li>
+                <li><a href="#" className="hover:text-theme-surface transition-colors">用户协议</a></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4">联系我们</h4>
+              <h4 className="text-theme-surface font-semibold mb-4">联系我们</h4>
               <ul className="space-y-2">
                 <li className="flex items-center">
                   <i className="fa-solid fa-envelope mr-2"></i>
@@ -246,8 +250,8 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            <p>© 2023 游戏陪玩平台. 保留所有权利.</p>
+          <div className="border-t border-theme-surface/20 mt-8 pt-8 text-center text-sm">
+            <p>© 2025 VITA. 保留所有权利.</p>
           </div>
         </div>
       </footer>

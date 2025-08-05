@@ -93,12 +93,12 @@ export default function Register() {
                 {...register('name')}
                 className={cn(
                   "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
-                  errors.name ? "border-red-300" : "border-theme-border"
+                  errors.name ? "border-theme-error" : "border-theme-border"
                 )}
                 placeholder="请输入用户名"
               />
               {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                <p className="mt-1 text-sm text-theme-error">{errors.name.message}</p>
               )}
             </div>
             
@@ -111,12 +111,12 @@ export default function Register() {
                 {...register('phone_num')}
                 className={cn(
                   "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
-                  errors.phone_num ? "border-red-300" : "border-theme-border"
+                  errors.phone_num ? "border-theme-error" : "border-theme-border"
                 )}
                 placeholder="请输入手机号"
               />
               {errors.phone_num && (
-                <p className="mt-1 text-sm text-red-600">{errors.phone_num.message}</p>
+                <p className="mt-1 text-sm text-theme-error">{errors.phone_num.message}</p>
               )}
             </div>
             
@@ -129,12 +129,12 @@ export default function Register() {
                 {...register('passwd')}
                 className={cn(
                   "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
-                  errors.passwd ? "border-red-300" : "border-theme-border"
+                  errors.passwd ? "border-theme-error" : "border-theme-border"
                 )}
                 placeholder="请设置密码"
               />
               {errors.passwd && (
-                <p className="mt-1 text-sm text-red-600">{errors.passwd.message}</p>
+                <p className="mt-1 text-sm text-theme-error">{errors.passwd.message}</p>
               )}
             </div>
             
@@ -147,12 +147,12 @@ export default function Register() {
                 {...register('confirmPassword')}
                 className={cn(
                   "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
-                  errors.confirmPassword ? "border-red-300" : "border-theme-border"
+                  errors.confirmPassword ? "border-theme-error" : "border-theme-border"
                 )}
                 placeholder="请再次输入密码"
               />
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                <p className="mt-1 text-sm text-theme-error">{errors.confirmPassword.message}</p>
               )}
             </div>
             
@@ -181,7 +181,7 @@ export default function Register() {
                 </label>
               </div>
               {errors.role && (
-                <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
+                <p className="mt-1 text-sm text-theme-error">{errors.role.message}</p>
               )}
             </div>
             

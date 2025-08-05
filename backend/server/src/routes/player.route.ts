@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 // 导入共享工具
-import { playerUpload, normalizePath } from '../utils/upload'; // 复用共享multer配置（玩家专用）
+import { playerUpload, normalizePath, deleteFileByRelativePath } from '../utils/upload'; // 复用共享multer配置（玩家专用）
 import {
     phoneValidator,
     phoneUniqueValidator,
@@ -15,6 +15,7 @@ import { createLoginHandler } from '../utils/loginHandler'; // 复用登录逻�
 // 导入业务依赖
 import { PlayerDAO } from '../dao/PlayerDao';
 import { auth, AuthRequest } from '../middleware/auth'; // 权限中间件（带类型）
+import { pool } from '../db'; // 数据库连接池
 
 const router = Router();
 
@@ -61,7 +62,7 @@ router.post(
 
             // 创建玩家
             const id = await PlayerDAO.create(
-                name, hash, phone_num, game_id, QR_img, intro, photo_img
+                name, hash, phone_num, game_id, QR_img, intro, photo_img, passwd
             );
             const newPlayer = await PlayerDAO.findById(id);
 
@@ -83,8 +84,8 @@ router.post(
         phoneValidator, // 复用手机号格式验证
         passwordValidator // 复用密码验证
     ],
-    // 复用通用登录逻辑（传入玩家DAO和角色）
-    createLoginHandler(PlayerDAO.findByPhoneNum, 'player')
+    // 复用通用登录逻辑（传入玩家DAO、更新最后登录时间方法和角色）
+    createLoginHandler(PlayerDAO.findByPhoneNum, PlayerDAO.updateLastLogin, 'player')
 );
 
 /**
@@ -134,12 +135,14 @@ router.get('/public', async (req: Request, res: Response, next: NextFunction) =>
                 photo_img: player.photo_img,
                 intro: player.intro,
                 status: player.status,
+                online_status: player.online_status,  // 添加真实在线状态
                 voice: player.voice,
                 game_id: player.game_id,
                 games: playerGames,
                 price: minPrice,
                 services: services.map((service: any) => ({
                     id: service.id,
+                    game_id: service.game_id,
                     game_name: service.game_name,
                     price: service.price,
                     hours: service.hours
@@ -165,8 +168,15 @@ router.get('/public', async (req: Request, res: Response, next: NextFunction) =>
  */
 router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+        console.log('🔍 陪玩路由权限检查:', {
+            userId: req.user?.id,
+            role: req.user?.role,
+            isManager: req.user?.role === 'manager',
+            isAdmin: req.user?.role === 'admin'
+        });
+        
         // 如果是普通用户或陪玩，重定向到公开接口
-        if (req.user?.role !== 'manager') {
+        if (req.user?.role !== 'manager' && req.user?.role !== 'admin') {
             // 解析分页参数
             const page = Number(req.query.page) || 1;
             const pageSize = Number(req.query.pageSize) || 20;
@@ -207,12 +217,14 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
                     photo_img: player.photo_img,
                     intro: player.intro,
                     status: player.status,
+                    online_status: player.online_status,  // 添加真实在线状态
                     voice: player.voice,
                     game_id: player.game_id,
                     games: playerGames,
                     price: minPrice,
                     services: services.map((service: any) => ({
                         id: service.id,
+                        game_id: service.game_id,
                         game_name: service.game_name,
                         price: service.price,
                         hours: service.hours
@@ -240,7 +252,34 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
         const keyword = req.query.keyword as string | undefined;
         // 调用 DAO 分页查询玩家列表（带筛选条件）
         const result = await PlayerDAO.findAll(page, pageSize, status, keyword);
-        res.json({ success: true, ...result });  // 返回查询结果（总数+玩家列表）
+        
+        // 为每个陪玩添加最后登录时间、订单数量和综合星级
+        const playersWithLoginInfo = await Promise.all(result.players.map(async (player) => {
+            // 查询该陪玩的订单数量
+            const [[{ orderCount }]]: any = await pool.execute(
+                'SELECT COUNT(*) as orderCount FROM orders WHERE player_id = ?',
+                [player.id]
+            );
+            
+            // 查询该陪玩的平均评分作为综合星级
+            const [[{ avgRating }]]: any = await pool.execute(
+                'SELECT AVG(rating) as avgRating FROM comments WHERE player_id = ? AND rating IS NOT NULL',
+                [player.id]
+            );
+            
+            return {
+                ...player,
+                lastLogin: player.last_login ? new Date(player.last_login).toLocaleDateString() : '未登录',
+                orderCount: Number(orderCount) || 0,
+                rating: avgRating ? Number(avgRating).toFixed(1) : null
+            };
+        }));
+        
+        res.json({ 
+            success: true, 
+            total: result.total, 
+            players: playersWithLoginInfo 
+        });  // 返回查询结果（总数+玩家列表）
     } catch (err) {
         next(err);
     }
@@ -282,7 +321,7 @@ router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunct
         const currentRole = req.user?.role;
 
         // 权限判断：仅本人或管理员可访问
-        if (currentRole !== 'manager' && currentUserId !== targetId) {
+        if (currentRole !== 'manager' && currentRole !== 'admin' && currentUserId !== targetId) {
             return res.status(403).json({ success: false, error: '无权限访问该玩家资料' });
         }
 
@@ -316,12 +355,28 @@ router.patch(
         }
 
         const updateData: any = { ...req.body };
+        
         // 处理头像更新
-        if (req.file) updateData.photo_img = normalizePath(req.file.path);
+        if (req.file) {
+            // 获取玩家当前的头像路径
+            const currentPlayer = await PlayerDAO.findById(targetId);
+            if (currentPlayer?.photo_img) {
+                // 删除旧头像文件
+                deleteFileByRelativePath(currentPlayer.photo_img);
+            }
+            
+            updateData.photo_img = normalizePath(req.file.path);
+        }
 
         await PlayerDAO.updateById(targetId, updateData);
 
-        res.json({ success: true });
+        // 返回更新后的头像URL
+        const responseData: any = { success: true };
+        if (req.file) {
+            responseData.photo_img = updateData.photo_img;
+        }
+
+        res.json(responseData);
     } catch (err) {
         next(err);
     }
@@ -329,7 +384,7 @@ router.patch(
 
 /**
  * @route   PATCH /api/players/:id/status
- * @desc    更新在线状态
+ * @desc    更新封禁状态
  * @access  本人可访问
  * @body    { status: boolean }
  */
@@ -344,6 +399,29 @@ router.patch('/:id/status', auth, async (req: AuthRequest, res: Response, next: 
 
         const { status } = req.body;
         await PlayerDAO.updateStatus(targetId, status);
+        res.json({ success: true });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   PATCH /api/players/:id/online-status
+ * @desc    更新在线状态
+ * @access  本人可访问
+ * @body    { onlineStatus: boolean }
+ */
+router.patch('/:id/online-status', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const targetId = Number(req.params.id);
+        const currentUserId = req.user?.id;
+
+        if (currentUserId !== targetId) {
+            return res.status(403).json({ success: false, error: '无权限更新该玩家在线状态' });
+        }
+
+        const { onlineStatus } = req.body;
+        await PlayerDAO.updateOnlineStatus(targetId, onlineStatus);
         res.json({ success: true });
     } catch (err) {
         next(err);
@@ -427,6 +505,73 @@ router.patch(
 );
 
 /**
+ * @route   POST /api/players/change-password
+ * @desc    修改密码（需要验证当前密码）
+ * @access  需要认证
+ * @body    { currentPassword: string, newPassword: string }
+ */
+router.post('/change-password', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const playerId = req.user?.id;
+
+        // 验证参数
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: '当前密码和新密码都不能为空'
+            });
+        }
+
+        // 验证新密码格式
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: '新密码长度至少6位'
+            });
+        }
+
+        // 获取陪玩信息
+        const player = await PlayerDAO.findById(playerId);
+        if (!player) {
+            return res.status(404).json({
+                success: false,
+                message: '陪玩不存在'
+            });
+        }
+
+        // 验证当前密码
+        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, player.passwd);
+        if (!isCurrentPasswordValid) {
+            return res.status(400).json({
+                success: false,
+                message: '当前密码错误'
+            });
+        }
+
+        // 检查新密码是否与当前密码相同
+        const isSamePassword = await bcrypt.compare(newPassword, player.passwd);
+        if (isSamePassword) {
+            return res.status(400).json({
+                success: false,
+                message: '新密码不能与当前密码相同'
+            });
+        }
+
+        // 加密新密码并更新
+        const hash = await bcrypt.hash(newPassword, 10);
+        await PlayerDAO.updatePassword(playerId, hash, newPassword);
+
+        res.json({ 
+            success: true, 
+            message: '密码修改成功' 
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
  * @route   PATCH /api/players/:id/password
  * @desc    修改密码
  * @access  仅本人可访问
@@ -452,7 +597,7 @@ router.patch('/:id/password', auth, async (req: AuthRequest, res: Response, next
         }
 
         const hash = await bcrypt.hash(passwd, 10);
-        await PlayerDAO.updatePassword(targetId, hash);
+        await PlayerDAO.updatePassword(targetId, hash, passwd);
         res.json({ success: true });
     } catch (err) {
         next(err);
@@ -502,6 +647,29 @@ router.delete('/:id/voice', auth, async (req: AuthRequest, res: Response, next: 
     }
 });
 
+
+/**
+ * @route   PATCH /api/players/:id/admin-status
+ * @desc    管理员更新陪玩状态（封禁/解封）
+ * @access  仅管理员可操作
+ * @body    { status: boolean }
+ */
+router.patch('/:id/admin-status', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 权限判断：仅管理员可操作
+        if (req.user?.role !== 'manager') {
+            return res.status(403).json({ success: false, error: '仅管理员可修改陪玩状态' });
+        }
+
+        const targetId = Number(req.params.id);
+        const { status } = req.body;
+
+        await PlayerDAO.updateStatus(targetId, status);
+        res.json({ success: true, message: status ? '陪玩已解封' : '陪玩已封禁' });
+    } catch (err) {
+        next(err);
+    }
+});
 
 /**
  * @route   DELETE /api/players/:id

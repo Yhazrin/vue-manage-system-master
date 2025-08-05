@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useNotificationAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface Notification {
   id: string;

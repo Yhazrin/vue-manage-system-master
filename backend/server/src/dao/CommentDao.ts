@@ -49,7 +49,8 @@ export class CommentDAO {
         const sql = `
             SELECT 
                 c.*,
-                u.name as user_name
+                u.name as user_name,
+                u.photo_img as user_avatar
             FROM comments c
             LEFT JOIN users u ON c.user_id = u.id
             WHERE c.player_id = ?

@@ -1,13 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { useContext } from 'react';
 import { AuthContext } from '@/contexts/authContext';
 import { cn } from '@/lib/utils';
 import { login, LoginRequest } from '@/services/authService';
+
+type Role = 'user' | 'player' | 'admin';
+
+// 角色主题配置
+const roleThemes = {
+  user: {
+    primary: '#6366f1',
+    secondary: '#8b5cf6', 
+    accent: '#06b6d4',
+    background: '#ffffff',
+    surface: '#f8fafc',
+    text: '#0f172a',
+    border: '#e2e8f0',
+    gradientFrom: '#6366f1',
+    gradientTo: '#8b5cf6'
+  },
+  player: {
+    primary: '#10b981',
+    secondary: '#06b6d4',
+    accent: '#f59e0b',
+    background: '#f0fdf4',
+    surface: '#ffffff',
+    text: '#065f46',
+    border: '#d1fae5',
+    gradientFrom: '#10b981',
+    gradientTo: '#06b6d4'
+  },
+  admin: {
+    primary: '#a855f7',
+    secondary: '#ec4899',
+    accent: '#10b981',
+    background: '#fefefe', 
+    surface: '#f9fafb',
+    text: '#374151',
+    border: '#d1d5db',
+    gradientFrom: '#a855f7',
+    gradientTo: '#ec4899'
+  }
+};
 
 // Login form schema
 const loginSchema = z.object({
@@ -21,11 +59,44 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeRole, setActiveRole] = useState<Role>('user');
   const [error, setError] = useState('');
-  const [activeRole, setActiveRole] = useState<'user' | 'player' | 'admin'>('user');
-  const { setIsAuthenticated } = useContext(AuthContext);
+  const [isLoading, setIsLoading] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const navigate = useNavigate();
+  const { setIsAuthenticated } = useContext(AuthContext);
+
+  // 鼠标位置追踪
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({
+        x: (e.clientX / window.innerWidth) * 100,
+        y: (e.clientY / window.innerHeight) * 100
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // 应用角色主题
+  useEffect(() => {
+    const theme = roleThemes[activeRole];
+    
+    // 设置CSS变量
+    Object.entries(theme).forEach(([key, value]) => {
+      if (key !== 'gradientFrom' && key !== 'gradientTo') {
+        document.documentElement.style.setProperty(`--theme-${key}`, value);
+      }
+    });
+    
+    // 设置渐变背景变量
+    document.documentElement.style.setProperty('--gradient-from', theme.gradientFrom);
+    document.documentElement.style.setProperty('--gradient-to', theme.gradientTo);
+    
+    // 添加角色类到body
+    document.body.className = `theme-${activeRole}`;
+  }, [activeRole]);
 
   const {
     register,
@@ -54,8 +125,8 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('userId', response.data.user.id.toString());
         
-        // Set authentication with selected role
-        setIsAuthenticated(true, activeRole);
+        // Set authentication with selected role, 传递用户信息
+        setIsAuthenticated(true, activeRole, response.data.user);
         
         // Show login success notification
         const welcomeMessages = {
@@ -74,20 +145,39 @@ export default function Login() {
         setTimeout(() => {
           switch(activeRole) {
             case 'admin':
-              navigate('/admin/overview');
+              // 根据管理员权限等级进行不同的重定向
+              if (response.data.user.authority === 2) {
+                // 客服重定向到订单管理页面
+                navigate('/admin/orders');
+              } else {
+                // 超级管理员和股东重定向到概览页面
+                navigate('/admin/overview');
+              }
               break;
             case 'player':
-              navigate('/player/dashboard');
+              navigate('/player/orders');
               break;
             default:
               navigate('/user/dashboard');
           }
         }, 1000);
       } else {
+        // 检查是否是封禁错误
+        if (response.message && response.message.includes('账号已被封禁')) {
+          navigate('/banned');
+          return;
+        }
         setError(response.message || '登录失败，请检查您的账号和密码');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
+      // 检查是否是封禁错误
+      if (err.response && err.response.status === 403 && 
+          err.response.data && err.response.data.message && 
+          err.response.data.message.includes('账号已被封禁')) {
+        navigate('/banned');
+        return;
+      }
       setError('登录失败，请检查网络连接或稍后重试');
     } finally {
       setIsLoading(false);
@@ -95,36 +185,129 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-theme-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 login-container">
+      {/* 动态背景 */}
+      <div className="absolute inset-0 bg-theme-background">
+        {/* 流动的渐变背景 */}
+        <div className="absolute inset-0 opacity-30">
+          <div 
+            className="absolute top-0 -left-4 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl animate-blob transition-transform duration-1000 ease-out"
+            style={{
+              background: `linear-gradient(45deg, var(--gradient-from), var(--gradient-to))`,
+              animationDelay: '0s',
+              transform: `translate(${mousePosition.x * 0.05}px, ${mousePosition.y * 0.05}px)`
+            }}
+          ></div>
+          <div 
+            className="absolute top-0 -right-4 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000 transition-transform duration-1000 ease-out"
+            style={{
+              background: `linear-gradient(45deg, var(--gradient-to), var(--gradient-from))`,
+              animationDelay: '2s',
+              transform: `translate(${-mousePosition.x * 0.04}px, ${mousePosition.y * 0.06}px)`
+            }}
+          ></div>
+          <div 
+            className="absolute -bottom-8 left-20 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000 transition-transform duration-1000 ease-out"
+            style={{
+              background: `linear-gradient(45deg, var(--gradient-from), var(--gradient-to))`,
+              animationDelay: '4s',
+              transform: `translate(${mousePosition.x * 0.03}px, ${-mousePosition.y * 0.04}px)`
+            }}
+          ></div>
+        </div>
+        
+        {/* 响应式浮动粒子效果 */}
+        <div className="absolute inset-0">
+          {[...Array(12)].map((_, i) => {
+            const baseLeft = Math.random() * 100;
+            const baseTop = Math.random() * 100;
+            const mouseInfluence = 0.005;
+            return (
+              <div
+                key={i}
+                className="absolute w-1.5 h-1.5 rounded-full opacity-10 animate-float transition-transform duration-1000 ease-out"
+                style={{
+                  backgroundColor: i % 2 === 0 ? 'var(--gradient-from)' : 'var(--gradient-to)',
+                  left: `${baseLeft}%`,
+                  top: `${baseTop}%`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  animationDuration: `${4 + Math.random() * 3}s`,
+                  transform: `translate(${(mousePosition.x - 50) * mouseInfluence}px, ${(mousePosition.y - 50) * mouseInfluence}px)`
+                }}
+              ></div>
+            );
+          })}
+        </div>
+        
+        {/* 鼠标跟随光晕效果 */}
+        <div 
+          className="absolute w-64 h-64 rounded-full opacity-5 pointer-events-none transition-all duration-500 ease-out"
+          style={{
+            background: `radial-gradient(circle, var(--gradient-from) 0%, transparent 60%)`,
+            left: `${mousePosition.x}%`,
+            top: `${mousePosition.y}%`,
+            transform: 'translate(-50%, -50%)'
+          }}
+        ></div>
+      </div>
+
+      {/* 主要内容 */}
+      <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
            <div className="text-theme-primary font-bold text-2xl flex items-center justify-center mb-2">
-            <img src="/VITA.png" alt="VITA Icon" className="w-8 h-8 mr-2" />
+            <img src="favicon.png" alt="VITA Icon" className="w-8 h-8 mr-2" />
            Vita
           </div>
           <h1 className="text-2xl font-bold text-theme-text">欢迎回来</h1>
           <p className="text-theme-text/70">请选择身份并登录您的账号</p>
         </div>
         
-        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden">
+        <div className="bg-theme-surface/80 backdrop-blur-lg rounded-xl shadow-2xl border border-theme-border/50 overflow-hidden transition-all duration-300 hover:shadow-3xl">
           {/* Role Tabs */}
-          <div className="border-b border-theme-border">
-            <div className="flex">
+          <div className="border-b border-theme-border relative role-tab-container">
+            <div className="flex relative">
+              {/* 滑动指示器 */}
+              <div 
+                className="absolute bottom-0 h-0.5 bg-theme-primary transition-all duration-700 ease-out rounded-full"
+                style={{
+                  width: '33.333%',
+                  transform: `translateX(${
+                    activeRole === 'user' ? '0%' : 
+                    activeRole === 'player' ? '100%' : '200%'
+                  })`,
+                  boxShadow: '0 0 3px var(--theme-primary)'
+                }}
+              ></div>
+              
+              {/* 滑动背景 */}
+              <div 
+                className="absolute inset-y-0 bg-theme-primary/8 transition-all duration-700 ease-out rounded-t-lg"
+                style={{
+                  width: '33.333%',
+                  transform: `translateX(${
+                    activeRole === 'user' ? '0%' : 
+                    activeRole === 'player' ? '100%' : '200%'
+                  })`,
+                  backdropFilter: 'blur(4px)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}
+              ></div>
+              
               <button
                 onClick={() => setActiveRole('user')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 role-tab-button ${
                   activeRole === 'user' 
-                    ? 'text-theme-primary border-b-2 border-theme-primary' 
+                    ? 'text-theme-primary' 
                     : 'text-theme-text/70 hover:text-theme-text'
                 }`}
               >
-                普通玩家
+                用户
               </button>
               <button
                 onClick={() => setActiveRole('player')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 role-tab-button ${
                   activeRole === 'player' 
-                    ? 'text-theme-primary border-b-2 border-theme-primary' 
+                    ? 'text-theme-primary' 
                     : 'text-theme-text/70 hover:text-theme-text'
                 }`}
               >
@@ -132,9 +315,9 @@ export default function Login() {
               </button>
               <button
                 onClick={() => setActiveRole('admin')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 role-tab-button ${
                   activeRole === 'admin' 
-                    ? 'text-theme-primary border-b-2 border-theme-primary' 
+                    ? 'text-theme-primary' 
                     : 'text-theme-text/70 hover:text-theme-text'
                 }`}
               >
@@ -147,7 +330,7 @@ export default function Login() {
           <div className="p-6">
             {error && (
               <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
-                {error}
+                {error?.message || String(error)}
               </div>
             )}
             
@@ -179,7 +362,6 @@ export default function Login() {
                     to="/forgot-password"
                     className="text-sm text-theme-primary hover:text-theme-primary/80"
                   >
-                    忘记密码?
                   </Link>
                 </div>
                 <input
@@ -197,7 +379,7 @@ export default function Login() {
               </div>
               
               {/* Role-specific additional fields could go here */}
-              {activeRole === 'player' && (
+              {/* {activeRole === 'player' && (
                 <div className="text-xs text-theme-text/70 bg-theme-primary/10 p-3 rounded-lg">
                   <i className="fa-info-circle mr-1"></i> 作为陪玩，登录后您可以设置您的服务内容和价格
                 </div>
@@ -207,7 +389,7 @@ export default function Login() {
                 <div className="text-xs text-theme-text/70 bg-yellow-500/10 p-3 rounded-lg">
                   <i className="fa-info-circle mr-1"></i> 管理员账号可以管理平台用户和内容
                 </div>
-              )}
+              )} */}
               
               <button
                 type="submit"

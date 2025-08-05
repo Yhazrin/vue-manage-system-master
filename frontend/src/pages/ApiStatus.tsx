@@ -158,27 +158,28 @@ const ApiStatus: React.FC = () => {
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-4">API 状态检查</h1>
+          <h1 className="text-3xl font-bold mb-4 text-theme-text">API 状态检查</h1>
+          <p className="text-theme-text/70">实时监控系统 API 接口状态</p>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">{successCount}</div>
-              <div className="text-sm text-gray-600">正常端点</div>
+              <div className="text-sm text-theme-text/60">正常端点</div>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-red-600">{errorCount}</div>
-              <div className="text-sm text-gray-600">异常端点</div>
+              <div className="text-sm text-theme-text/60">异常端点</div>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">{totalCount}</div>
-              <div className="text-sm text-gray-600">总端点数</div>
+              <div className="text-sm text-theme-text/60">总端点数</div>
             </CardContent>
           </Card>
           
@@ -187,7 +188,7 @@ const ApiStatus: React.FC = () => {
               <div className="text-2xl font-bold text-purple-600">
                 {totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0}%
               </div>
-              <div className="text-sm text-gray-600">可用率</div>
+              <div className="text-sm text-theme-text/60">可用率</div>
             </CardContent>
           </Card>
         </div>

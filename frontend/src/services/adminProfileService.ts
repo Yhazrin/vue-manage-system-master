@@ -38,42 +38,32 @@ export interface ChangeAdminPasswordRequest {
   confirmPassword: string;
 }
 
+export interface UpdateAdminPasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 // 获取管理员资料
 export const getAdminProfile = async (): Promise<AdminProfileData> => {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+      method: 'GET',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch admin profile');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('✅ 从后端获取的真实管理员资料:', data);
+    
+    return data;
   } catch (error) {
-    console.error('Error fetching admin profile:', error);
-    
-    // 开发环境下的模拟数据
-    if (process.env.NODE_ENV === 'development') {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      return {
-        id: 'admin123',
-        nickname: "系统管理员",
-        uid: "AD12345678",
-        avatar: "https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=admin%20avatar&sign=642683509e21425ee6e24388ff9dcff1",
-        role: "超级管理员",
-        permissions: ["用户管理", "订单管理", "财务管理", "系统设置", "权限管理", "数据统计"],
-        joinDate: "2023-01-15",
-        lastLogin: "2024-01-15 09:15:00",
-        loginCount: 356,
-        lastLoginIp: "192.168.1.100",
-        tenureDuration: new Date().getFullYear() - 2023
-      };
-    }
-    
+    console.error('❌ 获取管理员资料失败:', error);
     throw error;
   }
 };
@@ -148,6 +138,45 @@ export const changeAdminPassword = async (data: ChangeAdminPasswordRequest): Pro
       // 模拟密码验证
       if (data.currentPassword !== 'adminpassword') {
         throw new Error('当前密码不正确');
+      }
+      
+      return;
+    }
+    
+    throw error;
+  }
+};
+
+// 更新管理员密码（用于安全设置页面）
+export const updateAdminPassword = async (data: UpdateAdminPasswordRequest): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/managers/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || '密码修改失败');
+    }
+  } catch (error: any) {
+    console.error('Error updating admin password:', error);
+    
+    // 开发环境下的模拟
+    if (process.env.NODE_ENV === 'development') {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 模拟密码验证
+      if (data.currentPassword !== 'admin123') {
+        throw new Error('当前密码不正确');
+      }
+      
+      if (data.newPassword.length < 6) {
+        throw new Error('新密码长度至少为6位');
       }
       
       return;

@@ -1,5 +1,6 @@
 import { get, post, put, patch } from '@/services/api';
 import WebSocketService from './websocketService';
+import { buildAvatarUrl } from '@/utils/imageUtils';
 
 // 定义订单类型接口
 export interface Order {
@@ -11,6 +12,11 @@ export interface Order {
   serviceTime: string;
   description?: string;
   isRated?: boolean; // 添加评价状态字段
+  user_confirmed_end?: boolean; // 用户确认结束状态
+  player_confirmed_end?: boolean; // 陪玩确认结束状态
+  gift_count?: number;
+  gift_total?: number;
+  gift_details?: string;
   user: {
     id: string;
     nickname: string;
@@ -38,15 +44,20 @@ export const getUserOrders = async (status?: string): Promise<Order[]> => {
     serviceTime: order.hours ? `${order.hours}小时` : (order.serviceTime || '未知'),
     description: order.description,
     isRated: Boolean(order.is_rated), // 添加评价状态
+    user_confirmed_end: Boolean(order.user_confirmed_end), // 用户确认结束状态
+    player_confirmed_end: Boolean(order.player_confirmed_end), // 陪玩确认结束状态
+    gift_count: Number(order.gift_count || 0),
+    gift_total: Number(order.gift_total || 0),
+    gift_details: order.gift_details || '',
     user: {
       id: order.user_id?.toString() || order.user?.id || '',
       nickname: order.user_name || order.user?.nickname || '用户',
-      avatar: order.user_avatar || order.user?.avatar || '/default-avatar.svg'
+      avatar: buildAvatarUrl(order.user_avatar || order.user?.avatar)
     },
     player: {
       id: order.player_id?.toString() || order.player?.id || '',
       nickname: order.player_name || order.player?.nickname || '陪玩',
-      avatar: order.player_avatar || order.player?.avatar || '/default-avatar.svg'
+      avatar: buildAvatarUrl(order.player_avatar || order.player?.avatar)
     }
   }));
   
@@ -91,15 +102,20 @@ export const getPlayerOrders = async (status?: string): Promise<Order[]> => {
     status: mapOrderStatus(order.status),
     serviceTime: order.hours ? `${order.hours}小时` : (order.serviceTime || '未知'),
     description: order.description,
+    user_confirmed_end: Boolean(order.user_confirmed_end), // 用户确认结束状态
+    player_confirmed_end: Boolean(order.player_confirmed_end), // 陪玩确认结束状态
+    gift_count: Number(order.gift_count || 0),
+    gift_total: Number(order.gift_total || 0),
+    gift_details: order.gift_details || '',
     user: {
       id: order.user_id?.toString() || order.user?.id || '',
       nickname: order.user_name || order.user?.nickname || '用户',
-      avatar: order.user_avatar || order.user?.avatar || '/default-avatar.svg'
+      avatar: buildAvatarUrl(order.user_avatar || order.user?.avatar)
     },
     player: {
       id: order.player_id?.toString() || order.player?.id || '',
       nickname: order.player_name || order.player?.nickname || '陪玩',
-      avatar: order.player_avatar || order.player?.avatar || '/default-avatar.svg'
+      avatar: buildAvatarUrl(order.player_avatar || order.player?.avatar)
     }
   }));
   
@@ -113,13 +129,13 @@ export const getOrderById = async (orderId: string): Promise<Order> => {
 
 // 创建订单
 export const createOrder = async (orderData: {
-  playerId: number;
-  gameType: string;
-  serviceTime: string;
-  price: number;
+  player_id: number;
+  service_id: number;
+  hours: number;
+  amount: number;
   description?: string;
-}): Promise<Order> => {
-  const order = await post<Order>('/orders', orderData);
+}): Promise<{ order_id: string; success: boolean; message: string }> => {
+  const response = await post<{ order_id: string; success: boolean; message: string }>('/orders', orderData);
   
   // 订单创建成功后，模拟发送通知给陪玩
   // 在实际项目中，这应该由后端WebSocket服务器处理
@@ -128,7 +144,7 @@ export const createOrder = async (orderData: {
     wsService.triggerTestNotification();
   }, 1000); // 延迟1秒模拟网络延迟
   
-  return order;
+  return response;
 };
 
 // 更新订单状态
@@ -149,4 +165,9 @@ export const completeOrder = async (orderId: string): Promise<Order> => {
 // 评价订单
 export const rateOrder = async (orderId: string, rating: number, comment: string) => {
   return post(`/orders/${orderId}/rate`, { rating, comment });
+};
+
+// 确认结束订单
+export const confirmEndOrder = async (orderId: string): Promise<{ success: boolean; message: string; order?: Order }> => {
+  return patch<{ success: boolean; message: string; order?: Order }>(`/orders/${orderId}/confirm-end`, {});
 };

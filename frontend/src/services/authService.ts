@@ -1,5 +1,6 @@
 // 认证相关的API服务
 import { API_BASE_URL } from '@/config/api';
+import { buildAvatarUrl } from '@/utils/imageUtils';
 
 export interface LoginRequest {
   identifier: string; // 邮箱或手机号
@@ -94,6 +95,13 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
     const result = await response.json();
     
     if (result.success) {
+      // 角色映射：将后端的管理员角色统一映射为前端的 admin
+      let mappedRole = request.role;
+      if (request.role === 'admin') {
+        // 对于管理员登录，无论后端返回什么角色（super_admin, customer_service等），都映射为 admin
+        mappedRole = 'admin';
+      }
+      
       return {
         success: true,
         message: '登录成功',
@@ -104,8 +112,9 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
             nickname: result.user?.name || result.user?.nickname || '用户',
             email: result.user?.email || '',
             phone: result.user?.phone_num || request.identifier,
-            role: request.role,
-            avatar: result.user?.photo_img || result.user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + request.identifier,
+            role: mappedRole, // 使用映射后的角色
+            authority: result.user?.authority, // 添加权限等级字段
+            avatar: buildAvatarUrl(result.user?.photo_img || result.user?.avatar),
           },
         },
       };
@@ -125,24 +134,34 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
       
       // 模拟登录验证
       const validCredentials = {
-        'admin@example.com': { password: '123456', role: 'admin' },
-        'player@example.com': { password: '123456', role: 'player' },
-        'user@example.com': { password: '123456', role: 'user' },
-        '13800138000': { password: '123456', role: 'admin' },
-        '13800138001': { password: '123456', role: 'player' },
-        '13800138002': { password: '123456', role: 'user' },
+        'admin@example.com': { password: 'abc123', role: 'admin' },
+        'player@example.com': { password: 'abc123', role: 'player' },
+        'user@example.com': { password: 'abc123', role: 'user' },
+        '13800138000': { password: 'abc123', role: 'admin' },
+        '13800138001': { password: 'abc123', role: 'player' },
+        '13800138002': { password: 'abc123', role: 'user' },
       };
 
       const credential = validCredentials[request.identifier as keyof typeof validCredentials];
       
       if (credential && credential.password === request.password && credential.role === request.role) {
+        // 为不同角色分配不同的数字ID
+        let mockUserId = 1;
+        if (request.role === 'admin') {
+          mockUserId = 1;
+        } else if (request.role === 'player') {
+          mockUserId = 2;
+        } else {
+          mockUserId = 3;
+        }
+        
         return {
           success: true,
           message: '登录成功',
           data: {
             token: 'mock_jwt_token_' + Date.now(),
             user: {
-              id: 'user_' + Date.now(),
+              id: mockUserId,
               nickname: request.role === 'admin' ? '系统管理员' : request.role === 'player' ? '游戏陪玩' : '普通用户',
               email: request.identifier.includes('@') ? request.identifier : 'user@example.com',
               phone: request.identifier.includes('@') ? '13800138000' : request.identifier,

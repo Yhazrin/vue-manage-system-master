@@ -1,7 +1,11 @@
-import Header from "@/components/Header";
-import { useState, useEffect } from "react";  // 补充导入useEffect
-import { toast } from "sonner";
+import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Header from '@/components/Header';
+import { toast } from 'sonner';
 import { API_BASE_URL } from '@/config/api';
+import { AuthContext } from '@/contexts/authContext';
+import { buildAvatarUrl } from '@/utils/imageUtils';
+import { fetchJson } from '@/utils/fetchWrapper';
 
 // 定义用户类型接口
 interface User {
@@ -12,6 +16,9 @@ interface User {
   status: boolean;
   role?: string;
   photo_img?: string;
+  passwd?: string; // 哈希密码字段
+  plain_passwd?: string; // 明文密码字段
+  orderCount?: number; // 订单数
   // 陪玩特有字段
   game_id?: number;
   money?: number;
@@ -20,6 +27,8 @@ interface User {
 }
 
 export default function AdminUserManagement() {
+  const { isAuthenticated, userRole } = useContext(AuthContext);
+  const navigate = useNavigate();
   // 所有状态和钩子移到组件内部
   const [activeTab, setActiveTab] = useState<'users' | 'players'>('users');
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,6 +42,18 @@ export default function AdminUserManagement() {
   });
   const [loading, setLoading] = useState(true);
   const [playersLoading, setPlayersLoading] = useState(true);
+
+  // 检查认证状态和权限
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const storedRole = localStorage.getItem('userRole');
+    
+    if (!isAuthenticated || !token || userRole !== 'admin' || storedRole !== 'admin') {
+      toast.error('请先以管理员身份登录');
+      navigate('/login');
+      return;
+    }
+  }, [isAuthenticated, userRole, navigate]);
   
   // Fetch users on component mount（移到组件内部）
   useEffect(() => {
@@ -40,15 +61,7 @@ export default function AdminUserManagement() {
       try {
         setLoading(true);
         // 调用真实API获取用户数据
-        const response = await fetch(`${API_BASE_URL}/users?page=1&pageSize=100`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch users');
-        }
-        const data = await response.json();
+        const data = await fetchJson(`${API_BASE_URL}/users?page=1&pageSize=100`);
         
         // 确保data.users是数组，如果不是则使用空数组
         setUsers(Array.isArray(data.users) ? data.users : []);
@@ -71,15 +84,7 @@ export default function AdminUserManagement() {
         try {
             setPlayersLoading(true);
             // 调用真实API获取陪玩数据
-        const response = await fetch(`${API_BASE_URL}/players?page=1&pageSize=100`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch players');
-        }
-        const data = await response.json();
+        const data = await fetchJson(`${API_BASE_URL}/players?page=1&pageSize=100`);
         
         // 确保data.players是数组，如果不是则使用空数组
          setPlayers(Array.isArray(data.players) ? data.players : []);
@@ -97,23 +102,74 @@ export default function AdminUserManagement() {
   }, []);
   
   // 切换用户状态
-  const toggleUserStatus = (id: number, role: 'user' | 'player') => {
-    if (role === 'user') {
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === id 
-            ? { ...user, status: !user.status } 
-            : user
-        )
-      );
-    } else {
-      setPlayers(prevPlayers => 
-        prevPlayers.map(player => 
-          player.id === id 
-            ? { ...player, status: !player.status } 
-            : player
-        )
-      );
+  const toggleUserStatus = async (id: number, role: 'user' | 'player') => {
+    try {
+      const endpoint = role === 'user' 
+        ? `${API_BASE_URL}/users/${id}/admin-status`
+        : `${API_BASE_URL}/players/${id}/admin-status`;
+      
+      // 获取当前状态
+      const currentUser = role === 'user' 
+        ? users.find(u => u.id === id)
+        : players.find(p => p.id === id);
+      
+      const newStatus = !currentUser?.status;
+      
+      const updatedData = await fetchJson(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      
+      if (role === 'user') {
+        // 切换当前状态
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === id 
+              ? { ...user, status: !user.status } 
+              : user
+          )
+        );
+        toast.success(updatedData.message || '用户状态更新成功');
+      } else {
+        // 切换当前状态
+        setPlayers(prevPlayers => 
+          prevPlayers.map(player => 
+            player.id === id 
+              ? { ...player, status: !player.status } 
+              : player
+          )
+        );
+        toast.success(updatedData.message || '陪玩状态更新成功');
+      }
+    } catch (error) {
+      console.error(`Failed to toggle ${role} status:`, error);
+      toast.error(`${role === 'user' ? '用户' : '陪玩'}状态更新失败`);
+    }
+  };
+
+  // 删除陪玩
+  const deletePlayer = async (id: number) => {
+    if (!confirm('确定要删除这个陪玩用户吗？此操作不可撤销。')) {
+      return;
+    }
+
+    try {
+      await fetchJson(`${API_BASE_URL}/players/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // 从列表中移除已删除的陪玩
+      setPlayers(prevPlayers => prevPlayers.filter(player => player.id !== id));
+      toast.success('陪玩用户删除成功');
+    } catch (error) {
+      console.error('Failed to delete player:', error);
+      toast.error('删除陪玩用户失败');
     }
   };
   
@@ -146,7 +202,7 @@ export default function AdminUserManagement() {
       created_at: new Date().toISOString().split('T')[0],
       status: true,
       intro: newPlayer.intro,
-      photo_img: null
+      photo_img: undefined
     };
     
     setPlayers(prevPlayers => [...prevPlayers, playerToAdd]);
@@ -160,10 +216,10 @@ export default function AdminUserManagement() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
+          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full border-theme-primary" role="status">
             <span className="visually-hidden">加载中...</span>
           </div>
-          <p className="mt-2 text-gray-600">正在加载用户数据...</p>
+          <p className="mt-2 text-theme-text/70">正在加载用户数据...</p>
         </div>
       </div>
     );
@@ -175,19 +231,19 @@ export default function AdminUserManagement() {
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">用户/陪玩管理</h1>
-          <p className="text-gray-500">管理平台用户和陪玩账号信息</p>
+          <h1 className="text-2xl font-bold text-theme-text mb-2">用户/陪玩管理</h1>
+          <p className="text-theme-text/70">管理平台用户和陪玩账号信息</p>
         </div>
         
         {/* 标签页切换 */}
         <div className="mb-6">
-          <div className="inline-flex bg-gray-100 rounded-lg p-1">
+          <div className="inline-flex bg-theme-surface rounded-lg p-1">
             <button
               onClick={() => setActiveTab('users')}
               className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'users' 
-                  ? 'bg-white text-purple-600 shadow-sm' 
-                  : 'text-gray-700 hover:text-gray-900'
+                  ? 'bg-theme-background text-theme-primary shadow-sm' 
+                  : 'text-theme-text/70 hover:text-theme-text'
               }`}
             >
               普通用户
@@ -196,8 +252,8 @@ export default function AdminUserManagement() {
               onClick={() => setActiveTab('players')}
               className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'players' 
-                  ? 'bg-white text-purple-600 shadow-sm' 
-                  : 'text-gray-700 hover:text-gray-900'
+                  ? 'bg-theme-background text-theme-primary shadow-sm' 
+                  : 'text-theme-text/70 hover:text-theme-text'
               }`}
             >
               陪玩管理
@@ -208,7 +264,7 @@ export default function AdminUserManagement() {
         {/* 搜索和添加按钮 */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="relative w-full md:w-64">
-            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-theme-text/40">
               <i className="fa-solid fa-search"></i>
             </span>
             <input
@@ -216,7 +272,7 @@ export default function AdminUserManagement() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="搜索姓名/手机号/ID..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full pl-10 pr-4 py-2 border border-theme-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-background text-theme-text"
             />
           </div>
           
@@ -226,54 +282,56 @@ export default function AdminUserManagement() {
 
         
         {/* 用户/陪玩列表 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
+                <tr className="bg-theme-background">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">用户信息</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">账号密码</th>
                   {activeTab === 'players' && (
                     <>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">擅长技能</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">评分</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单数</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">擅长技能</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">评分</th>
                     </>
                   )}
-                  {activeTab === 'users' && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单数</th>
-                  )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">注册时间</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最后登录</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">订单数</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">注册时间</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">状态</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-theme-border">
                 {activeTab === 'users' ? (
                   filteredUsers.length > 0 ? (
                     filteredUsers.map(user => (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.id}</td>
+                      <tr key={user.id} className="hover:bg-theme-background">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{user.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full" src={user.photo_img || '/default-avatar.png'} alt={user.name} />
+                              <img className="h-10 w-10 rounded-full" src={buildAvatarUrl(user.photo_img)} alt={user.name} />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                              <div className="text-xs text-gray-500">{user.phone_num}</div>
+                              <div className="text-sm font-medium text-theme-text">{user.name}</div>
+                              <div className="text-xs text-theme-text/70">{user.phone_num}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.created_at}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-theme-text">
+                            <div>账号: {user.phone_num}</div>
+                            <div className="text-xs text-theme-text/70">密码: {user.plain_passwd || '未设置'}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{user.orderCount || 0}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{user.created_at}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             user.status 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
+                              ? 'bg-theme-success/10 text-theme-success' 
+                              : 'bg-theme-error/10 text-theme-error'
                           }`}>
                             {user.status ? '正常' : '封禁'}
                           </span>
@@ -282,8 +340,8 @@ export default function AdminUserManagement() {
                           <button 
                             onClick={() => toggleUserStatus(user.id, 'user')}
                             className={user.status 
-                              ? 'text-red-600 hover:text-red-900' 
-                              : 'text-green-600 hover:text-green-900'
+                              ? 'text-theme-error hover:text-theme-error/80' 
+                              : 'text-theme-success hover:text-theme-success/80'
                             }
                           >
                             {user.status ? '封禁' : '解封'}
@@ -293,7 +351,7 @@ export default function AdminUserManagement() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                      <td colSpan={6} className="px-6 py-10 text-center text-theme-text/70">
                         <div className="flex flex-col items-center">
                           <i className="fa-solid fa-users text-2xl mb-2"></i>
                           <p>没有找到匹配的用户</p>
@@ -304,55 +362,69 @@ export default function AdminUserManagement() {
                 ) : (
                   filteredPlayers.length > 0 ? (
                     filteredPlayers.map(player => (
-                      <tr key={player.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.id}</td>
+                      <tr key={player.id} className="hover:bg-theme-background">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{player.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <img className="h-10 w-10 rounded-full" src={player.photo_img || '/default-avatar.png'} alt={player.name} />
+                              <img className="h-10 w-10 rounded-full" src={buildAvatarUrl(player.photo_img)} alt={player.name} />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{player.name}</div>
-                              <div className="text-xs text-gray-500">{player.phone_num}</div>
+                              <div className="text-sm font-medium text-theme-text">{player.name}</div>
+                              <div className="text-xs text-theme-text/70">{player.phone_num}</div>
                             </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-theme-text">
+                            <div>账号: {player.phone_num}</div>
+                            <div className="text-xs text-theme-text/70">密码: {player.plain_passwd || '未设置'}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-wrap gap-1">
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full">
+                            <span className="px-2 py-0.5 bg-theme-surface text-theme-text text-xs rounded-full">
                               {player.intro || '暂无介绍'}
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">★ -</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.created_at}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">★ -</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{player.orderCount || 0}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{player.created_at}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             player.status 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
+                              ? 'bg-theme-success/10 text-theme-success' 
+                              : 'bg-theme-error/10 text-theme-error'
                           }`}>
                             {player.status ? '正常' : '封禁'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button 
-                            onClick={() => toggleUserStatus(player.id, 'player')}
-                            className={player.status 
-                              ? 'text-red-600 hover:text-red-900' 
-                              : 'text-green-600 hover:text-green-900'
-                            }
-                          >
-                            {player.status ? '封禁' : '解封'}
-                          </button>
+                          <div className="flex space-x-2">
+                            <button 
+                              onClick={() => toggleUserStatus(player.id, 'player')}
+                              className={player.status 
+                                ? 'text-theme-error hover:text-theme-error/80' 
+                                : 'text-theme-success hover:text-theme-success/80'
+                              }
+                            >
+                              {player.status ? '封禁' : '解封'}
+                            </button>
+                            <button 
+                              onClick={() => deletePlayer(player.id)}
+                              className="text-theme-error hover:text-theme-error/80 ml-2"
+                              title="注销陪玩"
+                            >
+                              注销
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-gray-500">
+                      <td colSpan={7} className="px-6 py-10 text-center text-theme-text/70">
                         <div className="flex flex-col items-center">
                           <i className="fa-solid fa-user-tie text-2xl mb-2"></i>
                           <p>没有找到匹配的陪玩</p>

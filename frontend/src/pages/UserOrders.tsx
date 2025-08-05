@@ -2,91 +2,90 @@ import { useState, useEffect } from 'react';
 import Header from "@/components/Header";
 import { useNavigate } from 'react-router-dom';
 import { cn } from "@/lib/utils";
-import { getUserOrders, Order } from '@/services/orderService';
+import { getUserOrders, Order, confirmEndOrder } from '@/services/orderService';
 import { toast } from 'sonner';
 import { RatingModal } from '@/components/RatingModal';
 import { createComment } from '@/services/commentService';
+import { buildAvatarUrl } from '@/utils/imageUtils';
+import { OrderAmountTooltip } from '../components/OrderAmountTooltip';
+import { useOrderAutoRefresh } from '@/hooks/useAutoRefresh';
 
 // 获取订单状态样式
 const getStatusStyle = (status: Order['status']) => {
   switch(status) {
     case 'pending':
       return {
-        className: "bg-yellow-50 text-yellow-700", 
+        className: "bg-theme-warning/10 text-theme-warning", 
         label: "待确认" 
       };
     case 'accepted':
     case 'in_progress':
       return {
-        className: "bg-purple-50 text-purple-700",
+        className: "bg-theme-primary/10 text-theme-primary",
         label: "进行中"
       };
     case 'completed':
       return {
-        className: "bg-green-50 text-green-700", 
+        className: "bg-theme-success/10 text-theme-success", 
         label: "已完成" 
       };
     case 'cancelled':
       return {
-        className: "bg-gray-50 text-gray-700", 
+        className: "bg-theme-text/10 text-theme-text/70", 
         label: "已取消" 
       };
     default:
       return {
-        className: "bg-gray-50 text-gray-700", 
+        className: "bg-theme-text/10 text-theme-text/70", 
         label: "未知状态" 
       };
   }
 };
 
 export default function UserOrders() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [previousOrders, setPreviousOrders] = useState<Order[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [showRatingModal, setShowRatingModal] = useState<boolean>(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const navigate = useNavigate();
 
-  // 加载订单数据
-  useEffect(() => {
-    loadOrders();
-  }, [activeFilter]);
-
-  const loadOrders = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const data = await getUserOrders(activeFilter);
-      setPreviousOrders(orders);
-      
-      // 确保data是数组，如果不是则设为空数组
-      const ordersArray = Array.isArray(data) ? data : [];
-      setOrders(ordersArray);
-
-      // 比较新旧订单状态，并发送通知
-      ordersArray.forEach(newOrder => {
-        const oldOrder = previousOrders.find(o => o.id === newOrder.id);
-        if (oldOrder && oldOrder.status !== newOrder.status) {
-          toast.info(`订单 #${newOrder.id} 状态更新`, {
-            description: `您的订单状态已从 ${getStatusStyle(oldOrder.status).label} 更新为 ${getStatusStyle(newOrder.status).label}`,
-            position: 'bottom-right',
+  // 使用自动刷新Hook
+  const { 
+    data: orders, 
+    loading, 
+    error, 
+    refresh: loadOrders 
+  } = useOrderAutoRefresh(
+    () => getUserOrders(activeFilter),
+    {
+      onDataUpdate: (newOrders, oldOrders) => {
+        // 比较新旧订单状态，并发送通知
+        if (Array.isArray(newOrders) && Array.isArray(oldOrders)) {
+          newOrders.forEach(newOrder => {
+            const oldOrder = oldOrders.find(o => o.id === newOrder.id);
+            if (oldOrder && oldOrder.status !== newOrder.status) {
+              toast.info(`订单 #${newOrder.id} 状态更新`, {
+                description: `您的订单状态已从 ${getStatusStyle(oldOrder.status).label} 更新为 ${getStatusStyle(newOrder.status).label}`,
+                position: 'bottom-right',
+              });
+            }
           });
         }
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '加载订单失败';
-      setError(errorMessage);
-      console.error('Error loading orders:', err);
-      
-      // 设置空数组避免forEach错误
-      setOrders([]);
-    } finally {
-      setLoading(false);
+      }
     }
-  };
+  );
+
+  // 当筛选条件改变时，重新加载数据（移除loadOrders依赖避免循环）
+  useEffect(() => {
+    // 直接调用refresh而不依赖loadOrders
+    if (loadOrders && typeof loadOrders === 'function') {
+      try {
+        loadOrders();
+      } catch (error) {
+        console.error('加载订单失败:', error);
+        toast.error('加载订单失败，请稍后重试');
+      }
+    }
+  }, [activeFilter]); // 移除loadOrders依赖
 
   // 处理评价
   const handleRating = (order: Order) => {
@@ -95,7 +94,7 @@ export default function UserOrders() {
   };
 
   // 提交评价
-   const handleSubmitRating = async (rating: number, comment: string) => {
+   const handleSubmitRating = async (rating: number, comment: string, gifts?: Array<{giftId: number, quantity: number}>) => {
      if (!selectedOrder) return;
 
      try {
@@ -103,10 +102,12 @@ export default function UserOrders() {
          player_id: Number(selectedOrder.player.id),
          order_id: selectedOrder.id,
          rating,
-         content: comment
+         content: comment,
+         gifts: gifts
        });
        
-       toast.success('评价提交成功');
+       const giftMessage = gifts && gifts.length > 0 ? '，礼物已赠送' : '';
+       toast.success(`评价提交成功${giftMessage}`);
        setShowRatingModal(false);
        setSelectedOrder(null);
        
@@ -117,13 +118,29 @@ export default function UserOrders() {
        toast.error('评价提交失败，请重试');
      }
    };
+
+  // 处理确认结束订单
+  const handleConfirmEnd = async (orderId: string) => {
+    try {
+      const response = await confirmEndOrder(orderId);
+      toast.success(response.message);
+      
+      // 重新加载订单以更新状态
+      loadOrders();
+    } catch (error) {
+      console.error('确认结束订单失败:', error);
+      toast.error('确认结束订单失败，请重试');
+    }
+  };
   
   // 筛选订单
-  const filteredOrders = activeFilter === 'all'
-    ? orders
-    : activeFilter === 'in_progress'
-      ? orders.filter(order => order.status === 'accepted' || order.status === 'in_progress')
-      : orders.filter(order => order.status === activeFilter);
+  const filteredOrders = !orders ? [] : (
+    activeFilter === 'all'
+      ? orders
+      : activeFilter === 'in_progress'
+        ? orders.filter(order => order.status === 'accepted' || order.status === 'in_progress')
+        : orders.filter(order => order.status === activeFilter)
+  );
 
   if (loading) {
     return (
@@ -131,11 +148,11 @@ export default function UserOrders() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-            <div className="h-16 bg-gray-200 rounded-xl mb-6"></div>
+            <div className="h-8 bg-theme-surface rounded w-1/4 mb-6"></div>
+            <div className="h-16 bg-theme-surface rounded-xl mb-6"></div>
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+                <div key={i} className="h-32 bg-theme-surface rounded-xl"></div>
               ))}
             </div>
           </div>
@@ -150,10 +167,10 @@ export default function UserOrders() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-10">
-            <p className="text-red-500 mb-4">加载失败: {error}</p>
+            <p className="text-theme-error mb-4">加载失败: {error?.message || String(error)}</p>
             <button 
               onClick={loadOrders}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90"
             >
               重试
             </button>
@@ -250,7 +267,7 @@ export default function UserOrders() {
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                       <div className="flex items-center gap-3">
                         <img 
-                          src={order.player?.avatar || '/default-avatar.svg'} 
+                          src={buildAvatarUrl(order.player?.avatar)} 
                           alt={order.player?.nickname || '陪玩'}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -267,7 +284,16 @@ export default function UserOrders() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-theme-text/60">订单金额</p>
-                          <p className="font-medium text-theme-text">¥{(Number(order.price) || 0).toFixed(2)}</p>
+                          <OrderAmountTooltip
+                             serviceAmount={typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0}
+                             giftCount={order.gift_count || 0}
+                             giftAmount={typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total) || 0}
+                             totalAmount={(typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0) + (typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total) || 0)}
+                           >
+                            <p className="font-medium text-theme-text cursor-help">
+                              ¥{((typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0) + (typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total) || 0)).toFixed(2)}
+                            </p>
+                          </OrderAmountTooltip>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}>
                           {statusInfo.label}
@@ -285,22 +311,56 @@ export default function UserOrders() {
                           <i className="fa-solid fa-clock mr-2 text-theme-primary"></i>
                           <span>{order.orderTime}</span>
                         </div>
+                        {order.gift_details && (
+                          <div className="flex items-center text-theme-text/60">
+                            <i className="fa-solid fa-gift mr-2 text-purple-500"></i>
+                            <span className="text-xs truncate max-w-xs" title={order.gift_details}>
+                              礼物: {order.gift_details}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       
-                      {order.status === 'completed' && (
-                        order.isRated ? (
-                          <span className="text-green-600 text-sm">
-                            <i className="fa-solid fa-check-circle mr-1"></i> 已评价
-                          </span>
-                        ) : (
-                          <button 
-                            onClick={() => handleRating(order)}
-                            className="text-theme-primary text-sm hover:text-theme-primary/80"
-                          >
-                            <i className="fa-solid fa-comment mr-1"></i> 评价
-                          </button>
-                        )
-                      )}
+                      <div className="flex items-center gap-3">
+                        {/* 进行中状态显示结束按钮 */}
+                        {order.status === 'in_progress' && (
+                          <div className="flex items-center gap-2">
+                            {order.user_confirmed_end ? (
+                              <span className="text-theme-success text-sm">
+                                <i className="fa-solid fa-check-circle mr-1"></i> 您已确认结束
+                              </span>
+                            ) : (
+                              <button 
+                                onClick={() => handleConfirmEnd(order.id)}
+                                className="py-1.5 px-3 bg-theme-error text-white text-sm font-medium rounded-lg hover:bg-theme-error/80 transition-colors"
+                              >
+                                结束订单
+                              </button>
+                            )}
+                            {order.player_confirmed_end && !order.user_confirmed_end && (
+                              <span className="text-theme-warning text-sm">
+                                <i className="fa-solid fa-clock mr-1"></i> 等待您确认结束
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* 已完成状态显示评价按钮 */}
+                        {order.status === 'completed' && (
+                          order.isRated ? (
+                            <span className="text-green-600 text-sm">
+                              <i className="fa-solid fa-check-circle mr-1"></i> 已评价
+                            </span>
+                          ) : (
+                            <button 
+                              onClick={() => handleRating(order)}
+                              className="text-theme-primary text-sm hover:text-theme-primary/80"
+                            >
+                              <i className="fa-solid fa-comment mr-1"></i> 评价
+                            </button>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

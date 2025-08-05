@@ -1,5 +1,6 @@
 // 提现相关的API服务
 import { API_BASE_URL } from '@/config/api';
+import { get, put } from './api';
 
 // 提现记录接口定义
 export interface WithdrawalRecord {
@@ -53,22 +54,14 @@ export interface ProcessRecord {
 
 // 更新提现状态请求
 export interface UpdateWithdrawalStatusRequest {
-  status: 'approved' | 'rejected' | 'paid';
+  status: '已批准' | '已拒绝' | '已打款';
   notes?: string;
 }
 
 // 获取提现申请列表
 export const getWithdrawals = async (): Promise<WithdrawalRecord[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawals`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch withdrawal requests');
-    }
-    return await response.json();
+    return await get<WithdrawalRecord[]>('/withdrawals');
   } catch (error) {
     console.error('Error fetching withdrawal requests:', error);
     // 开发环境下返回空数组
@@ -82,15 +75,7 @@ export const getWithdrawals = async (): Promise<WithdrawalRecord[]> => {
 // 获取所有提现申请
 export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawals`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch withdrawal requests');
-    }
-    const data = await response.json();
+    const data = await get<any>('/withdrawals');
     
     // 处理后端返回的数据格式
     if (data.success && data.withdrawals) {
@@ -100,8 +85,9 @@ export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
         playerName: item.player_name || `玩家${item.player_id}`,
         amount: Number(item.amount || 0),
         status: item.status === '待审核' ? 'pending' : 
-                item.status === '已通过' ? 'approved' : 
-                item.status === '已拒绝' ? 'rejected' : 'pending',
+                item.status === '已批准' ? 'approved' : 
+                item.status === '已拒绝' ? 'rejected' : 
+                item.status === '已打款' ? 'paid' : 'pending',
         createdAt: item.created_at,
         processedAt: item.updated_at,
         processedBy: item.processed_by,
@@ -124,15 +110,7 @@ export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
 // 获取处理记录
 export const getProcessRecords = async (): Promise<ProcessRecord[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawals`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch process records');
-    }
-    const data = await response.json();
+    const data = await get<any>('/withdrawals');
     // 转换后端数据格式为前端需要的ProcessRecord格式
     if (data.success && data.withdrawals) {
       return data.withdrawals.map((item: any) => ({
@@ -158,15 +136,24 @@ export const getProcessRecords = async (): Promise<ProcessRecord[]> => {
 // 获取特定提现申请的处理记录
 export const getWithdrawalProcessRecords = async (withdrawalId: string): Promise<ProcessRecord[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawals/${withdrawalId}/records`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch withdrawal process records');
+    const response = await get<any>(`/withdrawals/${withdrawalId}/records`);
+    
+    // 处理后端返回的数据格式
+    if (response.success && response.records) {
+      return response.records.map((item: any) => ({
+        id: item.id,
+        withdrawalId: item.withdrawalId,
+        status: item.action === '提交申请' ? 'pending' :
+                item.action === '批准申请' ? 'approved' :
+                item.action === '拒绝申请' ? 'rejected' :
+                item.action === '标记为已打款' ? 'paid' : 'pending',
+        processedBy: item.operator,
+        processedAt: item.timestamp,
+        notes: item.notes || ''
+      }));
     }
-    return await response.json();
+    
+    return [];
   } catch (error) {
     console.error('Error fetching withdrawal process records:', error);
     // 开发环境下返回空数组
@@ -183,20 +170,29 @@ export const updateWithdrawalStatus = async (
   updateData: UpdateWithdrawalStatusRequest
 ): Promise<WithdrawalRequest> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawals/${withdrawalId}/status`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(updateData),
-    });
+    const response = await put<any>(`/withdrawals/${withdrawalId}/status`, updateData);
     
-    if (!response.ok) {
-      throw new Error('Failed to update withdrawal status');
+    // 处理后端返回的数据格式
+    if (response.success && response.withdrawal) {
+      const item = response.withdrawal;
+      return {
+        id: item.withdrawal_id,
+        playerUid: item.player_id?.toString() || '',
+        playerName: item.player_name || `玩家${item.player_id}`,
+        amount: Number(item.amount || 0),
+        status: item.status === '待审核' ? 'pending' : 
+                item.status === '已批准' ? 'approved' : 
+                item.status === '已拒绝' ? 'rejected' : 
+                item.status === '已打款' ? 'paid' : 'pending',
+        createdAt: item.created_at,
+        processedAt: item.updated_at,
+        processedBy: item.processed_by,
+        notes: item.notes,
+        qrCodeUrl: '' // 暂时为空，后续可以添加
+      };
     }
     
-    return await response.json();
+    throw new Error('Invalid response format');
   } catch (error) {
     console.error('Error updating withdrawal status:', error);
     throw error;
@@ -205,31 +201,23 @@ export const updateWithdrawalStatus = async (
 
 // 批准提现申请
 export const approveWithdrawal = async (withdrawalId: string, notes?: string): Promise<WithdrawalRequest> => {
-  return updateWithdrawalStatus(withdrawalId, { status: 'approved', notes });
+  return updateWithdrawalStatus(withdrawalId, { status: '已批准', notes });
 };
 
 // 拒绝提现申请
 export const rejectWithdrawal = async (withdrawalId: string, notes: string): Promise<WithdrawalRequest> => {
-  return updateWithdrawalStatus(withdrawalId, { status: 'rejected', notes });
+  return updateWithdrawalStatus(withdrawalId, { status: '已拒绝', notes });
 };
 
 // 标记提现为已打款
 export const markWithdrawalAsPaid = async (withdrawalId: string, notes?: string): Promise<WithdrawalRequest> => {
-  return updateWithdrawalStatus(withdrawalId, { status: 'paid', notes });
+  return updateWithdrawalStatus(withdrawalId, { status: '已打款', notes });
 };
 
 // 获取提现统计信息
 export const getWithdrawalStats = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/withdrawals/stats`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch withdrawal stats');
-    }
-    return await response.json();
+    return await get<any>('/withdrawals/stats');
   } catch (error) {
     console.error('Error fetching withdrawal stats:', error);
     // 开发环境下返回默认统计

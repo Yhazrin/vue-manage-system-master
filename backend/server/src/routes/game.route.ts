@@ -5,8 +5,11 @@ import { PlayerDAO } from '../dao/PlayerDao';
 import { auth, AuthRequest } from "../middleware/auth";
 import { body, param, validationResult } from "express-validator";
 import { Response } from "express";
-import { gameUpload } from '../utils/upload'; // 导入游戏上传实例
-import path from 'path';
+import { createUpload } from '../utils/upload'; // 导入创建上传实例的函数
+
+// 创建游戏上传实例
+const gameUpload = createUpload('game');
+import * as path from 'path';
 
 const router = Router();
 
@@ -42,6 +45,7 @@ router.get('/search', async (req, res, next) => {
 router.post(
     '/',
     auth,
+    // 启用文件上传中间件
     (req: Request, res: Response, next: NextFunction) => {
         // 使文件上传变为可选
         gameUpload.single('image')(req, res, (err) => {
@@ -61,26 +65,128 @@ router.post(
         body('image_url').optional().isString().withMessage('image_url 必须是字符串')
     ],
     async (req: AuthRequest, res: Response, next:NextFunction) => {
+        console.log('🎮 POST /api/games 被调用');
+        console.log('请求体:', req.body);
+        console.log('上传的文件:', req.file);
+        console.log('Content-Type:', req.headers['content-type']);
+        
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-        if (req.user?.role !== 'manager') return res.status(403).json({ success: false, error: '仅管理员可创建游戏' });
+        if (req.user?.role !== 'manager' && req.user?.role !== 'admin') return res.status(403).json({ success: false, error: '仅管理员可创建游戏' });
         try {
             const { name, image_url } = req.body;
-            // 优先使用上传的文件，如果没有文件则使用前端传来的image_url
-            const imageUrl = req.file ? req.file.path : (image_url || null);
-            const id = await GameDAO.create({ name, image_url: imageUrl });
-            // 返回创建的游戏详情
-            const game = await GameDAO.findById(id);
-            const mappedGame = {
-                id: game!.id,
-                name: game!.name,
-                image_url: game!.image_url || ''
+
+            if (!name) {
+                return res.status(400).json({ success: false, error: '游戏名称不能为空' });
+            }
+
+            let finalImageUrl = image_url || null;
+            
+            // 如果有上传的文件，使用文件路径
+            if (req.file) {
+                console.log('✅ 检测到上传文件:', req.file.filename);
+                console.log('文件保存路径:', req.file.path);
+                // 生成相对于后端uploads的路径
+                finalImageUrl = `/uploads/game/images/${req.file.filename}`;
+            } else {
+                console.log('❌ 没有检测到上传文件');
+            }
+
+            console.log('最终图片URL:', finalImageUrl);
+
+            const gameId = await GameDAO.create({ name, image_url: finalImageUrl });
+            const game = await GameDAO.findById(gameId);
+            
+            const responseGame = {
+                ...game,
+                image_url: game?.image_url || ''
             };
-            res.status(201).json({ success: true, game: mappedGame });
+            
+            res.json({ success: true, game: responseGame });
         } catch (err) {
+            console.error('🎮 游戏创建失败:', err);
             next(err);
         }
     }
+);
+
+// 更新游戏的处理函数
+const updateGameHandler = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    if (req.user?.role !== 'manager' && req.user?.role !== 'admin') return res.status(403).json({ success: false, error: '仅管理员可更新游戏' });
+    try {
+        const id = Number(req.params.id);
+        const { name, image_url } = req.body;
+        
+        // 构建更新数据对象，只包含有值的字段
+        const updateData: { name?: string; image_url?: string } = {};
+        
+        if (name !== undefined && name !== null && name.trim() !== '') {
+            updateData.name = name;
+        }
+        
+        if (req.file) {
+            // 生成相对于后端uploads的路径
+            updateData.image_url = `/uploads/game/images/${req.file.filename}`;
+        } else if (image_url !== undefined && image_url !== null) {
+            updateData.image_url = image_url;
+        }
+        
+        await GameDAO.updateById(id, updateData);
+        // 返回更新后的游戏详情
+        const updated = await GameDAO.findById(id);
+        const mappedGame = {
+            id: updated!.id,
+            name: updated!.name,
+            image_url: updated!.image_url || ''
+        };
+        res.json({ success: true, game: mappedGame });
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
+ * @route   PATCH /api/games/:id
+ * @desc    更新游戏
+ * @access  管理员
+ */
+router.patch(
+    '/:id',
+    (req, res, next) => {
+        console.log('🔥🔥🔥 PATCH路由被调用！🔥🔥🔥');
+        console.log('请求方法:', req.method);
+        console.log('请求路径:', req.path);
+        console.log('请求参数:', req.params);
+        console.log('请求体:', req.body);
+        next();
+    },
+    auth,
+    gameUpload.single('image'), // 启用文件上传
+    [
+        param('id').isInt().withMessage('id 必须是整数'),
+        body('name').optional().isString().notEmpty().withMessage('name 不能为空'),
+        body('image_url').optional().isString().withMessage('image_url 必须是字符串')
+    ],
+    updateGameHandler
+);
+
+/**
+ * @route   PUT /api/games/:id
+ * @desc    更新游戏 (与PATCH功能相同)
+ * @access  管理员
+ */
+router.put(
+    '/:id',
+    auth,
+    gameUpload.single('image'), // 启用文件上传
+    [
+        param('id').isInt().withMessage('id 必须是整数'),
+        body('name').optional().isString().notEmpty().withMessage('name 不能为空'),
+        body('image_url').optional().isString().withMessage('image_url 必须是字符串')
+    ],
+    updateGameHandler
 );
 
 /**
@@ -116,48 +222,6 @@ router.get('/', async (req, res, next) => {
 });
 
 /**
- * @route   PATCH /api/games/:id
- * @desc    更新游戏
- * @access  管理员
- */
-router.patch(
-    '/:id',
-    auth,
-    gameUpload.single('image'),
-    [
-        param('id').isInt().withMessage('id 必须是整数'),
-        body('name').optional().isString().notEmpty().withMessage('name 不能为空'),
-        body('image_url').optional().isString().withMessage('image_url 必须是字符串')
-    ],
-    async (req: AuthRequest, res: Response, next: NextFunction) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-        if (req.user?.role !== 'manager') return res.status(403).json({ success: false, error: '仅管理员可更新游戏' });
-        try {
-            const id = Number(req.params.id);
-            const { name, image_url } = req.body;
-            let imageUrl: string | undefined;
-            if (req.file) {
-                imageUrl = req.file.path;
-            } else if (image_url) {
-                imageUrl = image_url;
-            }
-            await GameDAO.updateById(id, { name, image_url: imageUrl });
-            // 返回更新后的游戏详情
-            const updated = await GameDAO.findById(id);
-            const mappedGame = {
-                id: updated!.id,
-                name: updated!.name,
-                image_url: updated!.image_url || ''
-            };
-            res.json({ success: true, game: mappedGame });
-        } catch (err) {
-            next(err);
-        }
-    }
-);
-
-/**
  * @route   DELETE /api/games/:id
  * @desc    删除游戏
  * @access  管理员
@@ -169,7 +233,7 @@ router.delete(
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-        if (req.user?.role !== 'manager') return res.status(403).json({ success: false, error: '仅管理员可删除游戏' });
+        if (req.user?.role !== 'manager' && req.user?.role !== 'admin') return res.status(403).json({ success: false, error: '仅管理员可删除游戏' });
         try {
             const id = Number(req.params.id);
             await GameDAO.deleteById(id);

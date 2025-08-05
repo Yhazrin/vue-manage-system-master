@@ -8,8 +8,9 @@ import { useNotifications } from '@/components/NotificationManager';
   // 导入orderService
   import { createOrder } from '@/services/orderService';
 import { getPlayerComments } from '@/services/commentService';
+import { buildAvatarUrl, buildVoiceUrl } from '@/utils/imageUtils';
 
-export default function BookingDetail() {
+function BookingDetail() {
   const { playerId } = useParams<{ playerId: string }>();
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
@@ -71,47 +72,43 @@ export default function BookingDetail() {
         // 获取陪玩的评论信息
         try {
           const commentsResponse = await getPlayerComments(parseInt(playerId));
-          if (commentsResponse.success && commentsResponse.comments) {
+          
+          if (commentsResponse.success && commentsResponse.comments && commentsResponse.comments.length > 0) {
             // 转换评论数据格式以匹配前端Review接口
             const reviewList: Review[] = commentsResponse.comments.map((comment: any) => ({
               id: comment.id,
-              userAvatar: comment.user_avatar || '/default-avatar.png',
+              userAvatar: buildAvatarUrl(comment.user_avatar),
               userName: comment.user_name || '匿名用户',
               rating: comment.rating,
               createdAt: new Date(comment.created_at).toLocaleDateString(),
               comment: comment.content
             }));
             
-            // 更新陪玩信息，添加评论列表
-            setPlayer(prev => prev ? {
-              ...prev,
+            // 设置陪玩信息，包含评论列表
+            setPlayer({
+              ...foundPlayer,
               reviewList,
               rating: reviewList.length > 0 ? 
                 reviewList.reduce((sum, review) => sum + review.rating, 0) / reviewList.length : 
                 foundPlayer.rating,
               reviews: reviewList.length
-            } : null);
+            });
           } else {
-            // 如果没有评论，设置空的评论列表
-            setPlayer(prev => prev ? {
-              ...prev,
+            // 没有评论时，设置空的评论列表
+            setPlayer({
+              ...foundPlayer,
               reviewList: [],
               reviews: 0
-            } : null);
+            });
           }
         } catch (commentError) {
           console.error('获取评论信息失败:', commentError);
-          // 即使评论获取失败，也设置空的评论列表
-          setPlayer(prev => prev ? {
-            ...prev,
+          // 即使评论获取失败，也设置基础陪玩信息和空的评论列表
+          setPlayer({
+            ...foundPlayer,
             reviewList: [],
             reviews: 0
-          } : null);
-        }
-        
-        // 最后设置基础陪玩信息（如果还没有设置）
-        if (!player) {
-          setPlayer(foundPlayer);
+          });
         }
         
         setLoading(false);
@@ -298,13 +295,19 @@ export default function BookingDetail() {
       };
       
       // 使用orderService创建订单
-      const result = await createOrder(orderData);
+      const result = await createOrder({
+        player_id: orderData.player_id,
+        service_id: orderData.service_id,
+        hours: finalHours,
+        amount: orderData.amount,
+        description: orderData.description
+      });
       
       // 使用通知系统显示成功消息
       addNotification({
         type: 'order',
         title: '预约成功！',
-        message: `订单号: ${result.id}\n您已成功预约${player.name}${finalHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
+        message: `订单号: ${result.order_id}\n您已成功预约${player.name}${finalHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
       });
       
       navigate('/user/orders'); // 跳转到订单页面
@@ -323,19 +326,7 @@ export default function BookingDetail() {
   
   // Get avatar image
   const getAvatar = () => {
-    // 优先使用photo_img，其次使用avatarId映射
-    if (player.photo_img) {
-      return player.photo_img.startsWith('http') ? player.photo_img : `http://localhost:3000${player.photo_img}`;
-    }
-    
-    const avatarSources: { [key: number]: string } = {
-      1: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/1.jpeg",
-      2: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/2.jpeg",
-      3: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/3.jpeg",
-      4: "https://lf-code-agent.coze.cn/obj/x-ai-cn/63685843202/image/region_images/supplies_images/FindGameCompanionPage/4.jpeg"
-    };
-    
-    return avatarSources[player.avatarId || 1] || `https://space.coze.cn/api/coze_space/gen_image?image_size=square&prompt=user%20avatar&sign=f1f81b57b203e2aa336aa3ec3f6e3f7f`;
+    return buildAvatarUrl(player.photo_img, player.avatarId);
   };
   
   // Get status text and style
@@ -360,12 +351,12 @@ export default function BookingDetail() {
       <main className="container mx-auto px-4 py-6">
         <button 
           onClick={() => navigate('/lobby')}
-          className="flex items-center text-sm text-purple-600 hover:text-purple-700 mb-6"
+          className="flex items-center text-sm text-theme-primary hover:text-theme-primary/80 mb-6"
         >
           <i className="fa-solid fa-arrow-left mr-1"></i> 返回陪玩列表
         </button>
         
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden mb-6">
           <div className="p-6">
             <div className="flex flex-col md:flex-row gap-6 mb-8">
               {/* Player Info */}
@@ -384,50 +375,65 @@ export default function BookingDetail() {
               
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <h1 className="text-2xl font-bold text-gray-900">{player.name}</h1>
+                  <h1 className="text-2xl font-bold text-theme-text">{player.name}</h1>
                   <div className="flex items-center text-yellow-500">
                     <i className="fa-solid fa-star mr-1"></i>
                     <span className="text-sm font-medium">{player.rating || 5.0}</span>
-                    <span className="text-xs text-gray-500 ml-1">({player.reviews || 0}条评价)</span>
+                    <span className="text-xs text-theme-text/70 ml-1">({player.reviews || 0}条评价)</span>
                   </div>
                 </div>
                 
-                <p className="text-gray-700 mb-4">{player.description || player.intro || '暂无介绍'}</p>
+                <p className="text-theme-text/80 mb-4">{player.description || player.intro || '暂无介绍'}</p>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(player.games || []).map((game, index) => (
-                    <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                    <span key={index} className="px-3 py-1 bg-theme-accent/20 text-theme-text text-xs rounded-full">
                       {game}
                     </span>
                   ))}
                 </div>
                 
-
+                {/* 录音介绍 */}
+                {player.voice && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-theme-text mb-2">录音介绍</h3>
+                    <audio 
+                      controls 
+                      className="w-full max-w-md"
+                      preload="metadata"
+                    >
+                      <source src={buildVoiceUrl(player.voice)} type="audio/mpeg" />
+                      <source src={buildVoiceUrl(player.voice)} type="audio/wav" />
+                      <source src={buildVoiceUrl(player.voice)} type="audio/ogg" />
+                      您的浏览器不支持音频播放
+                    </audio>
+                  </div>
+                )}
               </div>
               
-              <div className="ml-auto bg-gray-50 p-4 rounded-lg">
+              <div className="ml-auto bg-theme-accent/10 p-4 rounded-lg">
                 <div className="text-right">
-                  <p className="text-sm text-gray-500">当前单价</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-theme-text/70">当前单价</p>
+                  <p className="text-2xl font-bold text-theme-text">
                     ¥{getCurrentPrice().toFixed(2)}
-                    <span className="text-sm font-normal text-gray-500">/小时</span>
+                    <span className="text-sm font-normal text-theme-text/70">/小时</span>
                   </p>
                 </div>
               </div>
             </div>
             
             {/* Booking Form */}
-            <div className="border-t border-gray-100 pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">预约信息</h2>
+            <div className="border-t border-theme-border pt-6">
+              <h2 className="text-lg font-semibold text-theme-text mb-4">预约信息</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {/* Game Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">选择游戏</label>
+                  <label className="block text-sm font-medium text-theme-text mb-2">选择游戏</label>
                   <select
                     value={selectedGame}
                     onChange={(e) => setSelectedGame(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-theme-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text"
                   >
                     <option value="">请选择游戏</option>
                     {services.map((service, index) => (
@@ -435,13 +441,13 @@ export default function BookingDetail() {
                     ))}
                   </select>
                   {services.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">该陪玩暂未设置可接受的游戏服务</p>
+                    <p className="text-sm text-theme-text/70 mt-1">该陪玩暂未设置可接受的游戏服务</p>
                   )}
                 </div>
                 
                 {/* Service Duration */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">服务时长</label>
+                  <label className="block text-sm font-medium text-theme-text mb-2">服务时长</label>
                   <div className="space-y-3">
                     {/* 预设时长选择 */}
                     <div className="flex items-center gap-2">
@@ -475,7 +481,7 @@ export default function BookingDetail() {
                         })}
                       </div>
                       {selectedGameData?.min_hours && selectedGameData.min_hours > 1 && (
-                        <span className="text-xs text-gray-500 ml-2">
+                        <span className="text-xs text-theme-text/70 ml-2">
                           最低{selectedGameData.min_hours}小时
                         </span>
                       )}
@@ -483,7 +489,7 @@ export default function BookingDetail() {
                     
                     {/* 自定义时长输入 */}
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">或指定时长：</span>
+                      <span className="text-sm text-theme-text/80">或指定时长：</span>
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
@@ -501,11 +507,11 @@ export default function BookingDetail() {
                           }}
                           placeholder="输入小时数"
                           className={cn(
-                            "w-20 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500",
-                            useCustomHours ? "border-purple-500" : ""
+                            "w-20 px-2 py-1 text-sm border border-theme-border rounded focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
+                            useCustomHours ? "border-theme-primary" : ""
                           )}
                         />
-                        <span className="text-sm text-gray-500">小时</span>
+                        <span className="text-sm text-theme-text/70">小时</span>
                       </div>
                       {useCustomHours && customHours && Number(customHours) < (selectedGameData?.min_hours || 1) && (
                         <span className="text-xs text-red-500">
@@ -519,27 +525,27 @@ export default function BookingDetail() {
               
               {/* Service Details */}
               {selectedGameData && (
-                <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                  <h3 className="text-sm font-medium text-blue-900 mb-2">服务详情</h3>
+                <div className="bg-theme-accent/10 p-4 rounded-lg mb-6">
+                  <h3 className="text-sm font-medium text-theme-text mb-2">服务详情</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-blue-700">游戏：</span>
-                      <span className="text-blue-900 font-medium">{selectedGameData.game_name || selectedGame}</span>
+                      <span className="text-theme-text/70">游戏：</span>
+                      <span className="text-theme-text font-medium">{selectedGameData.game_name || selectedGame}</span>
                     </div>
                     <div>
-                      <span className="text-blue-700">价格：</span>
-                      <span className="text-blue-900 font-medium">¥{selectedGameData.price}/小时</span>
+                      <span className="text-theme-text/70">价格：</span>
+                      <span className="text-theme-text font-medium">¥{selectedGameData.price}/小时</span>
                     </div>
                     {selectedGameData.min_hours && (
                       <div>
-                        <span className="text-blue-700">最低时长：</span>
-                        <span className="text-blue-900 font-medium">{selectedGameData.min_hours}小时</span>
+                        <span className="text-theme-text/70">最低时长：</span>
+                        <span className="text-theme-text font-medium">{selectedGameData.min_hours}小时</span>
                       </div>
                     )}
                     {selectedGameData.description && (
                       <div className="col-span-2">
-                        <span className="text-blue-700">描述：</span>
-                        <span className="text-blue-900">{selectedGameData.description}</span>
+                        <span className="text-theme-text/70">描述：</span>
+                        <span className="text-theme-text">{selectedGameData.description}</span>
                       </div>
                     )}
                   </div>
@@ -549,19 +555,19 @@ export default function BookingDetail() {
 
               
               {/* Price Summary */}
-              <div className="bg-gray-50 p-5 rounded-lg mb-6">
+              <div className="bg-theme-accent/10 p-5 rounded-lg mb-6">
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">单价</span>
-                    <span>¥{getCurrentPrice().toFixed(2)}/小时</span>
+                    <span className="text-theme-text/70">单价</span>
+                    <span className="text-theme-text">¥{getCurrentPrice().toFixed(2)}/小时</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">时长</span>
-                    <span>{useCustomHours ? (Number(customHours) || 0) : selectedHours}小时</span>
+                    <span className="text-theme-text/70">时长</span>
+                    <span className="text-theme-text">{useCustomHours ? (Number(customHours) || 0) : selectedHours}小时</span>
                   </div>
-                  <div className="pt-3 border-t border-gray-200 flex justify-between font-semibold text-lg">
-                    <span>总价</span>
-                    <span>¥{calculatePrice().toFixed(2)}</span>
+                  <div className="pt-3 border-t border-theme-border flex justify-between font-semibold text-lg">
+                    <span className="text-theme-text">总价</span>
+                    <span className="text-theme-text">¥{calculatePrice().toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -570,7 +576,7 @@ export default function BookingDetail() {
               <div className="flex justify-end gap-3">
                 <button 
                   onClick={() => navigate('/lobby')}
-                  className="px-6 py-2.5 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2.5 border border-theme-border text-theme-text font-medium rounded-lg hover:bg-theme-accent/10 transition-colors"
                 >
                   取消
                 </button>
@@ -583,13 +589,13 @@ export default function BookingDetail() {
            </div>
            
            {/* 评价区域 */}
-           <div className="border-t border-gray-100 pt-6 mt-6">
-             <h3 className="text-lg font-semibold text-gray-900 mb-4">用户评价</h3>
+           <div className="border-t border-theme-border pt-6 mt-6">
+             <h3 className="text-lg font-semibold text-theme-text mb-4">用户评价</h3>
              
              {player.reviewList && player.reviewList.length > 0 ? (
                 <div className="space-y-4">
                   {player.reviewList.map((review: Review) => (
-                   <div key={review.id} className="p-4 bg-gray-50 rounded-lg">
+                   <div key={review.id} className="p-4 bg-theme-accent/10 rounded-lg">
                      <div className="flex items-center gap-3 mb-2">
                        <img 
                          src={review.userAvatar} 
@@ -597,24 +603,24 @@ export default function BookingDetail() {
                          className="w-8 h-8 rounded-full object-cover"
                        />
                        <div>
-                         <h4 className="font-medium text-gray-900 text-sm">{review.userName}</h4>
+                         <h4 className="font-medium text-theme-text text-sm">{review.userName}</h4>
                          <div className="flex items-center text-yellow-400">
                            {[...Array(5)].map((_, i) => (
                              <i 
                                key={i} 
-                               className={`fa-solid fa-star ${i < Math.round(review.rating) ? 'text-yellow-400' : 'text-gray-300'}`}
+                               className={`fa-solid fa-star ${i < Math.round(review.rating) ? 'text-yellow-400' : 'text-theme-text/30'}`}
                              ></i>
                            ))}
-                           <span className="ml-1 text-xs text-gray-500">{review.createdAt}</span>
+                           <span className="ml-1 text-xs text-theme-text/70">{review.createdAt}</span>
                          </div>
                        </div>
                      </div>
-                     <p className="text-sm text-gray-700">{review.comment}</p>
+                     <p className="text-sm text-theme-text/80">{review.comment}</p>
                    </div>
                  ))}
                </div>
              ) : (
-               <div className="text-center py-6 text-gray-500">
+               <div className="text-center py-6 text-theme-text/70">
                  <i className="fa-solid fa-comment-slash text-2xl mb-2"></i>
                  <p>暂无评价</p>
                </div>
@@ -627,3 +633,5 @@ export default function BookingDetail() {
     </div>
   );
 }
+
+export default BookingDetail;

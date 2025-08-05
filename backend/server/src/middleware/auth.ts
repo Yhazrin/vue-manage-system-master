@@ -2,6 +2,8 @@
 import { Request, Response, NextFunction } from 'express';
 import * as jwt from 'jsonwebtoken';
 import * as dotenv from 'dotenv';
+import { UserDAO } from '../dao/UserDao';
+import { PlayerDAO } from '../dao/PlayerDao';
 
 dotenv.config();
 
@@ -12,7 +14,7 @@ export interface AuthRequest extends Request {
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 // 验证 JWT 并挂载用户信息到 req.user
-export function auth(req: AuthRequest, res: Response, next: NextFunction) {
+export async function auth(req: AuthRequest, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ success: false, error: '未提供 token' });
@@ -20,6 +22,24 @@ export function auth(req: AuthRequest, res: Response, next: NextFunction) {
     const token = authHeader.split(' ')[1];
     try {
         const payload = jwt.verify(token, JWT_SECRET) as any;
+        
+        // 实时检查用户封禁状态
+        let currentUser = null;
+        if (payload.role === 'user') {
+            currentUser = await UserDAO.findById(payload.id);
+        } else if (payload.role === 'player') {
+            currentUser = await PlayerDAO.findById(payload.id);
+        }
+        
+        // 如果找到用户且用户被封禁，返回封禁错误
+        if (currentUser && (currentUser.status === 0 || currentUser.status === false)) {
+            return res.status(403).json({ 
+                success: false, 
+                error: '账号已被封禁，请联系客服', 
+                banned: true 
+            });
+        }
+        
         req.user = { id: payload.id, phone_num: payload.phone_num, role: payload.role, authority: payload.authority };
         next();
     } catch (err) {

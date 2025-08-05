@@ -1,6 +1,8 @@
 // backend/server/src/routes/comment.route.ts
 import { Router } from 'express';
 import { CommentDAO } from '../dao/CommentDao';
+import { GiftDAO } from '../dao/GiftDao';
+import { GiftRecordDAO } from '../dao/GiftRecordDao';
 import { body, param, validationResult } from 'express-validator';
 import { auth, AuthRequest } from '../middleware/auth';
 import { Request, Response, NextFunction } from 'express';
@@ -45,7 +47,10 @@ router.post(
         body('player_id').isInt().withMessage('player_id 必须是整数'),
         body('order_id').isString().notEmpty().withMessage('order_id 不能为空'),
         body('content').isString().notEmpty().withMessage('content 不能为空'),
-        body('rating').optional().isInt({ min: 1, max: 5 }).withMessage('rating 必须在1到5之间')
+        body('rating').optional().isInt({ min: 1, max: 5 }).withMessage('rating 必须在1到5之间'),
+        body('gifts').optional().isArray().withMessage('gifts 必须是数组'),
+        body('gifts.*.giftId').optional().isInt().withMessage('giftId 必须是整数'),
+        body('gifts.*.quantity').optional().isInt({ min: 1 }).withMessage('quantity 必须是正整数')
     ],
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         const errors = validationResult(req);
@@ -53,9 +58,39 @@ router.post(
         if (req.user?.role !== 'user') return res.status(403).json({ success: false, error: '仅普通用户可发表评论' });
 
         try {
-            const { player_id, order_id, content, rating } = req.body;
+            const { player_id, order_id, content, rating, gifts } = req.body;
             const user_id = req.user.id;
+            
+            // 验证礼物是否存在
+            if (gifts && gifts.length > 0) {
+                for (const gift of gifts) {
+                    const giftExists = await GiftDAO.findById(gift.giftId);
+                    if (!giftExists) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            error: `礼物ID ${gift.giftId} 不存在` 
+                        });
+                    }
+                }
+            }
+            
+            // 创建评论
             const id = await CommentDAO.create({ user_id, player_id, order_id, content, rating });
+            
+            // 如果有礼物，记录礼物赠送
+            if (gifts && gifts.length > 0) {
+                for (const gift of gifts) {
+                    await GiftRecordDAO.create({
+                        user_id,
+                        player_id,
+                        order_id,
+                        gift_id: gift.giftId,
+                        quantity: gift.quantity
+                    });
+                }
+                console.log(`用户 ${user_id} 在订单 ${order_id} 的评论 ${id} 中赠送了礼物:`, gifts);
+            }
+            
             res.status(201).json({ success: true, id });
         } catch (err) {
             next(err);

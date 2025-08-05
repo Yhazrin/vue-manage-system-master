@@ -3,6 +3,15 @@ import { useState, useEffect } from "react"; // 确保导入React钩子
 import { toast } from "sonner";
 import { API_BASE_URL } from '@/config/api';
 
+// 定义订单接口
+interface RecentOrder {
+  id: string;
+  user: string;
+  amount: number;
+  status: string;
+  date: string;
+}
+
 // 所有的状态和钩子必须在组件内部定义
 export default function AdminHome() {
   // 在这里定义所有状态
@@ -13,7 +22,7 @@ export default function AdminHome() {
     newUsersToday: 0
   });
   const [loading, setLoading] = useState(true);
-  const [recentOrders, setRecentOrders] = useState([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   
   // 在这里使用useEffect钩子
   useEffect(() => {
@@ -35,22 +44,7 @@ export default function AdminHome() {
         ]);
         
         if (!statsResponse.ok || !ordersResponse.ok) {
-          // 如果API调用失败，使用模拟数据
-          console.warn('API调用失败，使用模拟数据');
-          setStats({
-            totalUsers: 1580,
-            totalOrders: 1250,
-            totalRevenue: 89500,
-            newUsersToday: 23
-          });
-          setRecentOrders([
-            { id: 'ORD001', user: '张三', amount: 150, status: '已完成', date: '2023-12-01' },
-            { id: 'ORD002', user: '李四', amount: 200, status: '处理中', date: '2023-12-01' },
-            { id: 'ORD003', user: '王五', amount: 120, status: '已完成', date: '2023-11-30' },
-            { id: 'ORD004', user: '赵六', amount: 180, status: '已完成', date: '2023-11-30' },
-            { id: 'ORD005', user: '钱七', amount: 250, status: '处理中', date: '2023-11-29' }
-          ]);
-          return;
+          throw new Error('API请求失败');
         }
         
         const statsData = await statsResponse.json();
@@ -65,7 +59,15 @@ export default function AdminHome() {
         });
         
         // 映射订单数据
-        setRecentOrders(ordersData.orders || ordersData || []);
+        const orders = ordersData.orders || ordersData || [];
+        const mappedOrders: RecentOrder[] = orders.map((order: any) => ({
+          id: order.id || order.order_id || '',
+          user: order.userNickname || order.user || order.username || '未知用户',
+          amount: Number(order.amount || order.price || 0),
+          status: order.status || '未知',
+          date: order.orderTime || order.created_at || order.date || new Date().toISOString().split('T')[0]
+        }));
+        setRecentOrders(mappedOrders);
       } catch (error) {
         console.error('数据加载失败:', error);
         toast.error('获取数据失败');
@@ -80,12 +82,12 @@ export default function AdminHome() {
   // 加载状态显示
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="bg-theme-background min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
-            <span className="visually-hidden">加载中...</span>
+          <div className="animate-spin inline-block w-8 h-8 border-4 border-theme-primary border-t-transparent rounded-full" role="status">
+            <span className="sr-only">加载中...</span>
           </div>
-          <p className="mt-2 text-gray-600">正在加载数据...</p>
+          <p className="mt-2 text-theme-text/70">正在加载数据...</p>
         </div>
       </div>
     );
@@ -93,24 +95,24 @@ export default function AdminHome() {
   
   // 主页面渲染
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-theme-background min-h-screen text-theme-text">
       <Header />
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">管理员首页</h1>
-          <p className="text-gray-500">欢迎回来，这里是平台数据概览</p>
+          <h1 className="text-2xl font-bold text-theme-text mb-2">管理员控制台</h1>
+          <p className="text-theme-text/70">欢迎回来，这里是平台数据概览</p>
         </div>
         
         {/* 数据统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">总用户数</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalUsers.toLocaleString()}</h3>
+                <p className="text-sm text-theme-text/70">总用户数</p>
+                <h3 className="text-2xl font-bold text-theme-text mt-1">{stats.totalUsers.toLocaleString()}</h3>
               </div>
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+              <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <i className="fa-solid fa-users text-xl"></i>
               </div>
             </div>
@@ -118,16 +120,16 @@ export default function AdminHome() {
               <span className="text-green-500 flex items-center">
                 <i className="fa-solid fa-arrow-up mr-1"></i> 12.5%
               </span>
-              <span className="text-gray-500 ml-2">较上月</span>
+              <span className="text-theme-text/60 ml-2">较上月</span>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">总订单数</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalOrders.toLocaleString()}</h3>
+                <p className="text-sm text-theme-text/70">总订单数</p>
+                <h3 className="text-2xl font-bold text-theme-text mt-1">{stats.totalOrders.toLocaleString()}</h3>
               </div>
-              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
                 <i className="fa-solid fa-shopping-cart text-xl"></i>
               </div>
             </div>
@@ -135,16 +137,16 @@ export default function AdminHome() {
               <span className="text-green-500 flex items-center">
                 <i className="fa-solid fa-arrow-up mr-1"></i> 8.3%
               </span>
-              <span className="text-gray-500 ml-2">较上月</span>
+              <span className="text-theme-text/60 ml-2">较上月</span>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">总营收 (元)</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">¥{stats.totalRevenue.toLocaleString()}</h3>
+                <p className="text-sm text-theme-text/70">总营收 (元)</p>
+                <h3 className="text-2xl font-bold text-theme-text mt-1">¥{stats.totalRevenue.toLocaleString()}</h3>
               </div>
-              <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+              <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500">
                 <i className="fa-solid fa-money-bill-wave text-xl"></i>
               </div>
             </div>
@@ -152,16 +154,16 @@ export default function AdminHome() {
               <span className="text-green-500 flex items-center">
                 <i className="fa-solid fa-arrow-up mr-1"></i> 18.2%
               </span>
-              <span className="text-gray-500 ml-2">较上月</span>
+              <span className="text-theme-text/60 ml-2">较上月</span>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-5 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">今日新增用户</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.newUsersToday.toLocaleString()}</h3>
+                <p className="text-sm text-theme-text/70">今日新增用户</p>
+                <h3 className="text-2xl font-bold text-theme-text mt-1">{stats.newUsersToday.toLocaleString()}</h3>
               </div>
-              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+              <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
                 <i className="fa-solid fa-user-plus text-xl"></i>
               </div>
             </div>
@@ -169,7 +171,7 @@ export default function AdminHome() {
               <span className="text-green-500 flex items-center">
                 <i className="fa-solid fa-arrow-up mr-1"></i> 5.2%
               </span>
-              <span className="text-gray-500 ml-2">较昨日</span>
+              <span className="text-theme-text/60 ml-2">较昨日</span>
             </div>
           </div>
         </div>
@@ -219,7 +221,14 @@ export default function AdminHome() {
 }
 
 // 统计卡片组件（必须在主组件外部或作为独立组件定义）
-function StatCard({ title, value, icon, color }) {
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: string;
+  color: string;
+}
+
+function StatCard({ title, value, icon, color }: StatCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
       <div className="flex items-center justify-between">

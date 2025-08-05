@@ -3,17 +3,19 @@ import { Link, useNavigate } from 'react-router-dom';
 import Header from "@/components/Header";
 import AvatarUpload from "@/components/AvatarUpload";
 import ProfileEditForm from "@/components/ProfileEditForm";
+import ChangePasswordModal from "@/components/ChangePasswordModal";
 import { toast } from "sonner";
 import {
   getPlayerProfile,
   updatePlayerProfile,
   uploadAvatar,
-  uploadQRCode,
-  deleteQRCode,
   updateStatus,
+  updateOnlineStatus,
   uploadVoice,
   PlayerProfileData
 } from '@/services/playerProfileService';
+import { buildAvatarUrl, buildVoiceUrl } from '@/utils/imageUtils';
+import { fetchJson } from '@/utils/fetchWrapper';
 
 interface Service {
   id: number;
@@ -31,25 +33,21 @@ interface Game {
 }
 
 export default function PlayerProfile() {
-  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [profile, setProfile] = useState<PlayerProfileData | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [uploadingQR, setUploadingQR] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const navigate = useNavigate();
 
   // 获取服务列表
   const fetchServices = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/services/my', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await fetchJson('http://localhost:3000/api/services/my');
       if (data.success) {
         setServices(data.services || []);
       }
@@ -100,60 +98,20 @@ export default function PlayerProfile() {
     }
   };
 
-  // 处理二维码上传
-  const handleQRUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
 
-    // 验证文件类型
-    if (!file.type.startsWith('image/')) {
-      toast.error('请选择图片文件');
-      return;
-    }
 
-    // 验证文件大小 (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('图片大小不能超过5MB');
-      return;
-    }
-
-    try {
-      setUploadingQR(true);
-      const newQRUrl = await uploadQRCode(file);
-      setProfile(prev => prev ? { ...prev, QR_img: newQRUrl } : null);
-      toast.success('二维码上传成功');
-    } catch (error) {
-      console.error('Error uploading QR code:', error);
-      toast.error(error instanceof Error ? error.message : '上传失败，请重试');
-    } finally {
-      setUploadingQR(false);
-    }
-  };
-
-  // 处理二维码删除
-  const handleQRDelete = async () => {
-    try {
-      await deleteQRCode();
-      setProfile(prev => prev ? { ...prev, QR_img: null } : null);
-      toast.success('二维码删除成功');
-    } catch (error) {
-      console.error('Error deleting QR code:', error);
-      toast.error(error instanceof Error ? error.message : '删除失败，请重试');
-    }
-  };
-
-  // 处理状态切换
-  const handleStatusToggle = async () => {
+  // 处理在线状态切换
+  const handleOnlineStatusToggle = async () => {
     if (!profile) return;
     
     try {
-      const newStatus = !profile.status;
-      await updateStatus(newStatus);
-      setProfile(prev => prev ? { ...prev, status: newStatus } : null);
-      toast.success(`已${newStatus ? '上线' : '下线'}`);
+      const newOnlineStatus = !profile.online_status;
+      await updateOnlineStatus(newOnlineStatus);
+      setProfile(prev => prev ? { ...prev, online_status: newOnlineStatus } : null);
+      toast.success(`已${newOnlineStatus ? '上线' : '下线'}`);
     } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error(error instanceof Error ? error.message : '状态更新失败');
+      console.error('Error updating online status:', error);
+      toast.error(error instanceof Error ? error.message : '在线状态更新失败');
     }
   };
 
@@ -211,7 +169,7 @@ export default function PlayerProfile() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-20">
-            <p className="text-red-500 mb-4">{error}</p>
+            <p className="text-red-500 mb-4">{error?.message || String(error)}</p>
             <button 
               onClick={fetchProfile}
               className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90 transition-colors"
@@ -308,7 +266,7 @@ export default function PlayerProfile() {
             {/* 陪玩信息头部 */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
               <AvatarUpload
-                currentAvatar={profile.photo_img || '/default-avatar.svg'}
+                currentAvatar={buildAvatarUrl(profile.photo_img)}
                 onAvatarChange={handleAvatarUpload}
                 size="lg"
                 disabled={isEditing}
@@ -318,14 +276,14 @@ export default function PlayerProfile() {
                 <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
                   <h2 className="text-2xl font-bold text-theme-text">{profile.name}</h2>
                   <button
-                    onClick={handleStatusToggle}
+                    onClick={handleOnlineStatusToggle}
                     className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                      profile.status 
+                      profile.online_status 
                         ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300' 
                         : 'bg-theme-background text-theme-text/70 hover:bg-theme-border border border-theme-border'
                     }`}
                   >
-                    {profile.status ? '在线' : '离线'}
+                    {profile.online_status ? '在线' : '离线'}
                   </button>
                 </div>
                 <p className="text-sm text-theme-text/70 mb-4">ID: {profile.id}</p>
@@ -363,7 +321,7 @@ export default function PlayerProfile() {
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-theme-background p-5 rounded-lg">
                   <h3 className="text-sm font-semibold text-theme-text mb-4">基本信息</h3>
                   <div className="space-y-3">
@@ -395,9 +353,21 @@ export default function PlayerProfile() {
                     </div>
                     <div>
                       <p className="text-xs text-theme-text/70 mb-1">在线状态</p>
-                      <p className={`text-sm ${profile.status ? 'text-green-600' : 'text-theme-text/70'}`}>
-                        {profile.status ? '在线' : '离线'}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm ${profile.online_status ? 'text-green-600' : 'text-theme-text/70'}`}>
+                          {profile.online_status ? '在线' : '离线'}
+                        </p>
+                        <button
+                          onClick={handleOnlineStatusToggle}
+                          className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                            profile.online_status 
+                              ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                              : 'bg-green-100 text-green-600 hover:bg-green-200'
+                          }`}
+                        >
+                          {profile.online_status ? '下线' : '上线'}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <p className="text-xs text-theme-text/70 mb-1">基础小时单价</p>
@@ -416,18 +386,69 @@ export default function PlayerProfile() {
                       </div>
                       <p className="text-xs text-theme-text/50 mt-1">在服务管理中可设置不同游戏的具体价格</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-theme-text/70 mb-1">录音介绍</p>
-                      {profile.voice ? (
-                        <audio controls className="w-full">
-                          <source src={profile.voice} type="audio/mpeg" />
-                          您的浏览器不支持音频播放
-                        </audio>
-                      ) : (
-                        <p className="text-sm text-theme-text/50">暂无录音</p>
-                      )}
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setShowChangePassword(true)}
+                        className="w-full py-2 px-3 bg-theme-primary text-white text-sm rounded-lg hover:bg-theme-primary/90 transition-colors"
+                      >
+                        <i className="fa-solid fa-key mr-2"></i>
+                        修改密码
+                      </button>
                     </div>
                   </div>
+                </div>
+                
+                {/* 录音管理区域 - 移到这里与其他信息区域并排 */}
+                <div className="bg-theme-background p-5 rounded-lg">
+                  <h3 className="text-sm font-semibold text-theme-text mb-4">录音介绍</h3>
+                  {profile.voice ? (
+                    <div className="space-y-4">
+                      <div>
+                        <audio 
+                          controls 
+                          className="w-full"
+                          preload="metadata"
+                        >
+                          <source src={buildVoiceUrl(profile.voice)} type="audio/mpeg" />
+                          <source src={buildVoiceUrl(profile.voice)} type="audio/wav" />
+                          <source src={buildVoiceUrl(profile.voice)} type="audio/ogg" />
+                          您的浏览器不支持音频播放
+                        </audio>
+                      </div>
+                      <div>
+                        <label>
+                          <input
+                            type="file"
+                            accept="audio/*"
+                            onChange={handleVoiceUpload}
+                            className="hidden"
+                            disabled={uploadingVoice}
+                          />
+                          <span className="block w-full py-2 px-3 bg-blue-500 text-white text-sm text-center rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
+                            {uploadingVoice ? '上传中...' : '更换录音'}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-3">
+                      <p className="text-sm text-theme-text/70">暂无录音介绍</p>
+                      <div>
+                        <label>
+                          <input
+                            type="file"
+                            accept="audio/*"
+                            onChange={handleVoiceUpload}
+                            className="hidden"
+                            disabled={uploadingVoice}
+                          />
+                          <span className="inline-block py-2 px-4 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
+                            {uploadingVoice ? '上传中...' : '上传录音'}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -471,104 +492,17 @@ export default function PlayerProfile() {
               </div>
             )}
             
-            {/* 文件管理区域 */}
-            {!isEditing && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* 收款二维码管理 */}
-                <div className="bg-theme-background p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-theme-text mb-4">收款二维码</h3>
-                  {profile.QR_img ? (
-                    <div className="space-y-3">
-                      <img 
-                        src={profile.QR_img} 
-                        alt="收款二维码" 
-                        className="w-32 h-32 object-cover rounded-lg border border-theme-border"
-                      />
-                      <div className="flex space-x-2">
-                        <label className="flex-1">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleQRUpload}
-                            className="hidden"
-                            disabled={uploadingQR}
-                          />
-                          <span className="block w-full py-2 px-3 bg-blue-500 text-white text-sm text-center rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
-                            {uploadingQR ? '上传中...' : '更换二维码'}
-                          </span>
-                        </label>
-                        <button
-                          onClick={handleQRDelete}
-                          className="py-2 px-3 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <p className="text-sm text-theme-text/70 mb-3">暂无收款二维码</p>
-                      <label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleQRUpload}
-                          className="hidden"
-                          disabled={uploadingQR}
-                        />
-                        <span className="inline-block py-2 px-4 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
-                          {uploadingQR ? '上传中...' : '上传二维码'}
-                        </span>
-                      </label>
-                    </div>
-                  )}
-                </div>
 
-                {/* 录音管理 */}
-                <div className="bg-theme-background p-5 rounded-lg">
-                  <h3 className="text-sm font-semibold text-theme-text mb-4">录音介绍</h3>
-                  {profile.voice ? (
-                    <div className="space-y-3">
-                      <audio controls className="w-full">
-                        <source src={profile.voice} type="audio/mpeg" />
-                        您的浏览器不支持音频播放
-                      </audio>
-                      <label>
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={handleVoiceUpload}
-                          className="hidden"
-                          disabled={uploadingVoice}
-                        />
-                        <span className="block w-full py-2 px-3 bg-blue-500 text-white text-sm text-center rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
-                          {uploadingVoice ? '上传中...' : '更换录音'}
-                        </span>
-                      </label>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <p className="text-sm text-theme-text/70 mb-3">暂无录音介绍</p>
-                      <label>
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={handleVoiceUpload}
-                          className="hidden"
-                          disabled={uploadingVoice}
-                        />
-                        <span className="inline-block py-2 px-4 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
-                          {uploadingVoice ? '上传中...' : '上传录音'}
-                        </span>
-                      </label>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </main>
+
+      {/* 修改密码模态框 */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        userType="player"
+      />
     </div>
   );
 }

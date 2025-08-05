@@ -1,11 +1,24 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Header from "@/components/Header";
-import { cn } from "@/lib/utils";
-import { getPlayerOrders, updateOrderStatus, Order } from '@/services/orderService';
+import { cn } from '@/lib/utils';
+import { buildAvatarUrl } from '@/utils/imageUtils';
+import { getPlayerOrders, updateOrderStatus, Order, confirmEndOrder } from '@/services/orderService';
 import { toast } from 'sonner';
 import { useNotifications } from '@/components/NotificationManager';
 import { AuthContext } from '@/contexts/authContext';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '@/config/api';
+import { fetchJson } from '@/utils/fetchWrapper';
+import RatingStats from '@/components/RatingStats';
+import { OrderAmountTooltip } from '@/components/OrderAmountTooltip';
+import { useOrderAutoRefresh } from '@/hooks/useAutoRefresh';
+
+interface DashboardStats {
+  todayOrders: number;
+  monthlyIncome: number;
+  serviceRating: number;
+  pendingTasks: number;
+}
 
 // 获取订单状态样式
 const getStatusStyle = (status: Order['status']) => {
@@ -23,7 +36,7 @@ const getStatusStyle = (status: Order['status']) => {
       };
     case 'completed':
       return { 
-        className: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300', 
+        className: 'bg-theme-success/10 text-theme-success', 
         label: '已完成' 
       };
     case 'cancelled':
@@ -40,10 +53,15 @@ const getStatusStyle = (status: Order['status']) => {
 };
 
 export default function PlayerOrders() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [stats, setStats] = useState<DashboardStats>({
+    todayOrders: 0,
+    monthlyIncome: 0,
+    serviceRating: 0,
+    pendingTasks: 0
+  });
+  const [statsLoading, setStatsLoading] = useState<boolean>(true);
+  const [showRatingModal, setShowRatingModal] = useState(false);
   
   // 获取用户认证信息
   const { userRole, isAuthenticated } = useContext(AuthContext);
@@ -51,6 +69,120 @@ export default function PlayerOrders() {
   
   // 使用通知系统
   const { notifications, unreadCount } = useNotifications();
+
+  // 定义 loadDashboardStats 函数
+  const loadDashboardStats = useCallback(async () => {
+    // 防抖机制：避免频繁调用
+    const now = Date.now();
+    const lastCallKey = 'lastDashboardStatsCall';
+    const lastCall = parseInt(localStorage.getItem(lastCallKey) || '0');
+    const minInterval = 5000; // 最小间隔5秒
+    
+    if (now - lastCall < minInterval) {
+      console.log('Dashboard stats request skipped due to rate limiting');
+      return;
+    }
+    
+    localStorage.setItem(lastCallKey, now.toString());
+    
+    try {
+      setStatsLoading(true);
+      
+      // 从token中获取用户ID
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return;
+      }
+      
+      let userId = '1'; // 默认值
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload.id.toString();
+      } catch (e) {
+        console.error('Failed to parse token:', e);
+      }
+      
+      // 获取玩家统计数据
+      const responseData = await fetchJson(`${API_BASE_URL}/statistics/player/${userId}`);
+      
+      const statsData = {
+        todayOrders: responseData.todayOrders || 0,
+        monthlyIncome: responseData.monthlyIncome || 0,
+        serviceRating: Number(responseData.serviceRating) || 0,
+        pendingTasks: responseData.pendingTasks || 0
+      };
+      
+      setStats(statsData);
+      
+    } catch (err) {
+      console.error('Failed to fetch dashboard stats:', err);
+      
+      // 检查是否是资源不足错误
+      if (err instanceof Error && err.message.includes('ERR_INSUFFICIENT_RESOURCES')) {
+        console.warn('Dashboard stats request failed due to insufficient resources, using default values');
+      }
+      
+      // 设置默认值
+      setStats({
+        todayOrders: 0,
+        monthlyIncome: 0,
+        serviceRating: 0,
+        pendingTasks: 0
+      });
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []); // 空依赖数组，因为函数内部没有依赖外部变量
+
+  // 添加初始加载标记，防止初始加载时显示新订单通知
+  const isInitialLoadRef = useRef(true);
+  
+  // 使用自动刷新Hook
+  const { 
+    data: orders, 
+    loading, 
+    error, 
+    refresh: loadOrders 
+  } = useOrderAutoRefresh(
+    () => userRole === 'player' ? getPlayerOrders(activeFilter) : Promise.resolve([]),
+    {
+      onDataUpdate: (newOrders, oldOrders) => {
+        // 如果是初始加载，不显示通知
+        if (isInitialLoadRef.current) {
+          isInitialLoadRef.current = false;
+          return;
+        }
+        
+        // 确保 oldOrders 不为 null
+        const safeOldOrders = oldOrders || [];
+        
+        // 检查是否有新订单（只有在有旧数据的情况下才检查）
+        if (safeOldOrders.length > 0) {
+          const newOrdersCount = newOrders.filter(order => 
+            !safeOldOrders.find(oldOrder => oldOrder.id === order.id)
+          ).length;
+          
+          if (newOrdersCount > 0) {
+            toast.success(`收到 ${newOrdersCount} 个新订单`, {
+              description: '请及时查看并处理',
+              position: 'bottom-right',
+            });
+          }
+        }
+
+        // 检查订单状态变化
+        newOrders.forEach(newOrder => {
+          const oldOrder = safeOldOrders.find(o => o.id === newOrder.id);
+          if (oldOrder && oldOrder.status !== newOrder.status) {
+            toast.info(`订单 #${newOrder.id} 状态更新`, {
+              description: `状态已从 ${getStatusStyle(oldOrder.status).label} 更新为 ${getStatusStyle(newOrder.status).label}`,
+              position: 'bottom-right',
+            });
+          }
+        });
+      }
+    }
+  );
   
   // 检查用户权限
   useEffect(() => {
@@ -72,60 +204,44 @@ export default function PlayerOrders() {
     }
   }, [isAuthenticated, userRole, navigate]);
   
-  // 监听通知变化，刷新订单列表
+  // 监听通知变化，刷新订单列表（减少频率，避免重复刷新）
+  const lastNotificationProcessed = useRef<string | null>(null);
   useEffect(() => {
     if (notifications.length > 0) {
       const latestNotification = notifications[0];
-      if (latestNotification.type === 'order' && !latestNotification.read) {
+      if (latestNotification.type === 'order' && 
+          !latestNotification.read && 
+          latestNotification.id !== lastNotificationProcessed.current) {
+        lastNotificationProcessed.current = latestNotification.id;
         // 有新订单通知时，刷新订单列表
         loadOrders();
       }
     }
-  }, [notifications]);
+  }, [notifications, loadOrders]);
   
-  // 加载订单数据
+  // 当筛选条件改变时，重新加载数据（useAutoRefresh会自动处理，这里只需要加载统计数据）
   useEffect(() => {
     if (userRole === 'player') {
-      loadOrders();
+      loadDashboardStats();
     }
-  }, [activeFilter, userRole]);
+  }, [activeFilter, userRole, loadDashboardStats]);
 
-  const loadOrders = async () => {
-    // 只有陪玩用户才能加载订单
-    if (userRole !== 'player') {
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const data = await getPlayerOrders(activeFilter);
-      setOrders(data);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '加载订单失败';
-      setError(errorMessage);
-      console.error('Error loading orders:', err);
-      
-      // 在开发环境下提供空数组
-      if (process.env.NODE_ENV === 'development') {
-        setOrders([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+  // 当订单数据变化时，更新待处理事项数量
+  useEffect(() => {
+    const pendingOrdersCount = orders ? orders.filter(order => order.status === 'pending').length : 0;
+    setStats(prevStats => ({
+      ...prevStats,
+      pendingTasks: pendingOrdersCount
+    }));
+  }, [orders]);
+
   // 处理接单操作
   const handleAcceptOrder = async (orderId: string) => {
     try {
       await updateOrderStatus(orderId, 'accepted');
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId ? { ...order, status: 'accepted' } : order
-        )
-      );
       toast.success('订单已接受');
+      // 立即刷新数据
+      loadOrders();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '接单失败';
       toast.error(errorMessage);
@@ -136,30 +252,25 @@ export default function PlayerOrders() {
   const handleStartService = async (orderId: string) => {
     try {
       await updateOrderStatus(orderId, 'in_progress');
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId ? { ...order, status: 'in_progress' } : order
-        )
-      );
       toast.success('服务已开始');
+      // 立即刷新数据
+      loadOrders();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '开始服务失败';
       toast.error(errorMessage);
     }
   };
   
-  // 处理结束服务操作
+  // 处理结束服务操作（改为确认结束）
   const handleEndService = async (orderId: string) => {
     try {
-      await updateOrderStatus(orderId, 'completed');
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId ? { ...order, status: 'completed' } : order
-        )
-      );
-      toast.success('服务已结束');
+      const response = await confirmEndOrder(orderId);
+      toast.success(response.message);
+      
+      // 重新加载订单以更新状态
+      loadOrders();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '结束服务失败';
+      const errorMessage = err instanceof Error ? err.message : '确认结束服务失败';
       toast.error(errorMessage);
     }
   };
@@ -168,12 +279,9 @@ export default function PlayerOrders() {
   const handleRejectOrder = async (orderId: string) => {
     try {
       await updateOrderStatus(orderId, 'cancelled');
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId ? { ...order, status: 'cancelled' } : order
-        )
-      );
       toast.success('订单已拒绝');
+      // 立即刷新数据
+      loadOrders();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '拒单失败';
       toast.error(errorMessage);
@@ -181,11 +289,13 @@ export default function PlayerOrders() {
   };
   
   // 筛选订单
-  const filteredOrders = activeFilter === 'all' 
-    ? orders 
-    : activeFilter === 'in_progress'
-      ? orders.filter(order => order.status === 'accepted' || order.status === 'in_progress')
-      : orders.filter(order => order.status === activeFilter);
+  const filteredOrders = !orders ? [] : (
+    activeFilter === 'all' 
+      ? orders 
+      : activeFilter === 'in_progress'
+        ? orders.filter(order => order.status === 'accepted' || order.status === 'in_progress')
+        : orders.filter(order => order.status === activeFilter)
+  );
   
   
   if (loading) {
@@ -217,7 +327,7 @@ export default function PlayerOrders() {
             <p className="text-theme-text/70">查看和管理您的所有订单</p>
           </div>
           <div className="text-center py-10">
-            <p className="text-red-500 mb-4">加载失败: {error}</p>
+            <p className="text-theme-error mb-4">加载失败: {error?.message || String(error)}</p>
             <button 
               onClick={loadOrders}
               className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90"
@@ -230,34 +340,95 @@ export default function PlayerOrders() {
     );
   }
 
-
-
   return (
      <div className="bg-theme-background min-h-screen text-theme-text">
       <Header />
       
       <main className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-theme-text mb-2">订单管理</h1>
-              <p className="text-theme-text/70">查看和管理您的所有订单</p>
+        {/* 数据概览卡片 */}
+        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-6 mb-6">
+          {statsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-4 bg-theme-background rounded-lg animate-pulse">
+                  <div className="h-4 bg-theme-border rounded w-1/2 mb-2"></div>
+                  <div className="h-8 bg-theme-border rounded w-3/4"></div>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-4">
-              {/* 通知图标 */}
-               <div className="relative">
-                 <button className={`p-2 text-theme-text/70 hover:text-theme-primary transition-colors ${unreadCount > 0 ? 'animate-pulse-notification' : ''}`}>
-                   <i className="fa-solid fa-bell text-xl"></i>
-                   {unreadCount > 0 && (
-                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce-gentle">
-                       {unreadCount > 9 ? '9+' : unreadCount}
-                     </span>
-                   )}
-                 </button>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 bg-theme-background rounded-lg">
+                <p className="text-sm text-theme-text/70 mb-1">今日订单</p>
+                <div className="flex items-end justify-between">
+                  <h3 className="text-2xl font-bold text-theme-text">{stats.todayOrders}</h3>
+                  <span className="text-xs text-theme-success flex items-center">
+                    <i className="fa-solid fa-arrow-up mr-1"></i> 今日
+                  </span>
+                </div>
+              </div>
+              <div className="p-4 bg-theme-background rounded-lg">
+                <p className="text-sm text-theme-text/70 mb-1">本月收入</p>
+                <div className="flex items-end justify-between">
+                  <h3 className="text-2xl font-bold text-theme-text">¥{stats.monthlyIncome}</h3>
+                  <span className="text-xs text-theme-success flex items-center">
+                    <i className="fa-solid fa-arrow-up mr-1"></i> 本月
+                  </span>
+                </div>
+              </div>
+              <div 
+                 className="p-4 bg-theme-background rounded-lg cursor-pointer hover:bg-theme-background/80 transition-colors relative group"
+                 onClick={() => setShowRatingModal(true)}
+               >
+                 <div className="flex items-center justify-between mb-1">
+                   <p className="text-sm text-theme-text/70">平均评分</p>
+                   <i className="fa-solid fa-chart-line text-theme-primary opacity-60 group-hover:opacity-100 transition-opacity"></i>
+                 </div>
+                 <div className="flex items-end justify-between">
+                   <h3 className="text-2xl font-bold text-theme-text">{typeof stats.serviceRating === 'number' && !isNaN(stats.serviceRating) ? stats.serviceRating.toFixed(1) : '0.0'}</h3>
+                   <span className="text-xs text-theme-text/70 flex items-center">
+                     <i className="fa-solid fa-star mr-1 text-theme-warning"></i> 点击查看详情
+                   </span>
+                 </div>
                </div>
+              <div className="p-4 bg-theme-background rounded-lg">
+                <p className="text-sm text-theme-text/70 mb-1">待接取订单</p>
+                <div className="flex items-end justify-between">
+                  <h3 className="text-2xl font-bold text-theme-text">{stats.pendingTasks}</h3>
+                  <span className="text-xs text-theme-error flex items-center">
+                    <i className="fa-solid fa-exclamation-circle mr-1"></i> 待处理
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
+        
+        {/* 评分统计浮窗 */}
+         {showRatingModal && (
+           <div 
+             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             onClick={() => setShowRatingModal(false)}
+           >
+             <div 
+               className="bg-theme-surface rounded-xl shadow-lg border border-theme-border max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+               onClick={(e) => e.stopPropagation()}
+             >
+               <div className="p-6">
+                 <div className="flex items-center justify-between mb-4">
+                   <h2 className="text-xl font-bold text-theme-text">评分统计详情</h2>
+                   <button 
+                     onClick={() => setShowRatingModal(false)}
+                     className="text-theme-text/70 hover:text-theme-text transition-colors p-1"
+                   >
+                     <i className="fa-solid fa-times text-xl"></i>
+                   </button>
+                 </div>
+                 <RatingStats />
+               </div>
+             </div>
+           </div>
+         )}
         
         {/* 订单筛选 */}
         <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-4 mb-6">
@@ -331,7 +502,7 @@ export default function PlayerOrders() {
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
                       <div className="flex items-center gap-3">
                         <img 
-                          src={order.user.avatar} 
+                          src={buildAvatarUrl(order.user.avatar)} 
                           alt={order.user.nickname}
                           className="w-10 h-10 rounded-full object-cover"
                         />
@@ -348,7 +519,16 @@ export default function PlayerOrders() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-theme-text/70">订单金额</p>
-                          <p className="font-medium text-theme-text">¥{order.price.toFixed(2)}</p>
+                          <OrderAmountTooltip
+                             serviceAmount={typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0}
+                             giftCount={order.gift_count || 0}
+                             giftAmount={typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total || '0')}
+                             totalAmount={(typeof order.price === 'number' ? order.price : parseFloat(order.price || '0')) + (typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total || '0'))}
+                           >
+                             <p className="font-medium text-theme-text cursor-help">
+                               ¥{((typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0) + (typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total) || 0)).toFixed(2)}
+                             </p>
+                           </OrderAmountTooltip>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}>
                           {statusInfo.label}
@@ -366,6 +546,14 @@ export default function PlayerOrders() {
                           <i className="fa-solid fa-clock mr-2 text-theme-primary"></i>
                           <span>{order.orderTime}</span>
                         </div>
+                        {order.gift_details && (
+                          <div className="flex items-center text-theme-text/70">
+                            <i className="fa-solid fa-gift mr-2 text-purple-500"></i>
+                            <span className="text-xs truncate max-w-xs" title={order.gift_details}>
+                              礼物: {order.gift_details}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       
                       {/* 订单操作按钮 - 根据状态显示不同操作 */}
@@ -390,7 +578,7 @@ export default function PlayerOrders() {
                         <div className="flex gap-3">
                           <button 
                             onClick={() => handleStartService(order.id)}
-                            className="py-1.5 px-4 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors"
+                            className="py-1.5 px-4 bg-theme-success text-white text-sm font-medium rounded-lg hover:bg-theme-success/80 transition-colors"
                           >
                             开始服务
                           </button>
@@ -398,13 +586,24 @@ export default function PlayerOrders() {
                       )}
                       
                       {order.status === 'in_progress' && (
-                        <div className="flex gap-3">
-                          <button 
-                            onClick={() => handleEndService(order.id)}
-                            className="py-1.5 px-4 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
-                          >
-                            结束服务
-                          </button>
+                        <div className="flex items-center gap-2">
+                          {order.player_confirmed_end ? (
+                            <span className="text-theme-success text-sm">
+                              <i className="fa-solid fa-check-circle mr-1"></i> 您已确认结束
+                            </span>
+                          ) : (
+                            <button 
+                              onClick={() => handleEndService(order.id)}
+                              className="py-1.5 px-4 bg-theme-error text-white text-sm font-medium rounded-lg hover:bg-theme-error/80 transition-colors"
+                            >
+                              结束服务
+                            </button>
+                          )}
+                          {order.user_confirmed_end && !order.player_confirmed_end && (
+                            <span className="text-theme-warning text-sm">
+                              <i className="fa-solid fa-clock mr-1"></i> 等待您确认结束
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>

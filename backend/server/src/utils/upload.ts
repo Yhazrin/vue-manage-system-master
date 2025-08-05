@@ -1,7 +1,34 @@
 // utils/upload.ts
 import multer from 'multer';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * 删除旧文件的工具函数
+ * @param filePath 文件路径
+ */
+export function deleteOldFile(filePath: string): void {
+    if (filePath && fs.existsSync(filePath)) {
+        try {
+            fs.unlinkSync(filePath);
+            console.log(`已删除旧文件: ${filePath}`);
+        } catch (error) {
+            console.error(`删除文件失败: ${filePath}`, error);
+        }
+    }
+}
+
+/**
+ * 根据相对路径删除文件
+ * @param relativePath 相对路径（如：uploads/player/photos/xxx.jpg）
+ */
+export function deleteFileByRelativePath(relativePath: string): void {
+    if (!relativePath) return;
+    
+    // 构建完整的文件路径
+    const fullPath = path.join(__dirname, '../..', relativePath);
+    deleteOldFile(fullPath);
+}
 
 /**
  * 规范化 Windows 路径到 Web 路径：
@@ -37,14 +64,17 @@ export const createUpload = (type: string) => {
     const storage = multer.diskStorage({
         destination: (req, file, cb) => {
             let dir: string;
+            
+            // 使用backend/server/uploads文件夹（与静态文件服务配置一致）
+            const baseUploadsPath = path.join(__dirname, '../../uploads');
 
             // 新增gift类型处理
             if (type === 'gift') {
-                dir = `uploads/gift/images/`; // 礼物图片专用目录
+                dir = path.join(baseUploadsPath, 'gift/images/'); // 礼物图片专用目录
             }
-            // 新增game类型处理
+            // 新增game类型处理 - 存储到后端uploads目录
             else if (type === 'game') {
-                dir = `uploads/game/images/`; // 游戏图片专用目录
+                dir = path.join(baseUploadsPath, 'game/images/'); // 游戏图片存储到后端uploads目录
             }
 
             // 特殊处理：player类型区分头像、二维码和录音目录
@@ -61,15 +91,15 @@ export const createUpload = (type: string) => {
                     default:
                         subDir = 'photos/'; // 默认头像（photo_img）
                 }
-                dir = `uploads/player/${subDir}`;
+                dir = path.join(baseUploadsPath, `player/${subDir}`);
                 // 完整路径示例：
-                // - 头像：uploads/player/photos/
-                // - 二维码：uploads/player/qrs/
-                // - 录音：uploads/player/voices/
+                // - 头像：项目根目录/uploads/player/photos/
+                // - 二维码：项目根目录/uploads/player/qrs/
+                // - 录音：项目根目录/uploads/player/voices/
             } else {
                 // user和manager只需要头像目录（统一存到各自的photos子目录）
-                dir = `uploads/${type}/photos/`;
-                // 路径：uploads/user/photos/ 或 uploads/manager/photos/
+                dir = path.join(baseUploadsPath, `${type}/photos/`);
+                // 路径：项目根目录/uploads/user/photos/ 或 项目根目录/uploads/manager/photos/
             }
             ensureDir(dir);
             cb(null, dir);
@@ -84,26 +114,9 @@ export const createUpload = (type: string) => {
     // 文件过滤：根据类型区分允许的文件格式
     const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
         // 图片类型（头像、二维码）允许的格式
-        const imageTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         // 录音文件允许的格式（根据实际需求调整）
         const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg'];
-
-        // 大小限制（字节）
-        const imageSizeLimit = 5 * 1024 * 1024; // 5MB
-        const audioSizeLimit = 10 * 1024 * 1024; // 10MB
-
-        // 检查文件大小
-        if (type === 'player' && file.fieldname === 'voice') {
-            if (file.size > audioSizeLimit) {
-                cb(new Error(`录音文件大小不能超过${audioSizeLimit / 1024 / 1024}MB`));
-                return;
-            }
-        } else {
-            if (file.size > imageSizeLimit) {
-                cb(new Error(`图片文件大小不能超过${imageSizeLimit / 1024 / 1024}MB`));
-                return;
-            }
-        }
 
         // 对player的录音文件单独判断格式
         if (type === 'player' && file.fieldname === 'voice') {
@@ -113,7 +126,7 @@ export const createUpload = (type: string) => {
                 cb(new Error(`录音仅支持${audioTypes.join('、')}格式`));
             }
         } else {
-            // 其他情况（头像、二维码）按图片格式判断
+            // 其他情况（头像、二维码、游戏图片、礼物图片）按图片格式判断
             if (imageTypes.includes(file.mimetype)) {
                 cb(null, true);
             } else {
@@ -122,11 +135,19 @@ export const createUpload = (type: string) => {
         }
     };
 
+    // 根据类型设置文件大小限制
+    let fileSizeLimit: number;
+    if (type === 'player') {
+        fileSizeLimit = 10 * 1024 * 1024; // 10MB（包含录音文件）
+    } else {
+        fileSizeLimit = 10 * 1024 * 1024; // 10MB（图片文件）
+    }
+
     return multer({
         storage,
         fileFilter,
         limits: {
-            fileSize: Infinity // 这里不限制大小，具体在fileFilter中处理
+            fileSize: fileSizeLimit
         }
     });
 };
@@ -140,3 +161,6 @@ export const managerUpload = createUpload('manager');
 export const giftUpload = createUpload('gift');
 // 新增游戏图片上传实例
 export const gameUpload = createUpload('game');
+
+// 调试信息
+console.log('upload.ts: gameUpload created:', gameUpload);
