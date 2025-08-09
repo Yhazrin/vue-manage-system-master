@@ -37,6 +37,13 @@ export const apiRequest = async <T>(
     : { ...headers, ...options.headers };
   
   try {
+    console.log('🚀 发送API请求:', {
+      url,
+      method: options.method || 'GET',
+      headers: finalHeaders,
+      body: options.body
+    });
+    
     const response = await fetch(url, {
       ...options,
       headers: finalHeaders,

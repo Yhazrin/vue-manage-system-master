@@ -264,6 +264,7 @@ export class CustomerServiceDao {
    * 删除客服
    */
   static async deleteCustomerService(id: number): Promise<void> {
+    console.log(`开始删除客服，ID: ${id}`);
     const connection = await pool.getConnection();
     
     try {
@@ -271,44 +272,78 @@ export class CustomerServiceDao {
       
       // 首先检查客服是否存在
       const [customerService] = await connection.execute<RowDataPacket[]>(
-        'SELECT id FROM customer_services_super_unified WHERE id = ?',
+        'SELECT id, username FROM customer_services_super_unified WHERE id = ?',
         [id]
       );
       
       if (customerService.length === 0) {
+        console.log(`客服不存在，ID: ${id}`);
         throw new Error('客服不存在');
       }
       
+      console.log(`找到客服: ${customerService[0].username}, ID: ${id}`);
+      
       // 删除相关数据 - 使用正确的表名和字段名
       // 删除历史记录
-      await connection.execute('DELETE FROM customer_service_history_logs WHERE customer_service_id = ?', [id]);
+      console.log(`删除历史记录，客服ID: ${id}`);
+      const [historyResult] = await connection.execute<any>(
+        'DELETE FROM customer_service_history_logs WHERE customer_service_id = ?', 
+        [id]
+      );
+      console.log(`删除历史记录结果: ${historyResult.affectedRows} 行`);
       
       // 删除提现记录（如果使用统一的withdrawals表）
       try {
-        await connection.execute('DELETE FROM withdrawals WHERE customer_service_id = ? AND user_type = ?', [id, 'customer_service']);
+        console.log(`删除提现记录，客服ID: ${id}`);
+        const [withdrawalResult] = await connection.execute<any>(
+          'DELETE FROM withdrawals WHERE customer_service_id = ? AND user_type = ?', 
+          [id, 'customer_service']
+        );
+        console.log(`删除提现记录结果: ${withdrawalResult.affectedRows} 行`);
       } catch (err) {
         console.log('withdrawals 表不存在或字段不匹配，跳过删除');
       }
       
       // 删除其他可能存在的相关记录
       try {
-        await connection.execute('DELETE FROM customer_service_daily_earnings WHERE customer_service_id = ?', [id]);
+        console.log(`删除每日收益记录，客服ID: ${id}`);
+        const [earningsResult] = await connection.execute<any>(
+          'DELETE FROM customer_service_daily_earnings WHERE customer_service_id = ?', 
+          [id]
+        );
+        console.log(`删除每日收益记录结果: ${earningsResult.affectedRows} 行`);
       } catch (err) {
         console.log('customer_service_daily_earnings 表不存在，跳过删除');
       }
       
       try {
-        await connection.execute('DELETE FROM attendance_records WHERE customer_service_id = ?', [id]);
+        console.log(`删除考勤记录，客服ID: ${id}`);
+        const [attendanceResult] = await connection.execute<any>(
+          'DELETE FROM attendance_records WHERE customer_service_id = ?', 
+          [id]
+        );
+        console.log(`删除考勤记录结果: ${attendanceResult.affectedRows} 行`);
       } catch (err) {
         console.log('attendance_records 表不存在，跳过删除');
       }
       
       // 删除客服主记录
-      await connection.execute('DELETE FROM customer_services_super_unified WHERE id = ?', [id]);
+      console.log(`删除客服主记录，ID: ${id}`);
+      const [mainResult] = await connection.execute<any>(
+        'DELETE FROM customer_services_super_unified WHERE id = ?', 
+        [id]
+      );
+      console.log(`删除客服主记录结果: ${mainResult.affectedRows} 行`);
+      
+      if (mainResult.affectedRows === 0) {
+        throw new Error('删除客服主记录失败，可能记录不存在');
+      }
       
       await connection.commit();
+      console.log(`客服删除成功，ID: ${id}`);
       
     } catch (error) {
+      console.error(`删除客服失败，ID: ${id}，错误:`, error);
       await connection.rollback();
       throw error;
     } finally {

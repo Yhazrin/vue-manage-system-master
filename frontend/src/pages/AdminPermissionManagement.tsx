@@ -2,12 +2,30 @@ import Header from "@/components/Header";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { format } from 'date-fns';
+
+// 时区转换工具函数 - 将UTC时间转换为中国时间
+const formatToChinaTime = (dateString: string | null | undefined, formatStr: string = 'yyyy-MM-dd HH:mm:ss'): string => {
+  if (!dateString) return '-';
+  
+  try {
+    // 创建Date对象（假设输入是UTC时间）
+    const utcDate = new Date(dateString);
+    
+    // 转换为中国时间（UTC+8）
+    const chinaTime = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+    
+    return format(chinaTime, formatStr);
+  } catch (error) {
+    console.error('时间格式化错误:', error);
+    return dateString;
+  }
+};
 import {
   getAdmins,
   getAdminCredentials,
   createAdmin,
   deleteAdmin,
-  toggleAdminStatus as toggleAdminStatusAPI,
+
   getCustomerServiceSalaries,
   updateCustomerServiceSalary,
   getGlobalHourlyRate,
@@ -44,27 +62,6 @@ const getRoleStyle = (role: Admin['role']) => {
       return { 
         className: "bg-gray-500/10 text-gray-500", 
         label: "未知角色" 
-      };
-  }
-};
-
-// 获取状态样式
-const getStatusStyle = (status: Admin['status']) => {
-  switch(status) {
-    case 'active':
-      return { 
-        className: "bg-green-500/10 text-green-500", 
-        label: "正常" 
-      };
-    case 'inactive':
-      return { 
-        className: "bg-red-500/10 text-red-500", 
-        label: "禁用" 
-      };
-    default:
-      return { 
-        className: "bg-gray-500/10 text-gray-500", 
-        label: "未知状态" 
       };
   }
 };
@@ -165,19 +162,19 @@ export default function AdminPermissionManagement() {
   // Fetch data when switching tabs
   useEffect(() => {
     if (activeTab === 'attendance') {
-      loadAttendanceRecords(selectedAdminForAttendance);
+      loadAttendanceRecords();
     } else if (activeTab === 'salary') {
       loadCustomerServiceSalaries();
       loadGlobalHourlyRate();
     }
   }, [activeTab]);
 
-  // Reload attendance records when selected admin or date changes
+  // Reload attendance records when date or admin selection changes
   useEffect(() => {
     if (activeTab === 'attendance') {
       loadAttendanceRecords(selectedAdminForAttendance, selectedDate);
     }
-  }, [selectedAdminForAttendance, selectedDate]);
+  }, [selectedDate, selectedAdminForAttendance]);
 
   const loadAdmins = async () => {
     try {
@@ -227,11 +224,27 @@ export default function AdminPermissionManagement() {
       
       // 管理员使用getAllAttendanceRecords方法获取所有打卡记录
       // 如果指定了日期，则查询该日期的记录
-      const startDate = date || selectedDate;
-      const endDate = date || selectedDate;
+      const targetDate = date || selectedDate;
+      const startDate = targetDate || undefined;
+      const endDate = targetDate || undefined;
+      
+      console.log('Loading attendance records with params:', { adminId, startDate, endDate, targetDate, selectedDate });
       
       const data = await attendanceService.getAllAttendanceRecords(1, 1000, startDate, endDate);
-      setAttendanceRecords(Array.isArray(data.records) ? data.records : []);
+      console.log('Received attendance data:', data);
+      
+      let records = Array.isArray(data.records) ? data.records : [];
+      
+      // 如果指定了特定客服，在前端进行额外筛选
+      if (adminId && adminId !== 'all') {
+        records = records.filter(record => {
+          const recordAdminId = record.admin_id?.toString() || record.adminId?.toString() || record.customer_service_id?.toString();
+          return recordAdminId === adminId;
+        });
+        console.log('Filtered records for admin:', adminId, records);
+      }
+      
+      setAttendanceRecords(records);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '获取打卡记录失败';
       setAttendanceError(errorMessage);
@@ -288,33 +301,7 @@ export default function AdminPermissionManagement() {
     }
   };
   
-  const toggleAdminStatus = async (id: string) => {
-    try {
-      // 找到当前客服的状态
-      const currentAdmin = admins.find(admin => admin.id === id);
-      if (!currentAdmin) {
-        toast.error('客服不存在');
-        return;
-      }
-      
-      // 计算新状态
-      const newStatus = currentAdmin.status === 'active' ? false : true;
-      
-      // 调用客服API更新状态
-      await customerServiceApi.admin.updateCustomerServiceStatus(parseInt(id), newStatus);
-      
-      // 更新本地状态
-      setAdmins(admins.map(admin => 
-        admin.id === id ? { ...admin, status: newStatus ? 'active' : 'inactive' } : admin
-      ));
-      
-      toast.success(`客服状态已${newStatus ? '启用' : '禁用'}`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '切换客服状态失败';
-      console.error('Failed to toggle customer service status:', err);
-      toast.error(errorMessage);
-    }
-  };
+
   
   const handleAddAdmin = async () => {
     if (!newAdmin.username.trim()) {
@@ -433,12 +420,33 @@ export default function AdminPermissionManagement() {
     }
     
     try {
-      await deleteAdmin(adminId);
+      console.log('正在注销客服账号，ID:', adminId);
+      const result = await deleteAdmin(String(adminId));
+      console.log('注销API调用结果:', result);
+      
       await loadAdmins(); // 重新加载管理员列表
       toast.success("客服账号注销成功");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '注销客服账号失败';
-      console.error('Failed to delete admin:', err);
+      console.error('注销客服账号失败，详细错误:', err);
+      
+      let errorMessage = '注销客服账号失败';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        console.error('错误消息:', err.message);
+        console.error('错误堆栈:', err.stack);
+      }
+      
+      // 检查是否是网络错误
+      if (errorMessage.includes('fetch')) {
+        errorMessage = '网络连接失败，请检查后端服务是否正常运行';
+      } else if (errorMessage.includes('401')) {
+        errorMessage = '权限不足，请重新登录';
+      } else if (errorMessage.includes('404')) {
+        errorMessage = '客服账号不存在或已被删除';
+      } else if (errorMessage.includes('500')) {
+        errorMessage = '服务器内部错误，请联系管理员';
+      }
+      
       toast.error(errorMessage);
     }
   };
@@ -489,6 +497,8 @@ export default function AdminPermissionManagement() {
               </button>
             </div>
           </div>
+
+          {/* 标签页内容 */}
           
           {/* 管理员管理标签内容 */}
           {activeTab === 'admins' && (
@@ -549,20 +559,19 @@ export default function AdminPermissionManagement() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">用户名</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">手机号</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">密码</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">状态</th>
+
                             <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">创建时间</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">操作</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-theme-border">
-                          {admins.filter(admin => admin.role === 'customer_service').map(admin => {
-                            const statusStyle = getStatusStyle(admin.status);
+                          {admins.filter(admin => admin.role === 'customer_service').map((admin, index) => {
                             // 从凭据数据中查找对应的密码信息
                             const credential = adminCredentials.find(cred => cred.id === admin.id);
                             const password = credential?.password || '密码未设置';
                             
                             return (
-                              <tr key={admin.id} className="hover:bg-theme-surface/50 transition-colors">
+                              <tr key={`admin-${admin.id}-${admin.username}-${index}`} className="hover:bg-theme-surface/50 transition-colors">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="flex items-center">
                                     <div className="w-10 h-10 bg-purple-600/10 rounded-full flex items-center justify-center mr-3">
@@ -606,26 +615,13 @@ export default function AdminPermissionManagement() {
                                     </button>
                                   </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyle.className}`}>
-                                    {statusStyle.label}
-                                  </span>
-                                </td>
+
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">
-                                  {admin.createdAt}
+                                  {admin.createdAt ? formatToChinaTime(admin.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                   <div className="flex items-center space-x-2">
-                                    <button
-                                      onClick={() => toggleAdminStatus(admin.id)}
-                                      className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                        admin.status === 'active'
-                                          ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
-                                          : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
-                                      }`}
-                                    >
-                                      {admin.status === 'active' ? '禁用' : '启用'}
-                                    </button>
+
                                     <button
                                       onClick={() => handleDeleteAdmin(Number(admin.id))}
                                       className="px-3 py-1 rounded text-xs font-medium transition-colors bg-red-500/10 text-red-500 hover:bg-red-500/20"
@@ -647,6 +643,7 @@ export default function AdminPermissionManagement() {
             </div>
           )}
           
+          {/* 所有模态框和条件渲染块 */}
           {/* 添加管理员模态框 */}
           {isAddingAdmin && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -850,33 +847,77 @@ export default function AdminPermissionManagement() {
           {activeTab === 'attendance' && (
             <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden">
               <div className="p-5 border-b border-theme-border">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div>
-                    <h2 className="font-semibold text-theme-text">打卡记录</h2>
+                    <h2 className="font-semibold text-theme-text flex items-center">
+                      <i className="fa-solid fa-clock mr-2 text-purple-600"></i>
+                      打卡记录
+                    </h2>
                     <p className="text-sm text-theme-text/70 mt-1">查看客服的打卡记录和工作时长</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-theme-text">日期:</label>
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="px-3 py-2 border border-theme-border bg-theme-background rounded-lg text-sm text-theme-text focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
+                  
+                  {/* 筛选条件 */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-theme-background/50 p-4 rounded-lg border border-theme-border">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <label className="text-sm font-medium text-theme-text whitespace-nowrap flex items-center">
+                        <i className="fa-solid fa-calendar-days mr-1 text-purple-600"></i>
+                        日期:
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          className="px-3 py-2 pr-8 border border-theme-border bg-theme-background rounded-lg text-sm text-theme-text focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-purple-400 min-w-[140px]"
+                        />
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                          <i className="fa-solid fa-calendar text-theme-text/40 text-xs"></i>
+                        </div>
+                      </div>
                     </div>
+                    
+                    <div className="flex items-center gap-2 min-w-0">
+                      <label className="text-sm font-medium text-theme-text whitespace-nowrap flex items-center">
+                        <i className="fa-solid fa-user mr-1 text-purple-600"></i>
+                        客服:
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={selectedAdminForAttendance}
+                          onChange={(e) => setSelectedAdminForAttendance(e.target.value)}
+                          className="px-3 py-2 pr-8 border border-theme-border bg-theme-background rounded-lg text-sm text-theme-text focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-purple-400 appearance-none cursor-pointer min-w-[120px]"
+                        >
+                          <option value="all">所有客服</option>
+                          {admins.filter(admin => admin.role === 'customer_service').map((admin, index) => (
+                            <option key={`admin-option-${admin.id}-${admin.username}-${index}`} value={admin.id}>{admin.username}</option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                          <i className="fa-solid fa-chevron-down text-theme-text/40 text-xs"></i>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* 快速操作按钮 */}
                     <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-theme-text">客服:</label>
-                      <select
-                        value={selectedAdminForAttendance}
-                        onChange={(e) => setSelectedAdminForAttendance(e.target.value)}
-                        className="px-3 py-2 border border-theme-border bg-theme-background rounded-lg text-sm text-theme-text focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      <button
+                        onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                        className="px-2 py-1.5 text-xs font-medium bg-purple-600/10 text-purple-600 rounded-md hover:bg-purple-600/20 transition-colors whitespace-nowrap"
+                        title="查看今天"
                       >
-                        <option value="all">所有客服</option>
-                        {admins.filter(admin => admin.role === 'customer_service').map(admin => (
-                          <option key={admin.id} value={admin.id}>{admin.username}</option>
-                        ))}
-                      </select>
+                        今天
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedDate('');
+                          setSelectedAdminForAttendance('all');
+                        }}
+                        className="px-2 py-1.5 text-xs font-medium bg-gray-600/10 text-gray-600 rounded-md hover:bg-gray-600/20 transition-colors whitespace-nowrap"
+                        title="清空筛选"
+                      >
+                        <i className="fa-solid fa-refresh mr-1"></i>
+                        重置
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -896,7 +937,7 @@ export default function AdminPermissionManagement() {
                     <p className="text-sm text-theme-text/70 mt-1">{attendanceError}</p>
                   </div>
                   <button
-                    onClick={() => loadAttendanceRecords(selectedAdminForAttendance, selectedDate)}
+                    onClick={() => loadAttendanceRecords(undefined, selectedDate)}
                     className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
                   >
                     重试
@@ -905,23 +946,52 @@ export default function AdminPermissionManagement() {
               )}
               
               {!attendanceLoading && !attendanceError && (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-theme-surface border-b border-theme-border">
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">客服</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">日期</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">打卡时间</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">下班时间</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">工作时长</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">时薪</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">收入</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">状态</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-theme-border">
-                      {attendanceRecords.map(record => (
-                        <tr key={record.id} className="hover:bg-theme-surface/50 transition-colors">
+                <>
+                  {(() => {
+                    // 直接使用已经筛选过的记录
+                    const filteredRecords = attendanceRecords;
+
+                    if (filteredRecords.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <div className="text-theme-text/60 mb-4">
+                            <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            <p className="text-lg font-medium text-theme-text">暂无打卡记录</p>
+                            <p className="text-sm text-theme-text/50 mt-1">
+                              {selectedAdminForAttendance !== 'all' 
+                                ? '该客服在选定日期没有打卡记录' 
+                                : '选定日期没有任何打卡记录'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="overflow-x-auto">
+                        <div className="px-6 py-3 bg-theme-surface/50 border-b border-theme-border">
+                          <p className="text-sm text-theme-text/70">
+                            共找到 <span className="font-medium text-theme-text">{filteredRecords.length}</span> 条打卡记录
+                          </p>
+                        </div>
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-theme-surface border-b border-theme-border">
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">客服</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">日期</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">打卡时间</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">下班时间</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">工作时长</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">时薪</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">收入</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">状态</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-theme-border">
+                            {filteredRecords.map((record, index) => (
+                              <tr key={`attendance-${record.id || record.history_id || index}-${record.date || record.clock_in_time || index}`} className="hover:bg-theme-surface/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="w-8 h-8 bg-purple-600/10 rounded-full flex items-center justify-center mr-3">
@@ -934,10 +1004,10 @@ export default function AdminPermissionManagement() {
                               {superUnifiedAttendanceService.formatDate(record.date)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">
-                              {record.clock_in_time ? format(new Date(record.clock_in_time), 'HH:mm:ss') : '-'}
+                              {record.clock_in_time ? formatToChinaTime(record.clock_in_time, 'HH:mm:ss') : '-'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">
-                              {record.clock_out_time ? format(new Date(record.clock_out_time), 'HH:mm:ss') : '未下班'}
+                              {record.clock_out_time ? formatToChinaTime(record.clock_out_time, 'HH:mm:ss') : '未下班'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">
                               {getWorkDurationDisplay(record)}
@@ -960,11 +1030,14 @@ export default function AdminPermissionManagement() {
                                  record.status === 'clocked_out' ? '已完成' : '未打卡'}
                               </span>
                             </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
             </div>
           )}
@@ -1054,8 +1127,8 @@ export default function AdminPermissionManagement() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-theme-border">
-                        {customerServiceSalaries.map(salary => (
-                          <tr key={salary.adminId} className="hover:bg-theme-surface/50 transition-colors">
+                          {customerServiceSalaries.map((salary, index) => (
+                            <tr key={`salary-${salary.adminId}-${salary.username}-${index}`} className="hover:bg-theme-surface/50 transition-colors">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="w-8 h-8 bg-purple-600/10 rounded-full flex items-center justify-center mr-3">
@@ -1112,8 +1185,6 @@ export default function AdminPermissionManagement() {
               </div>
             </div>
           )}
-
-
         </main>
       </div>
     </>

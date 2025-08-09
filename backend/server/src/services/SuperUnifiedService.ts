@@ -30,14 +30,64 @@ export class SuperUnifiedService {
     try {
       const connection = await this.init();
       const clockInTime = new Date();
+      const today = clockInTime.toISOString().split('T')[0]; // 获取今天的日期 YYYY-MM-DD
 
-      // 检查是否已经打卡 - 重新启用一天只能打卡一次的限制
-      const [existing] = await connection.execute(`
-        SELECT today_status FROM customer_services_super_unified 
-        WHERE id = ? AND today_status != 'not_clocked'
+      // 获取客服当前状态
+      const [customerInfo] = await connection.execute(`
+        SELECT today_status, today_clock_in_time FROM customer_services_super_unified 
+        WHERE id = ?
       `, [customerId]);
 
-      if ((existing as any[]).length > 0) {
+      if ((customerInfo as any[]).length === 0) {
+        return { success: false, message: '客服不存在' };
+      }
+
+      const customer = (customerInfo as any[])[0];
+      
+      // 如果是新的一天，先重置today_status
+      if (customer.today_clock_in_time) {
+        // 使用数据库的日期函数来比较，避免时区问题
+         const [dateCheck] = await connection.execute(`
+           SELECT 
+             DATE(?) as today_date,
+             DATE(today_clock_in_time) as last_clock_date,
+             today_clock_in_time,
+             DATE_FORMAT(DATE(?), '%Y-%m-%d') as today_str,
+             DATE_FORMAT(DATE(today_clock_in_time), '%Y-%m-%d') as last_str
+           FROM customer_services_super_unified 
+           WHERE id = ?
+         `, [clockInTime, clockInTime, customerId]);
+         
+         const dateInfo = (dateCheck as any[])[0];
+         console.log(`客服 ${customerId} 日期检查:`, {
+           today_str: dateInfo.today_str,
+           last_str: dateInfo.last_str,
+           today_clock_in_time: dateInfo.today_clock_in_time
+         });
+         
+         if (dateInfo.today_str !== dateInfo.last_str) {
+          console.log(`客服 ${customerId} 跨天重置状态，上次打卡日期: ${dateInfo.last_clock_date}, 今天: ${dateInfo.today_date}`);
+          // 如果上次打卡不是今天，重置状态
+          await connection.execute(`
+            UPDATE customer_services_super_unified 
+            SET 
+              today_status = 'not_clocked',
+              today_clock_in_time = NULL,
+              today_clock_out_time = NULL,
+              today_work_hours = 0.00,
+              today_base_earnings = 0.00,
+              today_total_earnings = 0.00
+            WHERE id = ?
+          `, [customerId]);
+          
+          // 更新本地状态
+          customer.today_status = 'not_clocked';
+          console.log(`客服 ${customerId} 状态已重置为 not_clocked`);
+        }
+      }
+
+      // 检查当前状态是否已经打卡
+      if (customer.today_status !== 'not_clocked') {
         return { success: false, message: '今日已经打卡，无需重复打卡' };
       }
 
@@ -226,9 +276,66 @@ export class SuperUnifiedService {
         return { success: false, message: '客服不存在' };
       }
 
+      const customer = (customerInfo as any[])[0];
+      
+      // 检查是否需要重置今日状态（跨天检查）
+      const now = new Date();
+      
+      // 如果有今日打卡时间，检查是否是今天的
+      if (customer.today_clock_in_time) {
+        // 使用数据库的日期函数来比较，避免时区问题
+         const [dateCheck] = await connection.execute(`
+           SELECT 
+             DATE(NOW()) as today_date,
+             DATE(today_clock_in_time) as last_clock_date,
+             today_clock_in_time,
+             DATE_FORMAT(DATE(NOW()), '%Y-%m-%d') as today_str,
+             DATE_FORMAT(DATE(today_clock_in_time), '%Y-%m-%d') as last_str
+           FROM customer_services_super_unified 
+           WHERE id = ?
+         `, [customerId]);
+         
+         const dateInfo = (dateCheck as any[])[0];
+         console.log(`getCustomerServiceInfo - 客服 ${customerId} 日期检查:`, {
+           today_str: dateInfo.today_str,
+           last_str: dateInfo.last_str,
+           today_clock_in_time: dateInfo.today_clock_in_time
+         });
+         
+         // 如果打卡时间不是今天，说明需要重置状态
+         if (dateInfo.today_str !== dateInfo.last_str) {
+          console.log(`getCustomerServiceInfo - 客服 ${customerId} 需要重置今日状态，上次打卡日期: ${dateInfo.last_clock_date}, 今天: ${dateInfo.today_date}`);
+          
+          // 重置今日状态
+          await connection.execute(`
+            UPDATE customer_services_super_unified 
+            SET 
+              today_status = 'not_clocked',
+              today_clock_in_time = NULL,
+              today_clock_out_time = NULL,
+              today_work_hours = 0,
+              today_total_earnings = 0,
+              updated_at = NOW()
+            WHERE id = ?
+          `, [customerId]);
+          
+          // 重新获取更新后的客服信息
+          const [updatedCustomerInfo] = await connection.execute(`
+            SELECT * FROM customer_services_super_unified WHERE id = ?
+          `, [customerId]);
+          
+          console.log(`getCustomerServiceInfo - 客服 ${customerId} 状态已重置`);
+          
+          return {
+            success: true,
+            data: (updatedCustomerInfo as any[])[0]
+          };
+        }
+      }
+
       return {
         success: true,
-        data: (customerInfo as any[])[0]
+        data: customer
       };
 
     } catch (error) {

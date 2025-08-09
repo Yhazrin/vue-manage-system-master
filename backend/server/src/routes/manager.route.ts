@@ -42,17 +42,12 @@ router.put('/:id/toggle-status', auth, async (req: AuthRequest, res: Response, n
 
         const targetId = Number(req.params.id);
         
-        // 验证ID是否为有效数字
-        if (isNaN(targetId) || targetId <= 0) {
-            return res.status(400).json({ success: false, error: '无效的管理员ID' });
-        }
-        
         // 防止操作自己
         if (req.user?.id === targetId) {
             return res.status(400).json({ success: false, error: '不能修改自己的状态' });
         }
 
-        // 获取目标管理员信息
+        // 获取当前管理员信息
         const manager = await ManagerDAO.findById(targetId);
         if (!manager) {
             return res.status(404).json({ success: false, error: '管理员不存在' });
@@ -270,9 +265,10 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
         const id = await CustomerServiceDao.createCustomerService({
             username: customerServiceName, // username (客服名称作为登录用户名)
             password: hash, // 加密密码
-            plain_passwd: defaultPassword, // 明文密码
             phone: phoneNumber, // phone_num
+            email: '', // email
             hourly_rate: 20.00, // hourly_rate (默认时薪)
+            avatar: null, // photo_img
             created_by: req.user?.id // 创建者ID
         });
 
@@ -837,6 +833,8 @@ router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunct
             return res.status(403).json({ success: false, error: '无权限访问该管理员资料' });
         }
 
+        const manager = await ManagerDAO.findById(targetId);
+        if (!manager) return res.status(404).json({ success: false, error: '管理员不存在' });
 
         // 隐藏密码字段
         const { passwd, ...safeManager } = manager;

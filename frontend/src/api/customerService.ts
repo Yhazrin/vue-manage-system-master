@@ -74,8 +74,12 @@ export const customerServiceApi = {
       put(`/customer-service/${id}/permissions`, { permissions }),
 
     // 删除客服
-    deleteCustomerService: (id: number) => 
-      del(`/customer-service/${id}`),
+    deleteCustomerService: (id: number) => {
+      console.log('🎯 customerService.ts deleteCustomerService 被调用');
+      console.log('📋 传入的ID:', id);
+      console.log('🛣️ 构建的路径:', `/customer-service/${id}`);
+      return del(`/customer-service/${id}`);
+    },
 
     // 管理员修改客服密码
     updateCustomerServicePassword: (id: number, password: string) => 

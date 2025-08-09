@@ -207,7 +207,73 @@ export const customerServiceApi = {
     }
   },
 
+  // 管理员接口
+  admin: {
+    // 获取客服列表
+    getCustomerServiceList: async (): Promise<{ success: boolean; data?: CustomerServiceInfo[]; message?: string }> => {
+      try {
+        const response = await api.get('/customer-service');
+        return response;
+      } catch (error: any) {
+        return {
+          success: false,
+          message: error.response?.data?.message || '获取客服列表失败'
+        };
+      }
+    },
 
+    // 创建客服
+    createCustomerService: async (data: { username: string; name: string }): Promise<{ success: boolean; message?: string }> => {
+      try {
+        const response = await api.post('/customer-service', data);
+        return response;
+      } catch (error: any) {
+        return {
+          success: false,
+          message: error.response?.data?.message || '创建客服失败'
+        };
+      }
+    },
+
+    // 删除客服
+    deleteCustomerService: async (id: number): Promise<{ success: boolean; message?: string }> => {
+      try {
+        const response = await api.delete(`/customer-service/${id}`);
+        return response;
+      } catch (error: any) {
+        return {
+          success: false,
+          message: error.response?.data?.message || '删除客服失败'
+        };
+      }
+    },
+
+    // 更新客服密码
+    updateCustomerServicePassword: async (id: number, password: string): Promise<{ success: boolean; message?: string }> => {
+      try {
+        const response = await api.put(`/customer-service/${id}/password`, { password });
+        return response;
+      } catch (error: any) {
+        return {
+          success: false,
+          message: error.response?.data?.message || '更新客服密码失败'
+        };
+      }
+    },
+
+    // 更新客服状态
+    updateCustomerServiceStatus: async (id: number, status: string): Promise<{ success: boolean; message?: string }> => {
+      try {
+        const response = await api.put(`/customer-service/${id}/status`, { status });
+        return response;
+      } catch (error: any) {
+        return {
+          success: false,
+          message: error.response?.data?.message || '更新客服状态失败'
+        };
+      }
+    }
+  }
 };
 
 export default customerServiceApi;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { useTheme } from '@/hooks/useTheme';
 import { useAttendance } from '@/contexts/AttendanceContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -416,7 +416,17 @@ const CustomerServiceDashboard: React.FC = () => {
       toast.success('上班打卡成功！');
       await refreshData();
     } catch (error: any) {
-      toast.error(error.message || '上班打卡失败');
+      const errorMessage = error.message || '上班打卡失败';
+      
+      // 如果是重复打卡的错误，使用警告样式的弹窗
+      if (errorMessage.includes('已经打卡') || errorMessage.includes('重复打卡')) {
+        toast.warning(errorMessage, {
+          duration: 4000,
+          description: '请勿重复打卡，如有疑问请联系管理员'
+        });
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }

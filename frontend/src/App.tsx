@@ -231,8 +231,8 @@ export default function App() {
                   <UnifiedWithdrawalManagement />
                 </PermissionGuard>
               } />
-              {/* 权限管理 */}
-              <Route path="/admin/permissions" element={
+              {/* 客服管理 */}
+              <Route path="/admin/customer-service-management" element={
                 <PermissionGuard requiredRole="admin">
                   <AdminPermissionManagement />
                 </PermissionGuard>

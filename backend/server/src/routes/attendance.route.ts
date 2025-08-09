@@ -98,9 +98,13 @@ router.get('/all-records', auth, async (req: AuthRequest, res: Response, next: N
     
     const page = Number(req.query.page) || 1;
     const pageSize = Number(req.query.pageSize) || 10;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
     
-    // 修复参数传递：getAttendanceRecords(customerServiceId?, startDate?, endDate?, page, pageSize)
-    const result = await AttendanceDao.getAttendanceRecords(undefined, undefined, undefined, page, pageSize);
+    console.log('获取所有打卡记录，参数:', { page, pageSize, startDate, endDate });
+    
+    // 正确传递日期参数：getAttendanceRecords(customerServiceId?, startDate?, endDate?, page, pageSize)
+    const result = await AttendanceDao.getAttendanceRecords(undefined, startDate, endDate, page, pageSize);
     
     res.json(result);
   } catch (error) {

@@ -1,6 +1,6 @@
 // API 配置
 export const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:3000/api'
+  ? 'http://localhost:3001/api'
   : '/api';
 
 // API 端点

@@ -72,9 +72,9 @@ export const updateAdmin = async (id: string, admin: UpdateAdminRequest): Promis
   return await put(`/managers/${id}`, admin);
 };
 
-// 删除管理员
+// 删除管理员（客服）
 export const deleteAdmin = async (id: string): Promise<void> => {
-  return await del(`/managers/${id}`);
+  return await del(`/customer-service/${id}`);
 };
 
 // 切换管理员状态

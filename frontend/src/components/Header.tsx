@@ -62,7 +62,7 @@ export default function Header() {
                 { label: '礼物管理', path: '/admin/gifts', icon: '🎁' },
                 { label: '游戏管理', path: '/admin/games', icon: '🎮' },
                 { label: '提现管理', path: '/admin/withdrawals', icon: '💰' },
-                { label: '客服管理', path: '/admin/permissions', icon: '🔑' },
+                { label: '客服管理', path: '/admin/customer-service-management', icon: '🔑' },
               //  { label: '通知管理', path: '/admin/notifications', icon: '🔔' },
               //label: '数据管理', path: '/admin/data-management', icon: '🗄️' },
                 { label: 'API监控', path: '/admin/api-monitor', icon: '📡' },

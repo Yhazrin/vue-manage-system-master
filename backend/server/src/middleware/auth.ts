@@ -38,12 +38,24 @@ export async function auth(req: AuthRequest, res: Response, next: NextFunction) 
         }
         
         // 如果找到用户且用户被封禁，返回封禁错误
-        if (currentUser && currentUser.status === false) {
-            return res.status(403).json({ 
-                success: false, 
-                error: '账号已被封禁，请联系客服', 
-                banned: true 
-            });
+        if (currentUser) {
+            // 对于不同角色，status字段的类型可能不同
+            let isBanned = false;
+            if (payload.role === 'customer_service') {
+                // 客服的status是字符串类型：'active', 'inactive', 'suspended'
+                isBanned = currentUser.status === 'inactive' || currentUser.status === 'suspended';
+            } else {
+                // 用户、陪玩、管理员的status是boolean类型
+                isBanned = currentUser.status === false || currentUser.status === 0;
+            }
+            
+            if (isBanned) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: payload.role === 'customer_service' ? '账户已被禁用，请联系管理员' : '账号已被封禁，请联系客服', 
+                    banned: true 
+                });
+            }
         }
         
         req.user = { id: payload.id, phone_num: payload.phone_num, role: payload.role, username: payload.username };

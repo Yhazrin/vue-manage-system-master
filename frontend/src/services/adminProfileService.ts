@@ -296,6 +296,98 @@ export const getAdminOperationLogs = async (params: {
   }
 };
 
+// 获取客服薪资数据
+export const getCustomerServiceSalaries = async (): Promise<{
+  salaries: Array<{
+    id: string;
+    name: string;
+    hourlyRate: number;
+    totalHours: number;
+    totalEarnings: number;
+    lastUpdated: string;
+  }>;
+}> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/customer-service-salaries`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch customer service salaries');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching customer service salaries:', error);
+    
+    // 开发环境下的模拟数据
+    if (process.env.NODE_ENV === 'development') {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      return {
+        salaries: [
+          { 
+            id: 'CS001', 
+            name: '客服01', 
+            hourlyRate: 25.00, 
+            totalHours: 160, 
+            totalEarnings: 4000.00,
+            lastUpdated: '2024-01-15 18:00:00'
+          },
+          { 
+            id: 'CS002', 
+            name: '客服02', 
+            hourlyRate: 22.50, 
+            totalHours: 150, 
+            totalEarnings: 3375.00,
+            lastUpdated: '2024-01-15 17:30:00'
+          },
+          { 
+            id: 'CS003', 
+            name: '客服03', 
+            hourlyRate: 20.00, 
+            totalHours: 140, 
+            totalEarnings: 2800.00,
+            lastUpdated: '2024-01-15 16:45:00'
+          }
+        ]
+      };
+    }
+    
+    throw error;
+  }
+};
+
+// 更新客服薪资
+export const updateCustomerServiceSalary = async (id: string, hourlyRate: number): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/customer-service-salaries/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ hourlyRate })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update customer service salary');
+    }
+  } catch (error) {
+    console.error('Error updating customer service salary:', error);
+    
+    // 开发环境下的模拟
+    if (process.env.NODE_ENV === 'development') {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return;
+    }
+    
+    throw error;
+  }
+};
+
 // 获取管理员权限列表
 export const getAdminPermissions = async (): Promise<{
   permissions: Array<{

@@ -11,6 +11,20 @@ import { RowDataPacket } from 'mysql2';
 
 const router = Router();
 
+/**
+ * @route   GET /api/customer-service/auth/check
+ * @desc    检查客服认证状态和封禁状态
+ * @access  需要认证
+ */
+router.get('/auth/check', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 如果能通过auth中间件，说明客服状态正常
+        res.json({ success: true, message: '客服状态正常' });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // 客服登录
 router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -35,10 +49,11 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
     }
 
     // 检查客服状态
-    if (!customerService.status) {
+    if (customerService.status === 'inactive' || customerService.status === 'suspended') {
       return res.status(403).json({ 
         success: false, 
-        error: '账户已被禁用，请联系客服管理员' 
+        error: '账户已被禁用，请联系客服管理员',
+        banned: true
       });
     }
 
@@ -860,15 +875,26 @@ router.put('/:id/password', auth, requireAdmin, async (req: AuthRequest, res: Re
 router.delete('/:id', auth, requireAdmin, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const customerServiceId = Number(req.params.id);
+    console.log(`收到删除客服请求，ID: ${customerServiceId}, 操作者: ${req.user?.username || req.user?.id}`);
+
+    if (!customerServiceId || isNaN(customerServiceId)) {
+      console.log(`无效的客服ID: ${req.params.id}`);
+      return res.status(400).json({ 
+        success: false, 
+        error: '无效的客服ID' 
+      });
+    }
 
     await CustomerServiceDao.deleteCustomerService(customerServiceId);
+    console.log(`客服删除成功，ID: ${customerServiceId}`);
 
     res.json({ 
       success: true, 
       message: '客服删除成功' 
     });
 
-  } catch (err) {
+  } catch (err: any) {
+    console.error(`删除客服失败，ID: ${req.params.id}，错误:`, err.message);
     next(err);
   }
 });
