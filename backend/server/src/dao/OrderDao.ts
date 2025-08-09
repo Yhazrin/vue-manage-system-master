@@ -1,5 +1,6 @@
 // src/dao/OrderDAO.ts
 import { pool } from '../db';
+import { GiftRecordDAO } from './GiftRecordDao';
 export interface Order {
     order_id: string;
     user_id: number;
@@ -80,6 +81,74 @@ export class OrderDAO {
         return rows[0] ?? null;
     }
 
+    /** 根据 order_id 查询单条订单（别名方法） */
+    static async findByOrderId(orderId: string): Promise<Order | null> {
+        return this.findById(orderId);
+    }
+
+    /**
+     * 创建已完成订单（陪玩专用）
+     */
+    static async createCompleted(order: {
+        order_id: string;
+        user_id: number;
+        player_id: number;
+        game_id: number;
+        amount: number;
+        status: string;
+        service_hours: number;
+        description: string;
+        created_at: Date;
+        // 新增匿名用户支持
+        customer_name?: string;
+        customer_phone?: string;
+        customer_note?: string;
+    }) {
+        // 创建一个默认的服务记录（如果不存在）
+        let service_id = null;
+        
+        // 尝试找到陪玩的现有服务
+        const [[existingService]]: any = await pool.execute(
+            `SELECT id FROM services WHERE player_id = ? AND game_id = ? LIMIT 1`,
+            [order.player_id, order.game_id]
+        );
+        
+        if (existingService) {
+            service_id = existingService.id;
+        } else {
+            // 创建一个临时服务记录
+            const hourlyRate = Math.round(order.amount / order.service_hours);
+            const [serviceResult]: any = await pool.execute(
+                `INSERT INTO services (player_id, game_id, price, hours, description) VALUES (?, ?, ?, ?, ?)`,
+                [order.player_id, order.game_id, hourlyRate, order.service_hours, order.description]
+            );
+            service_id = serviceResult.insertId;
+        }
+        
+        const sql = `
+            INSERT INTO orders (
+                order_id, user_id, player_id, game_id, service_id, 
+                amount, status, created_at, customer_name, customer_phone, customer_note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        await pool.execute(sql, [
+            order.order_id,
+            order.user_id,
+            order.player_id,
+            order.game_id,
+            service_id,
+            order.amount,
+            order.status,
+            order.created_at,
+            order.customer_name || null,
+            order.customer_phone || null,
+            order.customer_note || null
+        ]);
+        
+        return order.order_id;
+    }
+
     /** 分页查询订单，可按状态过滤，返回 { total, orders } */
     static async findAll(
         page: number = 1,
@@ -104,8 +173,20 @@ export class OrderDAO {
             const dataSql = `
                 SELECT o.order_id as id, o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, 
                        o.status, o.created_at, o.amount as price, o.is_paid,
+                       o.customer_name, o.customer_phone, o.customer_note,
                        p.name as playerNickname, p.phone_num as playerUid, p.photo_img as player_avatar,
-                       u.name as userNickname, u.phone_num as userUid, u.photo_img as user_avatar,
+                       CASE 
+                           WHEN o.user_id IS NULL THEN o.customer_name
+                           ELSE u.name
+                       END as userNickname,
+                       CASE 
+                           WHEN o.user_id IS NULL THEN o.customer_phone
+                           ELSE u.phone_num
+                       END as userUid,
+                       CASE 
+                           WHEN o.user_id IS NULL THEN NULL
+                           ELSE u.photo_img
+                       END as user_avatar,
                        g.name as gameType, s.price as servicePrice, s.hours,
                        DATE_FORMAT(o.created_at, '%Y-%m-%d %H:%i:%s') as orderTime,
                        CASE 
@@ -117,7 +198,7 @@ export class OrderDAO {
                        COALESCE(gs.gift_details, '') as gift_details
                 FROM orders o
                 LEFT JOIN players p ON o.player_id = p.id
-                LEFT JOIN users u ON o.user_id = u.id
+                LEFT JOIN users u ON o.user_id = u.id AND o.user_id IS NOT NULL
                 LEFT JOIN games g ON o.game_id = g.id
                 LEFT JOIN services s ON o.service_id = s.id
                 LEFT JOIN (
@@ -151,6 +232,11 @@ export class OrderDAO {
     ): Promise<void> {
         const sql = `UPDATE orders SET status = ? WHERE order_id = ?`;
         await pool.execute(sql, [status, id]);
+        
+        // 如果订单状态更新为completed，更新陪玩余额
+        if (status === 'completed') {
+            await this.updatePlayerBalance(id);
+        }
     }
 
     /** 更新订单打款状态 */
@@ -182,9 +268,19 @@ export class OrderDAO {
         }
         
         const sql = `
-            SELECT o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, o.status, o.created_at, o.amount,
+            SELECT o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, o.status, 
+                   DATE_FORMAT(CONVERT_TZ(o.created_at, '+00:00', '+08:00'), '%Y-%m-%d %H:%i:%s') as orderTime,
+                   o.amount, o.service_hours,
+                   o.customer_name, o.customer_phone, o.customer_note,
                    p.name as player_name, p.photo_img as player_avatar,
-                   u.name as user_name, u.photo_img as user_avatar,
+                   CASE 
+                       WHEN o.user_id IS NULL THEN o.customer_name
+                       ELSE u.name
+                   END as user_name,
+                   CASE 
+                       WHEN o.user_id IS NULL THEN NULL
+                       ELSE u.photo_img
+                   END as user_avatar,
                    g.name as game_name, s.price, s.hours,
                    CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END as is_rated,
                    COALESCE(gs.gift_count, 0) as gift_count,
@@ -192,7 +288,7 @@ export class OrderDAO {
                    COALESCE(gs.gift_details, '') as gift_details
             FROM orders o
             LEFT JOIN players p ON o.player_id = p.id
-            LEFT JOIN users u ON o.user_id = u.id
+            LEFT JOIN users u ON o.user_id = u.id AND o.user_id IS NOT NULL
             LEFT JOIN games g ON o.game_id = g.id
              LEFT JOIN services s ON o.service_id = s.id
              LEFT JOIN comments c ON o.order_id = c.order_id AND c.user_id = o.user_id
@@ -233,15 +329,23 @@ export class OrderDAO {
         
         const sql = `
             SELECT o.order_id, o.user_id, o.player_id, o.game_id, o.service_id, o.status, o.created_at, o.amount,
+                   o.customer_name, o.customer_phone, o.customer_note,
                    p.name as player_name, p.photo_img as player_avatar,
-                   u.name as user_name, u.photo_img as user_avatar,
+                   CASE 
+                       WHEN o.user_id IS NULL THEN o.customer_name
+                       ELSE u.name
+                   END as user_name,
+                   CASE 
+                       WHEN o.user_id IS NULL THEN NULL
+                       ELSE u.photo_img
+                   END as user_avatar,
                    g.name as game_name, s.price, s.hours,
                    COALESCE(gs.gift_count, 0) as gift_count,
                    COALESCE(gs.gift_total, 0) as gift_total,
                    COALESCE(gs.gift_details, '') as gift_details
             FROM orders o
             LEFT JOIN players p ON o.player_id = p.id
-            LEFT JOIN users u ON o.user_id = u.id
+            LEFT JOIN users u ON o.user_id = u.id AND o.user_id IS NOT NULL
             LEFT JOIN games g ON o.game_id = g.id
             LEFT JOIN services s ON o.service_id = s.id
             LEFT JOIN (
@@ -305,8 +409,8 @@ export class OrderDAO {
             [orderId]
         );
         
-        if (order && order.user_confirmed_end && order.player_confirmed_end && order.status !== 'completed') {
-            await this.updateStatus(orderId, 'completed');
+        if (order && order.user_confirmed_end && order.player_confirmed_end && order.status !== 'completed' && order.status !== 'pending_review') {
+            await this.updateStatus(orderId, 'pending_review');
         }
     }
 
@@ -320,5 +424,88 @@ export class OrderDAO {
     static async countAll(): Promise<number> {
         const [[{ cnt }]]: any = await pool.execute(`SELECT COUNT(*) as cnt FROM orders`);
         return cnt;
+    }
+
+    /** 审核订单 */
+    static async reviewOrder(
+        orderId: string,
+        approved: boolean,
+        reviewerId: number,
+        note?: string
+    ): Promise<void> {
+        const newStatus = approved ? 'completed' : 'cancelled';
+        const sql = `
+            UPDATE orders 
+            SET status = ?, reviewed_by = ?, review_note = ?, reviewed_at = NOW() 
+            WHERE order_id = ?
+        `;
+        await pool.execute(sql, [newStatus, reviewerId, note || null, orderId]);
+        
+        // 如果审核通过，结算该订单的礼物记录并更新陪玩余额
+        if (approved) {
+            try {
+                await GiftRecordDAO.settleGiftsByOrderId(orderId);
+                console.log(`订单 ${orderId} 审核通过，礼物记录已结算`);
+            } catch (error) {
+                console.error(`订单 ${orderId} 礼物记录结算失败:`, error);
+                // 不抛出错误，避免影响订单审核流程
+            }
+            
+            // 更新陪玩余额
+            await this.updatePlayerBalance(orderId);
+        }
+    }
+
+    /** 更新订单实际服务时长 */
+    static async updateServiceHours(
+        orderId: string,
+        serviceHours: number
+    ): Promise<void> {
+        const sql = `UPDATE orders SET service_hours = ? WHERE order_id = ?`;
+        await pool.execute(sql, [serviceHours, orderId]);
+    }
+
+    /** 更新陪玩余额（订单完成时） */
+    private static async updatePlayerBalance(orderId: string): Promise<void> {
+        try {
+            // 获取订单信息
+            const [[order]]: any = await pool.execute(
+                `SELECT player_id, amount FROM orders WHERE order_id = ?`,
+                [orderId]
+            );
+            
+            if (!order) {
+                console.error(`订单 ${orderId} 不存在`);
+                return;
+            }
+
+            // 获取抽成率
+            let commissionRate = 10; // 默认抽成率
+            try {
+                const [[config]]: any = await pool.execute(
+                    'SELECT commission_rate FROM commission_config LIMIT 1'
+                );
+                if (config) {
+                    commissionRate = parseFloat(config.commission_rate);
+                }
+            } catch (error) {
+                console.log('使用默认抽成率10%');
+            }
+
+            // 计算订单收益（扣除平台抽成）
+            const orderAmount = parseFloat(order.amount);
+            const orderEarnings = orderAmount * (1 - commissionRate / 100);
+
+            // 更新陪玩余额
+            await pool.execute(
+                'UPDATE players SET money = money + ? WHERE id = ?',
+                [orderEarnings, order.player_id]
+            );
+
+            console.log(`订单 ${orderId} 完成，陪玩 ${order.player_id} 余额增加 ¥${orderEarnings.toFixed(2)}`);
+        } catch (error) {
+            console.error(`更新陪玩余额失败 (订单: ${orderId}):`, error);
+            // 不抛出错误，避免影响订单完成流程
+        }
     }
 }

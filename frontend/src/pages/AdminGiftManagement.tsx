@@ -507,7 +507,7 @@ export default function AdminGiftManagement() {
                       {/* 上传方式选择 */}
                       <div className="mb-3">
                         <div className="flex space-x-4">
-                          <label key="upload-file" className="flex items-center">
+                          <label className="flex items-center">
                             <input
                               type="radio"
                               name="uploadMethod"
@@ -518,7 +518,7 @@ export default function AdminGiftManagement() {
                             />
                             <span className="text-sm text-theme-text">文件上传（推荐）</span>
                           </label>
-                          <label key="upload-base64" className="flex items-center">
+                          <label className="flex items-center">
                             <input
                               type="radio"
                               name="uploadMethod"
@@ -658,7 +658,7 @@ export default function AdminGiftManagement() {
                       {/* 上传方式选择 */}
                       <div className="mb-3">
                         <div className="flex space-x-4">
-                          <label key="edit-upload-file" className="flex items-center">
+                          <label className="flex items-center">
                             <input
                               type="radio"
                               name="editUploadMethod"
@@ -669,7 +669,7 @@ export default function AdminGiftManagement() {
                             />
                             <span className="text-sm text-gray-700">文件上传（推荐）</span>
                           </label>
-                          <label key="edit-upload-base64" className="flex items-center">
+                          <label className="flex items-center">
                             <input
                               type="radio"
                               name="editUploadMethod"
@@ -803,7 +803,7 @@ export default function AdminGiftManagement() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider cursor-pointer" onClick={toggleSortDirection}>
                         <div className="flex items-center">
                           价格 (元)
-                          <i key="sort-icon" className={`fa-solid ml-1 ${sortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down'}`}></i>
+                          <i className={`fa-solid ml-1 ${sortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down'}`}></i>
                         </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">创建时间</th>

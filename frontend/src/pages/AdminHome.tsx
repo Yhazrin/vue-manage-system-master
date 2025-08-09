@@ -62,7 +62,7 @@ export default function AdminHome() {
         const orders = ordersData.orders || ordersData || [];
         const mappedOrders: RecentOrder[] = orders.map((order: any) => ({
           id: order.id || order.order_id || '',
-          user: order.userNickname || order.user || order.username || '未知用户',
+          user: order.userName || order.user || order.username || '未知用户',
           amount: Number(order.amount || order.price || 0),
           status: order.status || '未知',
           date: order.orderTime || order.created_at || order.date || new Date().toISOString().split('T')[0]

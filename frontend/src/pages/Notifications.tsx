@@ -15,11 +15,11 @@ import {
 const NotificationTypeBadge = ({ type }: { type?: string }) => {
   switch (type) {
     case 'booking':
-      return <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">预约</span>;
+      return <span className="px-2 py-0.5 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs rounded-full">预约</span>;
     case 'message':
-      return <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">消息</span>;
+      return <span className="px-2 py-0.5 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs rounded-full">消息</span>;
     case 'system':
-      return <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-xs rounded-full">系统</span>;
+      return <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs rounded-full">系统</span>;
     default:
       return <span className="px-2 py-0.5 bg-theme-background text-theme-text/70 text-xs rounded-full">通知</span>;
   }
@@ -58,11 +58,11 @@ function NotificationItem({
       !notification.read ? "bg-theme-primary/5" : ""
     )}>
       <div className="mr-4 mt-0.5">
-        {notification.type === 'booking' && <i className="fa-solid fa-calendar-check text-green-500" />}
-        {notification.type === 'message' && <i className="fa-solid fa-comment text-blue-500" />}
-        {notification.type === 'system' && <i className="fa-solid fa-bell text-purple-500" />}
-        {notification.type === 'promotion' && <i className="fa-solid fa-tag text-orange-500" />}
-        {!notification.type && <i className="fa-solid fa-bell text-gray-500" />}
+        {notification.type === 'booking' && <i className="fa-solid fa-calendar-check text-theme-primary" />}
+        {notification.type === 'message' && <i className="fa-solid fa-comment text-theme-primary" />}
+        {notification.type === 'system' && <i className="fa-solid fa-bell text-theme-primary" />}
+        {notification.type === 'promotion' && <i className="fa-solid fa-tag text-theme-primary" />}
+        {!notification.type && <i className="fa-solid fa-bell text-theme-text/60" />}
       </div>
       
       <div className="flex-1 min-w-0" onClick={handleClick}>
@@ -84,7 +84,7 @@ function NotificationItem({
           e.stopPropagation();
           onDelete(notification.id);
         }}
-        className="text-theme-text/40 hover:text-red-500 transition-colors"
+        className="text-theme-text/40 hover:text-red-500 dark:hover:text-red-400 transition-colors"
       >
         <i className="fa-solid fa-trash-alt text-sm"></i>
       </button>

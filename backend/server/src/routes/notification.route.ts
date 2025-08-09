@@ -43,8 +43,8 @@ router.post('/',
 
       const { title, content, recipient, scheduledAt } = req.body;
       
-      // 检查权限（只有管理员可以发送通知）
-      if (req.user?.role !== 'manager') {
+      // 检查权限（只有管理员和客服可以发送通知）
+      if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
         return res.status(403).json({
           success: false,
           message: '权限不足'
@@ -89,8 +89,8 @@ router.get('/', auth, async (req: AuthRequest, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = (page - 1) * limit;
 
-    // 检查权限（只有管理员可以查看所有通知）
-    if (req.user?.role !== 'manager') {
+    // 检查权限（只有管理员和客服可以查看所有通知）
+    if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
       return res.status(403).json({
         success: false,
         message: '权限不足'
@@ -126,7 +126,7 @@ router.get('/:id', auth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     
     // 检查权限
-    if (req.user?.role !== 'manager') {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
       return res.status(403).json({
         success: false,
         message: '权限不足'
@@ -161,7 +161,7 @@ router.delete('/:id', auth, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     
     // 检查权限
-    if (req.user?.role !== 'manager') {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
       return res.status(403).json({
         success: false,
         message: '权限不足'

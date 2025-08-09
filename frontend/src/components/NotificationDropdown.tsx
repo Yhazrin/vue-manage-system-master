@@ -66,30 +66,30 @@ function NotificationItem({
   return (
     <div 
       className={cn(
-        "flex items-start p-3 hover:bg-gray-50 cursor-pointer transition-colors",
-        !notification.read ? "bg-purple-50" : ""
+        "flex items-start p-3 hover:bg-theme-background cursor-pointer transition-colors",
+        !notification.read ? "bg-theme-primary/5" : ""
       )}
       onClick={handleClick}
     >
          <div className="mr-3 mt-0.5">{getNotificationIcon(notification)}</div>
          <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start">
-          <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
+          <h4 className="font-medium text-theme-text text-sm">{notification.title}</h4>
           <button 
             onClick={async (e) => {
               e.stopPropagation();
               await onDelete(notification.id);
             }}
-            className="text-gray-400 hover:text-gray-600 ml-2"
+            className="text-theme-text/40 hover:text-theme-text/60 ml-2"
           >
             <i className="fa-solid fa-times text-xs"></i>
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{notification.message}</p>
-        <p className="text-xs text-gray-400 mt-1">{notification.createdAt}</p>
+        <p className="text-xs text-theme-text/70 mt-1 line-clamp-2">{notification.message}</p>
+        <p className="text-xs text-theme-text/50 mt-1">{notification.createdAt}</p>
       </div>
       {!notification.read && (
-        <div className="ml-2 mt-0.5 w-2 h-2 bg-purple-600 rounded-full"></div>
+        <div className="ml-2 mt-0.5 w-2 h-2 bg-theme-primary rounded-full"></div>
       )}
     </div>
   );
@@ -256,25 +256,25 @@ export default function NotificationDropdown() {
       <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors relative"
+        className="flex items-center justify-center w-10 h-10 rounded-full bg-theme-background text-theme-text hover:bg-theme-border transition-colors relative"
         aria-label="Notifications"
       >
         <i className="fa-solid fa-bell"></i>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-purple-600 text-white text-xs rounded-full">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-theme-primary text-white text-xs rounded-full">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
       
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 z-20 animate-in fade-in slide-in-from-top-5 duration-150">
-          <div className="p-3 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="font-semibold text-gray-900 text-sm">通知中心</h3>
+        <div className="absolute right-0 mt-2 w-80 bg-theme-surface rounded-lg shadow-lg border border-theme-border z-20 animate-in fade-in slide-in-from-top-5 duration-150">
+          <div className="p-3 border-b border-theme-border flex justify-between items-center">
+            <h3 className="font-semibold text-theme-text text-sm">通知中心</h3>
             <button
               onClick={markAllAsRead}
               disabled={unreadCount === 0}
-              className="text-xs text-purple-600 hover:text-purple-700 disabled:text-gray-400"
+              className="text-xs text-theme-primary hover:text-theme-primary/80 disabled:text-theme-text/40"
             >
               全部标为已读
             </button>
@@ -282,7 +282,7 @@ export default function NotificationDropdown() {
           
            <div className="max-h-80 overflow-y-auto">
              {loading ? (
-               <div className="text-center py-8 text-gray-500 text-sm">
+               <div className="text-center py-8 text-theme-text/60 text-sm">
                  <i className="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>
                  加载中...
                </div>
@@ -298,17 +298,17 @@ export default function NotificationDropdown() {
                   />
                  ))
              ) : (
-               <div className="text-center py-8 text-gray-500 text-sm">
+               <div className="text-center py-8 text-theme-text/60 text-sm">
                  <i className="fa-solid fa-bell-slash text-2xl mb-2 block"></i>
                  暂无通知
                </div>
              )}
            </div>
           
-           <div className="p-3 border-t border-gray-100">
+           <div className="p-3 border-t border-theme-border">
              <button 
                onClick={() => navigate('/notifications')}
-               className="block text-center text-sm text-purple-600 hover:text-purple-700 font-medium"
+               className="block text-center text-sm text-theme-primary hover:text-theme-primary/80 font-medium"
              >
                查看全部通知
              </button>

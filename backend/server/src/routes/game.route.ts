@@ -72,7 +72,7 @@ router.post(
         
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-        if (req.user?.role !== 'manager' && req.user?.role !== 'admin') return res.status(403).json({ success: false, error: '仅管理员可创建游戏' });
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') return res.status(403).json({ success: false, error: '仅管理员和客服可创建游戏' });
         try {
             const { name, image_url } = req.body;
 
@@ -114,7 +114,7 @@ router.post(
 const updateGameHandler = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-    if (req.user?.role !== 'manager' && req.user?.role !== 'admin') return res.status(403).json({ success: false, error: '仅管理员可更新游戏' });
+    if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') return res.status(403).json({ success: false, error: '仅管理员和客服可更新游戏' });
     try {
         const id = Number(req.params.id);
         const { name, image_url } = req.body;
@@ -154,7 +154,7 @@ const updateGameHandler = async (req: AuthRequest, res: Response, next: NextFunc
  */
 router.patch(
     '/:id',
-    (req, res, next) => {
+    (req: Request, res: Response, next: NextFunction) => {
         console.log('🔥🔥🔥 PATCH路由被调用！🔥🔥🔥');
         console.log('请求方法:', req.method);
         console.log('请求路径:', req.path);
@@ -233,7 +233,7 @@ router.delete(
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-        if (req.user?.role !== 'manager' && req.user?.role !== 'admin') return res.status(403).json({ success: false, error: '仅管理员可删除游戏' });
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') return res.status(403).json({ success: false, error: '仅管理员和客服可删除游戏' });
         try {
             const id = Number(req.params.id);
             await GameDAO.deleteById(id);

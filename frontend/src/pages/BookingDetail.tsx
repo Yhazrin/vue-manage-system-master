@@ -144,9 +144,9 @@ function BookingDetail() {
       <div className="bg-theme-background min-h-screen text-theme-text">
         <Header />
         <main className="container mx-auto px-4 py-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">加载中...</p>
+          <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-theme-primary mx-auto mb-4"></div>
+            <p className="text-theme-text/70">加载中...</p>
           </div>
         </main>
       </div>
@@ -158,16 +158,16 @@ function BookingDetail() {
       <div className="bg-theme-background min-h-screen text-theme-text">
         <Header />
         <main className="container mx-auto px-4 py-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-8 text-center">
+            <h1 className="text-2xl font-bold text-theme-text mb-4">
               {error === '陪玩不存在' ? '陪玩不存在' : '加载失败'}
             </h1>
-            <p className="text-gray-500 mb-6">
+            <p className="text-theme-text/70 mb-6">
               {error === '陪玩不存在' ? '找不到对应的陪玩信息，请返回重试' : error || '获取陪玩信息失败，请重试'}
             </p>
             <button 
               onClick={() => navigate('/lobby')}
-              className="px-6 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-6 py-2 bg-theme-primary text-white font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
             >
               返回大厅
             </button>
@@ -307,7 +307,7 @@ function BookingDetail() {
       addNotification({
         type: 'order',
         title: '预约成功！',
-        message: `订单号: ${result.order_id}\n您已成功预约${player.name}${finalHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(2)}`
+        message: `订单号: ${result.order_id}\n您已成功预约${player.name}${finalHours}小时，游戏: ${selectedGame}，总价: ¥${calculatePrice().toFixed(1)}`
       });
       
       navigate('/user/orders'); // 跳转到订单页面
@@ -415,7 +415,7 @@ function BookingDetail() {
                 <div className="text-right">
                   <p className="text-sm text-theme-text/70">当前单价</p>
                   <p className="text-2xl font-bold text-theme-text">
-                    ¥{getCurrentPrice().toFixed(2)}
+                    ¥{getCurrentPrice().toFixed(1)}
                     <span className="text-sm font-normal text-theme-text/70">/小时</span>
                   </p>
                 </div>
@@ -559,7 +559,7 @@ function BookingDetail() {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-theme-text/70">单价</span>
-                    <span className="text-theme-text">¥{getCurrentPrice().toFixed(2)}/小时</span>
+                    <span className="text-theme-text">¥{getCurrentPrice().toFixed(1)}/小时</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-theme-text/70">时长</span>
@@ -567,7 +567,7 @@ function BookingDetail() {
                   </div>
                   <div className="pt-3 border-t border-theme-border flex justify-between font-semibold text-lg">
                     <span className="text-theme-text">总价</span>
-                    <span className="text-theme-text">¥{calculatePrice().toFixed(2)}</span>
+                    <span className="text-theme-text">¥{calculatePrice().toFixed(1)}</span>
                   </div>
                 </div>
               </div>

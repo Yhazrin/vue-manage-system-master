@@ -7,12 +7,12 @@ export interface CommissionRates {
 }
 
 export class ConfigDAO {
-    // 保留原方法以保证向后兼容性
+    // 保留原方法以保证向后兼容性，现在返回订单抽成率
     static async getCommissionRate(): Promise<number> {
         const [[row]]: any = await pool.execute(
-            `SELECT commission_rate FROM platform_config ORDER BY id DESC LIMIT 1`
+            `SELECT order_commission_rate FROM platform_config ORDER BY id DESC LIMIT 1`
         );
-        return row.commission_rate;
+        return row.order_commission_rate;
     }
     
     // 获取订单抽成率

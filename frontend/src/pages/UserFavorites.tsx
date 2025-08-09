@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { AuthContext } from '@/contexts/authContext';
 import { checkAuthStatus, handleAuthError } from '@/utils/authUtils';
 import { Player } from '@/types';
+import { API_BASE_URL } from '@/config/api';
 
 export default function UserFavorites() {
   const [favoritePlayers, setFavoritePlayers] = useState<Player[]>([]);
@@ -56,7 +57,7 @@ export default function UserFavorites() {
         favoritePlayersWithFullInfo.map(async (player) => {
           try {
             // 获取评论数据来计算评分和评论数
-            const response = await fetch(`http://localhost:3000/api/comments/player/${player.id}`, {
+            const response = await fetch(`${API_BASE_URL}/comments/player/${player.id}`, {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 'Content-Type': 'application/json',

@@ -21,6 +21,7 @@ const ApiStatus: React.FC = () => {
     { name: '用户登录', path: '/users/login', method: 'POST', description: '普通用户登录', status: 'not-tested' },
     { name: '陪玩登录', path: '/players/login', method: 'POST', description: '陪玩用户登录', status: 'not-tested' },
     { name: '管理员登录', path: '/managers/login', method: 'POST', description: '管理员登录', status: 'not-tested' },
+    { name: '客服登录', path: '/customer-service/login', method: 'POST', description: '客服登录', status: 'not-tested' },
     
     // 用户相关
     { name: '获取用户列表', path: '/users', method: 'GET', description: '获取所有用户', status: 'not-tested' },
@@ -69,6 +70,36 @@ const ApiStatus: React.FC = () => {
         ep.path === endpoint.path ? { ...ep, status: 'pending' } : ep
       ));
 
+      // 根据不同端点准备不同的请求体
+      let requestBody = undefined;
+      if (endpoint.method === 'POST') {
+        if (endpoint.path === '/customer-service/login') {
+          // 客服登录使用 password 字段和实际存在的账号
+          requestBody = JSON.stringify({
+            phone_num: '13800000999',
+            password: 'abc123'
+          });
+        } else if (endpoint.path === '/users/login') {
+           // 用户登录使用实际存在的用户手机号
+           requestBody = JSON.stringify({
+             phone_num: '15900000001',
+             passwd: 'test123abc'
+           });
+         } else if (endpoint.path === '/players/login') {
+           // 陪玩登录使用实际存在的陪玩手机号
+           requestBody = JSON.stringify({
+             phone_num: '15800000001',
+             passwd: 'test123abc'
+           });
+         } else if (endpoint.path === '/managers/login') {
+           // 管理员登录使用实际存在的管理员手机号
+           requestBody = JSON.stringify({
+             phone_num: '13800000001',
+             passwd: 'test123abc'
+           });
+         }
+      }
+
       const response = await fetch(`${API_BASE_URL}${endpoint.path}`, {
         method: endpoint.method,
         headers: {
@@ -76,17 +107,15 @@ const ApiStatus: React.FC = () => {
           // 添加一个测试token，如果需要的话
           'Authorization': 'Bearer test-token'
         },
-        // 对于POST请求，添加测试数据
-        body: endpoint.method === 'POST' ? JSON.stringify({
-          phone_num: '13900000001',
-          passwd: 'test123'
-        }) : undefined
+        body: requestBody
       });
 
       const responseTime = Date.now() - startTime;
       
-      if (response.ok || response.status === 401 || response.status === 403) {
-        // 401/403 表示端点存在但需要认证，这也算成功
+      if (response.ok || response.status === 400 || response.status === 401 || response.status === 403) {
+        // 200: 成功
+        // 400: 验证错误，表示端点存在但参数不正确
+        // 401/403: 表示端点存在但需要认证，这也算成功
         return {
           ...endpoint,
           status: 'success',
@@ -138,13 +167,13 @@ const ApiStatus: React.FC = () => {
   const getStatusBadge = (status: ApiEndpoint['status']) => {
     switch (status) {
       case 'success':
-        return <Badge className="bg-green-500">✅ 正常</Badge>;
+        return <Badge className="bg-green-500 dark:bg-green-600">✅ 正常</Badge>;
       case 'error':
-        return <Badge className="bg-red-500">❌ 错误</Badge>;
+        return <Badge className="bg-red-500 dark:bg-red-600">❌ 错误</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-500">⏳ 测试中</Badge>;
+        return <Badge className="bg-yellow-500 dark:bg-yellow-600">⏳ 测试中</Badge>;
       default:
-        return <Badge className="bg-gray-500">⚪ 未测试</Badge>;
+        return <Badge className="bg-theme-text/60">⚪ 未测试</Badge>;
     }
   };
 
@@ -164,28 +193,28 @@ const ApiStatus: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">{successCount}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{successCount}</div>
               <div className="text-sm text-theme-text/60">正常端点</div>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-red-600">{errorCount}</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{errorCount}</div>
               <div className="text-sm text-theme-text/60">异常端点</div>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">{totalCount}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalCount}</div>
               <div className="text-sm text-theme-text/60">总端点数</div>
             </CardContent>
           </Card>
           
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                 {totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0}%
               </div>
               <div className="text-sm text-theme-text/60">可用率</div>
@@ -201,7 +230,7 @@ const ApiStatus: React.FC = () => {
           >
             {isTestingAll ? '测试中...' : '测试所有端点'}
           </Button>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-theme-text/70">
             API 基础地址: {API_BASE_URL}
           </span>
         </div>
@@ -214,26 +243,26 @@ const ApiStatus: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             {endpoints.map((endpoint, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+              <div key={index} className="flex items-center justify-between p-4 border border-theme-border rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium">{endpoint.name}</span>
+                    <span className="font-medium text-theme-text">{endpoint.name}</span>
                     <Badge variant="outline">{endpoint.method}</Badge>
                     {getStatusBadge(endpoint.status)}
                   </div>
-                  <div className="text-sm text-gray-600 mb-1">
+                  <div className="text-sm text-theme-text/70 mb-1">
                     {endpoint.path}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-theme-text/60">
                     {endpoint.description}
                   </div>
                   {endpoint.responseTime && (
-                    <div className="text-xs text-blue-600 mt-1">
+                    <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                       响应时间: {endpoint.responseTime}ms
                     </div>
                   )}
                   {endpoint.error && (
-                    <div className="text-xs text-red-600 mt-1">
+                    <div className="text-xs text-red-600 dark:text-red-400 mt-1">
                       错误: {endpoint.error}
                     </div>
                   )}

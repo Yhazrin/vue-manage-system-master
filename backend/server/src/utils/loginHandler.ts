@@ -59,7 +59,7 @@ export const createLoginHandler = (
             console.log('- 传入的默认角色:', role);
             console.log('- Token中使用的角色:', tokenRole);
             console.log('- 用户状态:', user.status);
-            const token = signToken(user.id, user.phone_num, tokenRole, user.authority);
+            const token = signToken(user.id, user.phone_num, tokenRole);
             res.json({ success: true, token, user: user });
         } catch (err) {
             next(err);

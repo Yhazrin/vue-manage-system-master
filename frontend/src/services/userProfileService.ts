@@ -17,7 +17,7 @@ export interface UserProfileData {
 }
 
 export interface UpdateProfileRequest {
-  nickname?: string;
+  name?: string;
   email?: string;
   phone?: string;
   avatar?: string;

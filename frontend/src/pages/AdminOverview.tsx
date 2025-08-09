@@ -3,6 +3,7 @@ import { useState, useContext, useEffect } from "react";
 import { AuthContext } from '@/contexts/authContext';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useApi } from '@/hooks/useApi';
+
 import { toast } from 'sonner';
 import { API_BASE_URL } from '@/config/api';
 import { useNavigate } from 'react-router-dom';
@@ -61,8 +62,7 @@ const fetchOverviewData = async (timeRange: string = 'month'): Promise<OverviewD
         trendData,
         revenueData: [
           { name: '订单抽成', value: parseFloat(globalData.order_platform_fee) || 0 },
-          { name: '礼物抽成', value: parseFloat(globalData.gift_platform_fee) || 0 },
-          { name: '提现手续费', value: parseFloat(globalData.withdraw_platform_fee) || 0 }
+          { name: '礼物抽成', value: parseFloat(globalData.gift_platform_fee) || 0 }
         ]
       };
     }
@@ -100,12 +100,18 @@ export default function AdminOverview() {
   
   // 获取统计数据
   useEffect(() => {
-    fetchStats(() => fetchOverviewData(timeRange)).catch(err => {
-      toast.error('获取数据概览失败', {
-        description: err instanceof Error ? err.message : '请稍后重试'
-      });
-    });
-    fetchCommissionRate();
+    const loadData = async () => {
+      try {
+        await fetchStats(() => fetchOverviewData(timeRange));
+        await fetchCommissionRate();
+      } catch (err) {
+        toast.error('获取数据概览失败', {
+          description: err instanceof Error ? err.message : '请稍后重试'
+        });
+      }
+    };
+
+    loadData();
   }, [fetchStats, timeRange]);
 
   // 获取平台提成率
@@ -205,15 +211,21 @@ export default function AdminOverview() {
   // 判断是否为股东账号
   const isShareholder = userRole === 'admin';
   
+  // 显示页面加载状态
   if (loading) {
     return (
-      <div className="bg-theme-background min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin inline-block w-8 h-8 border-4 border-theme-primary border-t-transparent rounded-full" role="status">
-            <span className="sr-only">加载中...</span>
+      <div className="bg-theme-background min-h-screen text-theme-text">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center">
+              <div className="animate-spin inline-block w-8 h-8 border-4 border-theme-primary border-t-transparent rounded-full" role="status">
+                <span className="sr-only">加载中...</span>
+              </div>
+              <p className="mt-2 text-theme-text/70 text-sm">正在加载数据概览...</p>
+            </div>
           </div>
-          <p className="mt-2 text-theme-text/70">正在加载数据概览...</p>
-        </div>
+        </main>
       </div>
     );
   }
@@ -617,7 +629,6 @@ export default function AdminOverview() {
               <div className="text-xs text-theme-text/70 space-y-1">
                 <div>• 订单抽成 = 订单收入 × {newOrderCommissionRate || orderCommissionRate || 0}%</div>
                 <div>• 礼物抽成 = 礼物收入 × {newGiftCommissionRate || giftCommissionRate || 0}%</div>
-                <div>• 提现手续费 = 基于订单收入计算</div>
               </div>
             </div>
             

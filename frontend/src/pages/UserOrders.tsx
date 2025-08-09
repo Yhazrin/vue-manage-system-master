@@ -24,6 +24,11 @@ const getStatusStyle = (status: Order['status']) => {
         className: "bg-theme-primary/10 text-theme-primary",
         label: "进行中"
       };
+    case 'pending_review':
+      return {
+        className: "bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300", 
+        label: "待审核" 
+      };
     case 'completed':
       return {
         className: "bg-theme-success/10 text-theme-success", 
@@ -57,18 +62,24 @@ export default function UserOrders() {
   } = useOrderAutoRefresh(
     () => getUserOrders(activeFilter),
     {
-      onDataUpdate: (newOrders, oldOrders) => {
-        // 比较新旧订单状态，并发送通知
-        if (Array.isArray(newOrders) && Array.isArray(oldOrders)) {
-          newOrders.forEach(newOrder => {
-            const oldOrder = oldOrders.find(o => o.id === newOrder.id);
-            if (oldOrder && oldOrder.status !== newOrder.status) {
-              toast.info(`订单 #${newOrder.id} 状态更新`, {
-                description: `您的订单状态已从 ${getStatusStyle(oldOrder.status).label} 更新为 ${getStatusStyle(newOrder.status).label}`,
-                position: 'bottom-right',
-              });
-            }
-          });
+      onDataUpdate: (newOrders, hasChanged) => {
+        // 只有在数据确实发生变化时才处理通知
+        if (!hasChanged) {
+          return;
+        }
+        
+        // 简化通知逻辑，只在有新数据时显示通知
+        if (newOrders && Array.isArray(newOrders) && newOrders.length > 0) {
+          // 检查是否有需要关注的订单状态
+          const inProgressOrders = newOrders.filter(order => 
+            order.status === 'accepted' || order.status === 'in_progress'
+          );
+          if (inProgressOrders.length > 0) {
+            toast.info('订单数据已更新', {
+              description: `您有 ${inProgressOrders.length} 个进行中的订单`,
+              position: 'bottom-right',
+            });
+          }
         }
       }
     }
@@ -268,11 +279,11 @@ export default function UserOrders() {
                       <div className="flex items-center gap-3">
                         <img 
                           src={buildAvatarUrl(order.player?.avatar)} 
-                          alt={order.player?.nickname || '陪玩'}
+                          alt={order.player?.name || '陪玩'}
                           className="w-10 h-10 rounded-full object-cover"
                         />
                         <div>
-                          <h3 className="font-medium text-theme-text">{order.player?.nickname || '陪玩'}</h3>
+                          <h3 className="font-medium text-theme-text">{order.player?.name || '陪玩'}</h3>
                           <p className="text-xs text-theme-text/60">订单号: {order.id}</p>
                         </div>
                       </div>
@@ -387,7 +398,7 @@ export default function UserOrders() {
              setSelectedOrder(null);
            }}
            onSubmit={handleSubmitRating}
-           playerName={selectedOrder.player?.nickname || '陪玩'}
+           playerName={selectedOrder.player?.name || '陪玩'}
            orderId={selectedOrder.id}
          />
        )}

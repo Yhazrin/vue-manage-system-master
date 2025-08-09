@@ -64,7 +64,7 @@ export default function Home() {
               {/* 只有在用户未登录或不是普通用户时才显示"成为陪玩"按钮 */}
               {(!isAuthenticated || userRole !== 'user') && (
                 <button 
-                  onClick={() => navigate('/player/register')}
+                  onClick={() => navigate('/register')}
                   className="hero-btn-secondary hover:scale-105"
                 >
                   成为陪玩

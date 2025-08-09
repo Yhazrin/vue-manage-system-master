@@ -21,12 +21,12 @@ statisticsRouter.get('/', (req: Request, res: Response) => {
     });
 });
 
-// 权限中间件：仅允许 authority 为 1 的管理员访问
-const requireTopManager = (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (req.user?.role !== 'manager' || req.user.authority !== 1) {
+// 权限中间件：允许管理员和客服访问
+const requireManager = (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
         return res.status(403).json({
             success: false,
-            error: '仅顶级管理员可访问此统计数据'
+            error: '仅管理员和客服可访问此统计数据'
         });
     }
     next();
@@ -35,12 +35,12 @@ const requireTopManager = (req: AuthRequest, res: Response, next: NextFunction) 
 /**
  * @route   GET /api/statistics/global
  * @desc    查询全局统计数据（总收入、总抽成、总订单数等）
- * @access  仅 authority 为 1 的管理员可访问
+ * @access  仅管理员可访问
  */
 statisticsRouter.get(
     '/global',
     auth,
-    requireTopManager,
+    requireManager,
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             // 获取时间范围参数
@@ -65,8 +65,8 @@ statisticsRouter.get(
                     timeCondition = ''; // 全部时间
             }
 
-            // 1. 拉取抽成比例
-            const commissionRate = await ConfigDAO.getCommissionRate(); // e.g. 10.00
+            // 1. 拉取订单抽成比例
+            const commissionRate = await ConfigDAO.getOrderCommissionRate(); // e.g. 10.00
 
             // 2. 基础统计
             const [[{ total_orders }]]: any = await pool.execute(
@@ -96,22 +96,19 @@ statisticsRouter.get(
                 `SELECT COUNT(*) as total_players FROM players`
             );
 
-            // 3. 订单平台抽成（从已完成的订单中计算，假设平台抽成比例为10%）
+            // 3. 订单平台抽成（从已完成的订单中计算，使用动态抽成比例）
             const [[{ order_platform_fee }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount * 0.1), 0) as order_platform_fee
+                `SELECT IFNULL(SUM(amount * ? / 100), 0) as order_platform_fee
                  FROM orders 
-                 WHERE status = 'completed' ${timeCondition}`
+                 WHERE status = 'completed' ${timeCondition}`,
+                [commissionRate]
             );
 
-            // 4. 提现统计（平台抽成 & 玩家到手）
-            const [[{ withdraw_platform_fee }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(platform_fee), 0) as withdraw_platform_fee
-                 FROM withdrawals WHERE 1=1 ${timeCondition}`
-            );
+            // 4. 提现统计（玩家到手）
             const [[{ total_withdrawn }]]: any = await pool.execute(
                 `SELECT IFNULL(SUM(final_amount), 0) as total_withdrawn
                    FROM withdrawals 
-                  WHERE status = '已打款' ${timeCondition}`
+                  WHERE status = '已完成' ${timeCondition}`
             );
 
             // 5. 打赏统计（总额、平台抽成、到手收入）
@@ -141,7 +138,6 @@ statisticsRouter.get(
             // 8. 汇总平台总抽成
             const total_platform_profit =
                 Number(order_platform_fee) +
-                Number(withdraw_platform_fee) +
                 Number(gift_platform_fee);
 
             res.json({
@@ -154,7 +150,6 @@ statisticsRouter.get(
                     total_players,
 
                     // 提现和到手
-                    withdraw_platform_fee,
                     total_withdrawn,
                     total_withdrawal_requests, // 新增：所有提现记录数量
 
@@ -185,7 +180,7 @@ statisticsRouter.get(
 statisticsRouter.get(
     '/user/:userId',
     auth,
-    requireTopManager,
+    requireManager,
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const userId = Number(req.params.userId);
@@ -239,7 +234,7 @@ statisticsRouter.get(
                 });
             }
             
-            if (req.user?.role !== 'manager' && req.user?.role !== 'player') {
+            if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service' && req.user?.role !== 'player') {
                 return res.status(403).json({ 
                     success: false, 
                     error: '权限不足' 
@@ -252,20 +247,26 @@ statisticsRouter.get(
                 [playerId]
             );
 
-            // 总接单金额（订单收入）
+            // 获取平台抽成率
+            const [[{ order_commission_rate }]]: any = await pool.execute(
+                `SELECT order_commission_rate FROM platform_config ORDER BY id DESC LIMIT 1`
+            );
+            const orderCommissionRate = order_commission_rate || 10; // 默认10%
+
+            // 总接单金额（订单收入，扣除平台抽成后的陪玩实际收益）
             const [[{ order_earnings }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount), 0) as order_earnings FROM orders WHERE player_id = ? AND status = 'completed'`,
-                [playerId]
+                `SELECT IFNULL(SUM(amount * (1 - ? / 100)), 0) as order_earnings FROM orders WHERE player_id = ? AND status = 'completed'`,
+                [orderCommissionRate, playerId]
             );
 
-            // 总礼物收入（陪玩实际收入，扣除平台抽成后）
+            // 总礼物收入（陪玩实际收入，扣除平台抽成后，只计算已结算的礼物）
             const [[{ gift_earnings }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(total_price - platform_fee), 0) as gift_earnings FROM gift_records WHERE player_id = ?`,
+                `SELECT IFNULL(SUM(total_price - platform_fee), 0) as gift_earnings FROM gift_records WHERE player_id = ? AND is_settled = 1`,
                 [playerId]
             );
 
             // 总收入 = 订单收入 + 礼物收入
-            const total_earnings = Number(order_earnings) + Number(gift_earnings);
+            const total_earnings = parseFloat((Number(order_earnings) + Number(gift_earnings)).toFixed(2));
 
             // 今日订单数
             const [[{ today_orders }]]: any = await pool.execute(
@@ -273,20 +274,20 @@ statisticsRouter.get(
                 [playerId]
             );
 
-            // 本月订单收入
+            // 本月订单收入（扣除平台抽成后的陪玩实际收益）
             const [[{ monthly_order_income }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount), 0) as monthly_order_income FROM orders WHERE player_id = ? AND status = 'completed' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`,
-                [playerId]
+                `SELECT IFNULL(SUM(amount * (1 - ? / 100)), 0) as monthly_order_income FROM orders WHERE player_id = ? AND status = 'completed' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`,
+                [orderCommissionRate, playerId]
             );
 
-            // 本月礼物收入
+            // 本月礼物收入（只计算已结算的礼物）
             const [[{ monthly_gift_income }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(total_price - platform_fee), 0) as monthly_gift_income FROM gift_records WHERE player_id = ? AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`,
+                `SELECT IFNULL(SUM(total_price - platform_fee), 0) as monthly_gift_income FROM gift_records WHERE player_id = ? AND is_settled = 1 AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())`,
                 [playerId]
             );
 
             // 本月总收入 = 本月订单收入 + 本月礼物收入
-            const monthly_income = Number(monthly_order_income) + Number(monthly_gift_income);
+            const monthly_income = parseFloat((Number(monthly_order_income) + Number(monthly_gift_income)).toFixed(2));
 
             // 服务评分 (从评论表计算真实平均评分)
             const [[{ service_rating }]]: any = await pool.execute(
@@ -300,15 +301,21 @@ statisticsRouter.get(
                 [playerId]
             );
 
-            // 总提现金额（已打款的提现记录）
+            // 总提现金额（已完成和已批准的提现记录）
             const [[{ total_withdrawn }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(amount), 0) as total_withdrawn FROM withdrawals WHERE player_id = ? AND status = '已打款'`,
+                `SELECT IFNULL(SUM(amount), 0) as total_withdrawn FROM withdrawals WHERE player_id = ? AND status IN ('已完成', '已批准')`,
                 [playerId]
             );
 
-            // 平台总抽成
-            const [[{ platform_profit }]]: any = await pool.execute(
-                `SELECT IFNULL(SUM(platform_fee), 0) as platform_profit FROM withdrawals WHERE player_id = ?`,
+            // 提现记录数量（所有状态的提现记录）
+            const [[{ withdrawal_count }]]: any = await pool.execute(
+                `SELECT COUNT(*) as withdrawal_count FROM withdrawals WHERE player_id = ?`,
+                [playerId]
+            );
+
+            // 待处理提现金额（仅待审核状态）
+            const [[{ pending_withdrawals }]]: any = await pool.execute(
+                `SELECT IFNULL(SUM(amount), 0) as pending_withdrawals FROM withdrawals WHERE player_id = ? AND status = '待审核'`,
                 [playerId]
             );
 
@@ -318,7 +325,8 @@ statisticsRouter.get(
                 total_order_count,
                 total_earnings,
                 total_withdrawn,
-                platform_profit,
+                withdrawal_count,
+                pending_withdrawals,
                 // 新增字段用于陪玩工作台
                 todayOrders: today_orders,
                 monthlyIncome: monthly_income,
@@ -339,7 +347,7 @@ statisticsRouter.get(
 statisticsRouter.get(
     '/trends',
     auth,
-    requireTopManager,
+    requireManager,
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const timeRange = req.query.timeRange as string || 'month';

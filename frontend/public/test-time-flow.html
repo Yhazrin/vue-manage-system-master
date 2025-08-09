@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间流动测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-box {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .time-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .debug-info {
+            background: #f1f3f4;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>时间流动测试</h1>
+        
+        <div class="status-box">
+            <h3>当前时间</h3>
+            <div class="time-display" id="currentTime">--:--:--</div>
+        </div>
+
+        <div class="status-box">
+            <h3>API 状态</h3>
+            <div id="apiStatus">正在获取...</div>
+        </div>
+
+        <div class="status-box">
+            <h3>工作时长计算</h3>
+            <div id="workDuration">--:--:--</div>
+        </div>
+
+        <div class="status-box">
+            <h3>调试信息</h3>
+            <div class="debug-info" id="debugInfo">正在加载...</div>
+        </div>
+    </div>
+
+    <script>
+        let clockInTime = null;
+        let isWorking = false;
+
+        // 更新当前时间
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+        }
+
+        // 计算工作时长
+        function calculateWorkDuration() {
+            if (!isWorking || !clockInTime) {
+                document.getElementById('workDuration').textContent = '未在工作';
+                return;
+            }
+
+            const now = new Date();
+            const diffMs = now.getTime() - clockInTime.getTime();
+            const diffSeconds = Math.floor(diffMs / 1000);
+            
+            const hours = Math.floor(diffSeconds / 3600);
+            const minutes = Math.floor((diffSeconds % 3600) / 60);
+            const seconds = diffSeconds % 60;
+            
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('workDuration').textContent = timeString;
+        }
+
+        // 获取API状态
+        async function fetchApiStatus() {
+            try {
+                const response = await fetch('http://localhost:3000/api/attendance/status', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('apiStatus').innerHTML = `
+                        <strong>状态:</strong> ${data.status}<br>
+                        <strong>可以打卡:</strong> ${data.canClockIn ? '是' : '否'}<br>
+                        <strong>可以下班:</strong> ${data.canClockOut ? '是' : '否'}
+                    `;
+
+                    // 更新工作状态
+                    isWorking = data.status === 'clocked_in';
+                    if (isWorking && data.todayRecord?.clock_in_time) {
+                        clockInTime = new Date(data.todayRecord.clock_in_time);
+                    } else {
+                        clockInTime = null;
+                    }
+
+                    // 更新调试信息
+                    document.getElementById('debugInfo').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    document.getElementById('apiStatus').textContent = `API错误: ${response.status}`;
+                }
+            } catch (error) {
+                document.getElementById('apiStatus').textContent = `网络错误: ${error.message}`;
+                console.error('API调用失败:', error);
+            }
+        }
+
+        // 初始化
+        function init() {
+            // 每秒更新时间
+            setInterval(updateCurrentTime, 1000);
+            setInterval(calculateWorkDuration, 1000);
+            
+            // 每5秒获取API状态
+            fetchApiStatus();
+            setInterval(fetchApiStatus, 5000);
+            
+            // 立即更新一次
+            updateCurrentTime();
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

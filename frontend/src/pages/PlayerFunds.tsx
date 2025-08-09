@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from "@/components/Header";
 import { cn } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -16,62 +16,86 @@ import {
 } from '@/services/fundsService';
 import { toast } from 'sonner';
 import { AuthContext } from '@/contexts/authContext';
-
-// 获取提现状态样式
-const getWithdrawalStatusStyle = (status: WithdrawalRecord['status']) => {
-  switch(status) {
-    case 'pending':
-      return { 
-        className: 'bg-yellow-50 text-yellow-700', 
-        label: '待审核' 
-      };
-    case 'approved':
-      return { 
-        className: 'bg-blue-50 text-blue-700', 
-        label: '已审核' 
-      };
-    case 'paid':
-      return { 
-        className: 'bg-green-50 text-green-700', 
-        label: '已打款' 
-      };
-    case 'rejected':
-      return { 
-        className: 'bg-red-50 text-red-700', 
-        label: '已拒绝' 
-      };
-    default:
-      return { 
-        className: 'bg-gray-50 text-gray-700', 
-        label: '未知状态' 
-      };
-  }
-};
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { WithdrawalStatusUpdate } from '@/services/websocketService';
+import { getWithdrawalStatusStyle, getWithdrawalStatusMessage, WithdrawalStatus } from '@/utils/withdrawalStatus';
 
 export default function PlayerFunds() {
-  const { isAuthenticated, userRole } = useContext(AuthContext);
-  const [fundsOverview, setFundsOverview] = useState<FundsOverview | null>(null);
-  const [earningsTrend, setEarningsTrend] = useState<EarningsData[]>([]);
-  const [withdrawalRecords, setWithdrawalRecords] = useState<WithdrawalRecord[]>([]);
-  const [recentEarnings, setRecentEarnings] = useState<RecentEarning[]>([]);
-  const [withdrawalAmount, setWithdrawalAmount] = useState<string>("");
-  const [isWithdrawing, setIsWithdrawing] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>("overview");
-  const [loading, setLoading] = useState<boolean>(true);
+  const { isAuthenticated, userRole, user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  
+  const [fundsOverview, setFundsOverview] = useState<FundsOverview>({
+    availableBalance: 0,
+    monthlyEarnings: 0,
+    totalWithdrawals: 0,
+    withdrawalCount: 0
+  });
+  const [earningsTrend, setEarningsTrend] = useState([]);
+  const [withdrawalRecords, setWithdrawalRecords] = useState([]);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recentEarnings, setRecentEarnings] = useState<RecentEarning[]>([]);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // WebSocket实时同步
+  const { connect, disconnect } = useWebSocket({
+    onWithdrawalStatusUpdate: (data: WithdrawalStatusUpdate) => {
+      console.log('陪玩收到提现状态更新:', data);
+      handleWithdrawalStatusUpdate(data);
+    }
+  });
 
   // 检查是否有认证token
   const hasToken = localStorage.getItem('token');
 
-  // 加载数据
-  useEffect(() => {
-    // 只有在有token的情况下才加载数据
-    if (hasToken) {
-      loadData();
-    } else {
-      setLoading(false);
+  // 处理提现状态更新
+  const handleWithdrawalStatusUpdate = (update: WithdrawalStatusUpdate) => {
+    setWithdrawalRecords(prev => 
+      prev.map(record => 
+        record.id === update.withdrawalId 
+          ? { ...record, status: update.status }
+          : record
+      )
+    );
+    
+    // 显示状态更新通知
+    const message = getWithdrawalStatusMessage(update.status as WithdrawalStatus);
+    if (message) {
+      toast.success(message);
     }
-  }, [hasToken]);
+    
+    // 如果状态变更，重新加载资金概览
+    if (['approved', 'completed', 'rejected'].includes(update.status)) {
+      getFundsOverview().then(data => setFundsOverview(data)).catch(console.error);
+    }
+  };
+
+  // 认证检查
+  useEffect(() => {
+    if (!isAuthenticated || userRole !== 'player') {
+      navigate('/login');
+      return;
+    }
+  }, [isAuthenticated, userRole, navigate]);
+
+  // 加载数据和WebSocket连接
+  useEffect(() => {
+    if (isAuthenticated && userRole === 'player') {
+      loadData();
+      
+      // 连接WebSocket
+      if (user?.id) {
+        connect(user.id.toString(), 'player');
+      }
+      
+      // 组件卸载时断开连接
+      return () => {
+        disconnect();
+      };
+    }
+  }, [isAuthenticated, userRole, user, connect, disconnect]);
 
   const loadData = async () => {
     try {
@@ -94,18 +118,8 @@ export default function PlayerFunds() {
       setError(errorMessage);
       console.error('Error loading funds data:', err);
       
-      // 在开发环境下提供默认值
-      if (process.env.NODE_ENV === 'development') {
-        setFundsOverview({
-          availableBalance: 0,
-          monthlyEarnings: 0,
-          totalWithdrawals: 0,
-          withdrawalCount: 0
-        });
-        setEarningsTrend([]);
-        setWithdrawalRecords([]);
-        setRecentEarnings([]);
-      }
+      // 不设置默认值，让错误状态显示
+      // 这样用户可以看到实际的错误信息并重试
     } finally {
       setLoading(false);
     }
@@ -154,13 +168,13 @@ export default function PlayerFunds() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-8 bg-theme-border rounded w-1/4 mb-4"></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+                <div key={i} className="h-32 bg-theme-border rounded-xl"></div>
               ))}
             </div>
-            <div className="h-96 bg-gray-200 rounded-xl"></div>
+            <div className="h-96 bg-theme-border rounded-xl"></div>
           </div>
         </main>
       </div>
@@ -173,13 +187,19 @@ export default function PlayerFunds() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-10">
-            <p className="text-red-500 mb-4">加载失败: {error?.message || String(error)}</p>
-            <button 
-              onClick={loadData}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              重试
-            </button>
+            <div className="max-w-md mx-auto">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                <i className="fa-solid fa-exclamation-triangle text-2xl text-red-600 dark:text-red-400"></i>
+              </div>
+              <h2 className="text-2xl font-bold text-theme-text mb-4">数据加载失败</h2>
+              <p className="text-red-500 dark:text-red-400 mb-8">{typeof error === 'string' ? error : error?.message || '未知错误'}</p>
+              <button 
+                onClick={loadData}
+                className="px-6 py-3 bg-theme-primary text-white font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
+              >
+                重新加载
+              </button>
+            </div>
           </div>
         </main>
       </div>
@@ -244,11 +264,11 @@ export default function PlayerFunds() {
         </div>
         
         {/* 资金概览卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-theme-surface rounded-xl border border-theme-border p-5 shadow-sm">
             <p className="text-sm text-theme-text/70 mb-1">可用余额</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-bold text-theme-primary">¥{fundsOverview?.availableBalance.toFixed(2) || '0.00'}</h3>
+              <h3 className="text-2xl font-bold text-theme-primary">¥{(fundsOverview?.availableBalance || 0).toFixed(1)}</h3>
               <button 
                 onClick={() => setActiveTab('withdraw')}
                 className="py-1 px-3 bg-theme-primary text-theme-surface text-xs font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"
@@ -261,7 +281,7 @@ export default function PlayerFunds() {
           
           <div className="bg-theme-surface rounded-xl border border-theme-border p-5 shadow-sm">
             <p className="text-sm text-theme-text/70 mb-1">本月收益</p>
-            <h3 className="text-2xl font-bold text-theme-accent">¥{fundsOverview?.monthlyEarnings.toFixed(2) || '0.00'}</h3>
+            <h3 className="text-2xl font-bold text-theme-accent">¥{(fundsOverview?.monthlyEarnings || 0).toFixed(1)}</h3>
             <p className="text-xs text-theme-text/60 mt-3">
               本月累计收益金额
             </p>
@@ -269,8 +289,14 @@ export default function PlayerFunds() {
           
           <div className="bg-theme-surface rounded-xl border border-theme-border p-5 shadow-sm">
             <p className="text-sm text-theme-text/70 mb-1">累计提现</p>
-            <h3 className="text-2xl font-bold text-theme-success">¥{fundsOverview?.totalWithdrawals.toFixed(2) || '0.00'}</h3>
+            <h3 className="text-2xl font-bold text-theme-success">¥{(fundsOverview?.totalWithdrawals || 0).toFixed(1)}</h3>
             <p className="text-xs text-theme-text/60 mt-3">共 {fundsOverview?.withdrawalCount || 0} 笔提现记录</p>
+          </div>
+          
+          <div className="bg-theme-surface rounded-xl border border-theme-border p-5 shadow-sm">
+            <p className="text-sm text-theme-text/70 mb-1">待处理提现</p>
+            <h3 className="text-2xl font-bold text-orange-500">¥{(fundsOverview?.pendingWithdrawals || 0).toFixed(1)}</h3>
+            <p className="text-xs text-theme-text/60 mt-3">正在审核中的提现金额</p>
           </div>
         </div>
         
@@ -354,17 +380,41 @@ export default function PlayerFunds() {
                   <div className="space-y-3">
                     {recentEarnings.length > 0 ? (
                       recentEarnings.map((earning, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-theme-background rounded-lg border border-theme-border">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-theme-primary/10 flex items-center justify-center text-theme-primary">
-                              <i className="fa-gamepad"></i>
+                        <div key={index} className="p-4 bg-theme-background rounded-lg border border-theme-border">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                                earning.type === 'order' ? 'bg-theme-primary' : 'bg-theme-accent'
+                              }`}>
+                                <i className={earning.type === 'order' ? 'fa-solid fa-gamepad' : 'fa-solid fa-gift'}></i>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-theme-text">{earning.gameName || '游戏陪玩'}</p>
+                                <p className="text-xs text-theme-text/60">{earning.date}</p>
+                                <p className="text-xs text-theme-text/50">订单号: {earning.orderId}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-theme-text">{earning.gameName || '游戏陪玩'}</p>
-                              <p className="text-xs text-theme-text/60">{earning.date}</p>
+                            <div className="text-right">
+                              <p className="font-medium text-theme-success text-lg">+¥{earning.amount.toFixed(1)}</p>
+                              <p className="text-xs text-theme-text/60">实际收入</p>
                             </div>
                           </div>
-                          <p className="font-medium text-theme-success">+¥{earning.amount.toFixed(2)}</p>
+                          
+                          {/* 收益详情 */}
+                          <div className="bg-theme-surface/50 rounded-lg p-3 space-y-2">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-theme-text/70">原始金额:</span>
+                              <span className="text-theme-text font-medium">¥{earning.originalAmount.toFixed(1)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-theme-text/70">平台抽成 ({earning.commissionRate}%):</span>
+                              <span className="text-theme-error">-¥{earning.platformFee.toFixed(1)}</span>
+                            </div>
+                            <div className="border-t border-theme-border pt-2 flex justify-between items-center text-sm font-medium">
+                              <span className="text-theme-text">您的收益:</span>
+                              <span className="text-theme-success">¥{earning.amount.toFixed(1)}</span>
+                            </div>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -399,7 +449,7 @@ export default function PlayerFunds() {
                       />
                     </div>
                     <p className="text-xs text-theme-text/60 mt-2">
-                      最低提现金额：100元，当前可用余额：¥{fundsOverview?.availableBalance.toFixed(2) || '0.00'}
+                      最低提现金额：100元，当前可用余额：¥{(fundsOverview?.availableBalance || 0).toFixed(1)}
                     </p>
                   </div>
                   
@@ -430,12 +480,12 @@ export default function PlayerFunds() {
                 
                 <div className="space-y-4">
                   {withdrawalRecords.map(record => {
-                    const statusInfo = getWithdrawalStatusStyle(record.status);
+                    const statusInfo = getWithdrawalStatusStyle(record.status as WithdrawalStatus);
                     return (
                       <div key={record.id} className="flex items-center justify-between p-4 border border-theme-border rounded-lg">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-theme-text">¥{Number(record.amount).toFixed(2)}</h4>
+                            <h4 className="font-medium text-theme-text">¥{Number(record.amount).toFixed(1)}</h4>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.className}`}>
                               {statusInfo.label}
                             </span>

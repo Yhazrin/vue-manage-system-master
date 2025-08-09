@@ -4,11 +4,13 @@ import * as jwt from 'jsonwebtoken';
 import * as dotenv from 'dotenv';
 import { UserDAO } from '../dao/UserDao';
 import { PlayerDAO } from '../dao/PlayerDao';
+import { CustomerServiceDao } from '../dao/CustomerServiceDao';
+import { ManagerDAO } from '../dao/ManagerDao';
 
 dotenv.config();
 
 export interface AuthRequest extends Request {
-    user?: { id: number; phone_num: string; role: string; authority?: number };
+    user?: { id: number; phone_num: string; role: string; username?: string };
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
@@ -29,10 +31,14 @@ export async function auth(req: AuthRequest, res: Response, next: NextFunction) 
             currentUser = await UserDAO.findById(payload.id);
         } else if (payload.role === 'player') {
             currentUser = await PlayerDAO.findById(payload.id);
+        } else if (payload.role === 'customer_service') {
+            currentUser = await CustomerServiceDao.findById(payload.id);
+        } else if (payload.role === 'admin') {
+            currentUser = await ManagerDAO.findById(payload.id);
         }
         
         // 如果找到用户且用户被封禁，返回封禁错误
-        if (currentUser && (currentUser.status === 0 || currentUser.status === false)) {
+        if (currentUser && currentUser.status === false) {
             return res.status(403).json({ 
                 success: false, 
                 error: '账号已被封禁，请联系客服', 
@@ -40,7 +46,7 @@ export async function auth(req: AuthRequest, res: Response, next: NextFunction) 
             });
         }
         
-        req.user = { id: payload.id, phone_num: payload.phone_num, role: payload.role, authority: payload.authority };
+        req.user = { id: payload.id, phone_num: payload.phone_num, role: payload.role, username: payload.username };
         next();
     } catch (err) {
         return res.status(401).json({ success: false, error: '无效的 token' });
@@ -48,7 +54,7 @@ export async function auth(req: AuthRequest, res: Response, next: NextFunction) 
 }
 
 // 签发 JWT Token
-export function signToken(userId: number, phoneNum: string, role: string, authority?: number) {
-    const payload = { id: userId, phone_num: phoneNum, role, authority };
+export function signToken(userId: number, phoneNum: string, role: string) {
+    const payload = { id: userId, phone_num: phoneNum, role };
     return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });  // 设置 24 小时过期
 }

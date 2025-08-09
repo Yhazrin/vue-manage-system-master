@@ -4,6 +4,8 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import path from "path";
+import { createServer } from 'http';
+import WebSocketService from './services/websocketService';
 
 console.log('🔥 载入了最新的 index.ts - 强制重新加载')
 
@@ -29,7 +31,10 @@ import configRouter from './routes/config.route';
 import ratingRouter from './routes/rating.route';
 import adminRouter from './routes/admin.route';
 import attendanceRouter from './routes/attendance.route';
-import customerServiceRouter from './routes/customer-service.route';
+import earningsSyncRouter from './routes/earningsSync.route';
+import superUnifiedRouter from './routes/superUnified.route';
+
+import { customerServiceRouter } from './routes/customerService.route';
 import { apiMonitorMiddleware } from './middleware/apiMonitor';
 
 // 检查路由是否正确导入
@@ -52,6 +57,9 @@ const routes = [
     { name: 'ratingRouter', router: ratingRouter },
     { name: 'adminRouter', router: adminRouter },
     { name: 'attendanceRouter', router: attendanceRouter },
+    { name: 'earningsSyncRouter', router: earningsSyncRouter },
+    { name: 'superUnifiedRouter', router: superUnifiedRouter },
+
     { name: 'customerServiceRouter', router: customerServiceRouter },
 ];
 
@@ -129,6 +137,9 @@ app.use('/api/config', configRouter);
 app.use('/api/ratings', ratingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/attendance', attendanceRouter);
+app.use('/api/earnings-sync', earningsSyncRouter);
+app.use('/api/super-unified', superUnifiedRouter);
+
 app.use('/api/customer-service', customerServiceRouter);
 
 // 添加一个简单的测试路由
@@ -180,9 +191,19 @@ app.use((req: Request, res: Response) => {
 // 测试数据库连接
 import { pool } from './db';
 
+// 创建HTTP服务器
+const server = createServer(app);
+
+// 初始化WebSocket服务
+const wsService = new WebSocketService(server);
+
+// 将WebSocket服务实例添加到app中，供其他模块使用
+app.set('wsService', wsService);
+
 // 启动服务
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
     console.log(`Server is running at http://localhost:${PORT}`);
+    console.log('✅ WebSocket服务已启动');
     
     // 测试数据库连接
     try {
@@ -193,3 +214,6 @@ app.listen(PORT, async () => {
         console.error('❌ 数据库连接失败:', error);
     }
 });
+
+// 导出WebSocket服务实例供其他模块使用
+export { wsService };

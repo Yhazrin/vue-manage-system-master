@@ -4,7 +4,7 @@ import { API_BASE_URL } from '@/config/api';
 // 管理员资料接口定义
 export interface AdminProfileData {
   id: string;
-  nickname: string;
+  name: string;
   uid: string;
   avatar: string;
   role: string;
@@ -28,7 +28,7 @@ export interface AdminLog {
 }
 
 export interface UpdateAdminProfileRequest {
-  nickname?: string;
+  name?: string;
   avatar?: string;
 }
 

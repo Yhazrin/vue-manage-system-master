@@ -63,6 +63,11 @@ export class GameDAO {
 
     /** 删除游戏 */
     static async deleteById(id: number): Promise<void> {
+        // 首先删除相关的服务记录
+        const deleteServicesSql = `DELETE FROM services WHERE game_id = ?`;
+        await pool.execute(deleteServicesSql, [id]);
+        
+        // 然后删除游戏
         const sql = `DELETE FROM games WHERE id = ?`;
         await pool.execute(sql, [id]);
     }

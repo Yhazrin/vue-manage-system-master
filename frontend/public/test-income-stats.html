@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试收入统计接口</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin: 10px 0; }
+        label { display: inline-block; width: 100px; }
+        input, select { padding: 5px; margin: 5px; }
+        button { padding: 10px 20px; margin: 10px 0; }
+        .result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>测试收入统计接口</h1>
+    
+    <div class="form-group">
+        <label>类型:</label>
+        <select id="type">
+            <option value="user">用户</option>
+            <option value="player">陪玩</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label>用户ID:</label>
+        <input type="text" id="userId" value="15900000001" placeholder="输入用户ID或手机号">
+    </div>
+    
+    <div class="form-group">
+        <label>开始日期:</label>
+        <input type="date" id="startDate" value="2025-01-01">
+    </div>
+    
+    <div class="form-group">
+        <label>结束日期:</label>
+        <input type="date" id="endDate" value="2025-12-31">
+    </div>
+    
+    <div class="form-group">
+        <label>Token:</label>
+        <input type="text" id="token" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTQsInBob25lX251bSI6IjEzODAwMDAwMDAyIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzU0NTY5ODczLCJleHAiOjE3NTQ2NTYyNzN9.JtkJbqouJm-nzHDnwz7VorPFSAQ9t-SHGbrkI5WNHlw" style="width: 500px;">
+    </div>
+    
+    <button onclick="testIncomeStats()">测试接口</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>结果:</h3>
+        <pre id="resultContent"></pre>
+    </div>
+
+    <script>
+        async function testIncomeStats() {
+            const type = document.getElementById('type').value;
+            const userId = document.getElementById('userId').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const token = document.getElementById('token').value;
+            
+            const resultDiv = document.getElementById('result');
+            const resultContent = document.getElementById('resultContent');
+            
+            try {
+                console.log('发送请求:', {
+                    type, userId, startDate, endDate
+                });
+                
+                const response = await fetch('http://localhost:3000/api/admin/income-stats', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        type,
+                        userId,
+                        startDate,
+                        endDate
+                    })
+                });
+                
+                console.log('响应状态:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('响应数据:', data);
+                
+                resultContent.textContent = JSON.stringify(data, null, 2);
+                resultDiv.style.display = 'block';
+                
+            } catch (error) {
+                console.error('请求失败:', error);
+                resultContent.textContent = `错误: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

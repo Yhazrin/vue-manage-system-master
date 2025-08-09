@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -31,18 +31,50 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
   const navigate = useNavigate();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       role: 'user'
     }
   });
+
+  const selectedRole = watch('role');
+
+  // 鼠标位置追踪
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth) * 100;
+      const y = (e.clientY / window.innerHeight) * 100;
+      setMousePosition({ x, y });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // 应用主题样式
+  useEffect(() => {
+    const root = document.documentElement;
+    // 使用用户主题配色
+    root.style.setProperty('--theme-primary', '#3b82f6');
+    root.style.setProperty('--theme-primary-dark', '#2563eb');
+    root.style.setProperty('--theme-background', 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)');
+    root.style.setProperty('--theme-surface', '#ffffff');
+    root.style.setProperty('--theme-text', '#1f2937');
+    root.style.setProperty('--theme-border', '#e5e7eb');
+    root.style.setProperty('--gradient-from', '#3b82f6');
+    root.style.setProperty('--gradient-to', '#8b5cf6');
+  }, []);
+
+
 
   const onSubmit = async (data: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
@@ -71,18 +103,85 @@ export default function Register() {
   };
 
   return (
-     <div className="min-h-screen bg-theme-background text-theme-text flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 register-container">
+      {/* 动态背景 */}
+      <div className="absolute inset-0 bg-theme-background">
+        {/* 流动的渐变背景 */}
+        <div className="absolute inset-0 opacity-30">
+          <div 
+            className="absolute top-0 -left-4 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl animate-blob transition-transform duration-1000 ease-out"
+            style={{
+              background: `linear-gradient(45deg, var(--gradient-from), var(--gradient-to))`,
+              animationDelay: '0s',
+              transform: `translate(${mousePosition.x * 0.05}px, ${mousePosition.y * 0.05}px)`
+            }}
+          ></div>
+          <div 
+            className="absolute top-0 -right-4 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000 transition-transform duration-1000 ease-out"
+            style={{
+              background: `linear-gradient(45deg, var(--gradient-to), var(--gradient-from))`,
+              animationDelay: '2s',
+              transform: `translate(${-mousePosition.x * 0.04}px, ${mousePosition.y * 0.06}px)`
+            }}
+          ></div>
+          <div 
+            className="absolute -bottom-8 left-20 w-72 h-72 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000 transition-transform duration-1000 ease-out"
+            style={{
+              background: `linear-gradient(45deg, var(--gradient-from), var(--gradient-to))`,
+              animationDelay: '4s',
+              transform: `translate(${mousePosition.x * 0.03}px, ${-mousePosition.y * 0.04}px)`
+            }}
+          ></div>
+        </div>
+        
+        {/* 响应式浮动粒子效果 */}
+        <div className="absolute inset-0">
+          {[...Array(12)].map((_, i) => {
+            const baseLeft = Math.random() * 100;
+            const baseTop = Math.random() * 100;
+            const mouseInfluence = 0.005;
+            return (
+              <div
+                key={`register-particle-${i}`}
+                className="absolute w-1.5 h-1.5 rounded-full opacity-10 animate-float transition-transform duration-1000 ease-out"
+                style={{
+                  backgroundColor: i % 2 === 0 ? 'var(--gradient-from)' : 'var(--gradient-to)',
+                  left: `${baseLeft}%`,
+                  top: `${baseTop}%`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  animationDuration: `${4 + Math.random() * 3}s`,
+                  transform: `translate(${(mousePosition.x - 50) * mouseInfluence}px, ${(mousePosition.y - 50) * mouseInfluence}px)`
+                }}
+              ></div>
+            );
+          })}
+        </div>
+        
+        {/* 鼠标跟随光晕效果 */}
+        <div 
+          className="absolute w-64 h-64 rounded-full opacity-5 pointer-events-none transition-all duration-500 ease-out"
+          style={{
+            background: `radial-gradient(circle, var(--gradient-from) 0%, transparent 60%)`,
+            left: `${mousePosition.x}%`,
+            top: `${mousePosition.y}%`,
+            transform: 'translate(-50%, -50%)'
+          }}
+        ></div>
+      </div>
+
+      {/* 主要内容 */}
+      <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-           <div className="text-theme-primary font-bold text-2xl flex items-center justify-center mb-2">
-            <img src="/VITA.png" alt="VITA Icon" className="w-8 h-8 mr-2" />
-           Vita
+          <div className="text-theme-primary font-bold text-2xl flex items-center justify-center mb-2">
+            <img src="favicon.png" alt="VITA Icon" className="w-8 h-8 mr-2" />
+            Vita
           </div>
           <h1 className="text-2xl font-bold text-theme-text">创建账号</h1>
           <p className="text-theme-text/70">注册成为我们的一员，开始游戏之旅</p>
         </div>
         
-        <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-6">
+        <div className="bg-theme-surface/80 backdrop-blur-lg rounded-xl shadow-2xl border border-theme-border/50 overflow-hidden transition-all duration-500 hover:shadow-3xl">
+          <div className="p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-theme-text mb-1">
@@ -157,27 +256,56 @@ export default function Register() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-theme-text mb-1">
+              <label className="block text-sm font-medium text-theme-text mb-3">
                 选择角色
               </label>
               <div className="grid grid-cols-2 gap-3">
-                <label className="flex items-center p-3 border border-theme-border rounded-lg cursor-pointer transition-colors hover:bg-theme-background">
+                <label className={cn(
+                  "relative flex items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
+                  selectedRole === 'user' 
+                    ? "border-theme-primary bg-theme-primary/10" 
+                    : "border-theme-border hover:border-theme-primary/50"
+                )}>
                   <input
                     type="radio"
+                    {...register('role')}
                     value="user"
-                    {...register('role')}
-                    className="text-theme-primary focus:ring-theme-primary h-4 w-4"
+                    className="sr-only"
                   />
-                  <span className="ml-2 text-sm text-theme-text">普通用户</span>
+                  <div className="text-center">
+                    <div className="text-lg mb-1">👤</div>
+                    <div className="text-sm font-medium text-theme-text">普通用户</div>
+                    <div className="text-xs text-theme-text/70">享受游戏服务</div>
+                  </div>
+                  {selectedRole === 'user' && (
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-theme-primary rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
                 </label>
-                <label className="flex items-center p-3 border border-theme-border rounded-lg cursor-pointer transition-colors hover:bg-theme-background">
+
+                <label className={cn(
+                  "relative flex items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-all",
+                  selectedRole === 'player' 
+                    ? "border-theme-primary bg-theme-primary/10" 
+                    : "border-theme-border hover:border-theme-primary/50"
+                )}>
                   <input
                     type="radio"
-                    value="player"
                     {...register('role')}
-                    className="text-theme-primary focus:ring-theme-primary h-4 w-4"
+                    value="player"
+                    className="sr-only"
                   />
-                  <span className="ml-2 text-sm text-theme-text">游戏陪玩</span>
+                  <div className="text-center">
+                    <div className="text-lg mb-1">🎮</div>
+                    <div className="text-sm font-medium text-theme-text">游戏陪玩</div>
+                    <div className="text-xs text-theme-text/70">提供陪玩服务</div>
+                  </div>
+                  {selectedRole === 'player' && (
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-theme-primary rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
                 </label>
               </div>
               {errors.role && (
@@ -204,6 +332,7 @@ export default function Register() {
                 立即登录
               </Link>
             </p>
+          </div>
           </div>
         </div>
       </div>

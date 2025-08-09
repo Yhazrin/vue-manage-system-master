@@ -45,7 +45,13 @@ export class UserDAO {
     static async findById(id: number): Promise<User | null> {
         const sql = `SELECT * FROM users WHERE id = ? LIMIT 1`;
         const [rows]: any = await pool.execute(sql, [id]);
-        return rows[0] ?? null;
+        if (!rows[0]) return null;
+        const user = rows[0];
+        // 转换status字段为boolean类型
+        return {
+            ...user,
+            status: Boolean(user.status)
+        } as User;
     }
 
     /** 根据手机号查询用户 */

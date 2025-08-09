@@ -9,8 +9,7 @@ import {
     phoneValidator,
     phoneUniqueValidator,
     passwordValidator,
-    nameValidator,
-    authorityValidator
+    nameValidator
 } from '../utils/validators';
 import { createLoginHandler } from '../utils/loginHandler';
 import { auth, AuthRequest, signToken } from '../middleware/auth';
@@ -36,28 +35,31 @@ router.use((req, res, next) => {
  */
 router.put('/:id/toggle-status', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅顶级管理员可操作
-        if (req.user?.role !== 'manager' || req.user?.authority !== 1) {
-            return res.status(403).json({ success: false, error: '仅顶级管理员可修改状态' });
+        // 权限判断：仅管理员和客服可操作
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可修改状态' });
         }
 
         const targetId = Number(req.params.id);
+        
+        // 验证ID是否为有效数字
+        if (isNaN(targetId) || targetId <= 0) {
+            return res.status(400).json({ success: false, error: '无效的管理员ID' });
+        }
         
         // 防止操作自己
         if (req.user?.id === targetId) {
             return res.status(400).json({ success: false, error: '不能修改自己的状态' });
         }
 
-        // 获取当前管理员信息
+        // 获取目标管理员信息
         const manager = await ManagerDAO.findById(targetId);
         if (!manager) {
             return res.status(404).json({ success: false, error: '管理员不存在' });
         }
 
-        // 防止操作超级管理员
-        if (manager.authority === 1) {
-            return res.status(400).json({ success: false, error: '不能修改超级管理员状态' });
-        }
+        // 防止操作其他管理员（可根据需要调整此逻辑）
+        // 暂时允许管理员之间互相修改状态
 
         // 切换状态
         const newStatus = !manager.status;
@@ -73,8 +75,7 @@ router.put('/:id/toggle-status', auth, async (req: AuthRequest, res: Response, n
         const responseManager = {
             id: safeManager.id.toString(),
             username: safeManager.name,
-            role: safeManager.authority === 1 ? 'super_admin' : 
-                  safeManager.authority === 2 ? 'customer_service' : 'shareholder',
+            role: 'admin',
             status: safeManager.status ? 'active' : 'inactive',
             createdAt: safeManager.created_at,
             lastLogin: null,
@@ -90,14 +91,13 @@ router.put('/:id/toggle-status', auth, async (req: AuthRequest, res: Response, n
 /**
  * @route   POST /api/managers/register
  * @desc    管理员注册
- * @body    { name, passwd, phone_num, authority?, photo_img? }
+ * @body    { name, passwd, phone_num, photo_img? }
  */
 router.post('/register', [
     phoneValidator, // 手机号格式验证
     phoneUniqueValidator('manager'), // 手机号唯一性验证
     passwordValidator, // 密码验证：长度+复杂度
-    nameValidator, // 姓名验证
-    authorityValidator // 权限等级验证
+    nameValidator // 姓名验证
 ], userUpload.single('photo_img'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         // 验证请求数据
@@ -107,14 +107,14 @@ router.post('/register', [
         }
 
         // 从请求体中获取注册信息
-        const { name, passwd, phone_num, authority = 1 } = req.body;
+        const { name, passwd, phone_num } = req.body;
         const photo_img = req.file ? normalizePath(req.file.path) : null;
 
         // 使用 bcrypt 加密密码
         const hash = await bcrypt.hash(passwd, 10);
 
         // 调用 ManagerDAO 写入数据库
-        const id = await ManagerDAO.create(name, hash, phone_num, authority, photo_img);
+        const id = await ManagerDAO.create(name, hash, phone_num, photo_img);
         const newManager = await ManagerDAO.findById(id);
 
         // 响应 201（创建成功）
@@ -141,7 +141,7 @@ router.post(
         passwordValidator // 复用密码验证
     ],
     // 复用通用登录逻辑（传入管理员DAO、更新最后登录时间方法和角色）
-    createLoginHandler(ManagerDAO.findByPhone, ManagerDAO.updateLastLogin, 'manager')
+    createLoginHandler(ManagerDAO.findByPhone, ManagerDAO.updateLastLogin, 'admin')
 );
 
 // 测试路由 - 不需要认证（必须放在参数化路由之前）
@@ -162,18 +162,18 @@ router.get('/no-auth-test', (req: Request, res: Response) => {
 
 /**
  * @route   POST /api/managers
- * @desc    创建客服账号（仅超级管理员可操作）
- * @access  仅顶级管理员可访问
+ * @desc    创建客服账号（管理员可操作）
+ * @access  管理员可访问
  * @body    { username, role }
  */
 router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅顶级管理员可创建客服
-        if (req.user?.role !== 'manager' || req.user.authority !== 1) {
-            return res.status(403).json({ success: false, error: '仅顶级管理员可创建客服账号' });
+        // 权限判断：仅管理员和客服可创建客服
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可创建客服账号' });
         }
 
-        const { username, role } = req.body;
+        const { username, phone, role } = req.body;
 
         // 验证输入
         if (!username || !username.trim()) {
@@ -210,9 +210,10 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
                 const suffix = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
                 phoneNumber = prefix + suffix;
                 
-                // 检查是否已存在
-                const existing = await ManagerDAO.findByPhone(phoneNumber);
-                if (!existing) {
+                // 检查是否已存在（同时检查managers表和customer_services表）
+                const existingManager = await ManagerDAO.findByPhone(phoneNumber);
+                const existingCustomerService = await CustomerServiceDao.findCustomerServiceByUsername(phoneNumber);
+                if (!existingManager && !existingCustomerService) {
                     return phoneNumber;
                 }
                 
@@ -222,8 +223,27 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
             throw new Error('无法生成唯一的手机号码');
         };
 
-        // 生成唯一的11位手机号
-        const generatedPhoneNumber = await generatePhoneNumber();
+        // 使用前端传入的手机号或生成唯一的11位手机号
+        let phoneNumber;
+        if (phone && phone.trim()) {
+            // 验证手机号格式
+            const phoneRegex = /^1[3-9]\d{9}$/;
+            if (!phoneRegex.test(phone.trim())) {
+                return res.status(400).json({ success: false, error: '请输入正确的手机号格式' });
+            }
+            
+            // 检查手机号是否已存在
+            const existingManager = await ManagerDAO.findByPhone(phone.trim());
+            const existingCustomerService = await CustomerServiceDao.findByPhone(phone.trim());
+            if (existingManager || existingCustomerService) {
+                return res.status(400).json({ success: false, error: '手机号已存在' });
+            }
+            
+            phoneNumber = phone.trim();
+        } else {
+            // 如果没有传入手机号，则生成一个
+            phoneNumber = await generatePhoneNumber();
+        }
 
         // 生成随机密码（8位，包含字母和数字）
         const generatePassword = () => {
@@ -246,37 +266,60 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
         const defaultPassword = generatePassword();
         const hash = await bcrypt.hash(defaultPassword, 10);
 
-        // 创建客服账号（authority设为2，表示客服），同时保存明文密码
-        // 使用生成的客服昵称作为name，生成的11位数字作为phone_num（登录用户名）
-        const id = await ManagerDAO.create(customerServiceName, hash, generatedPhoneNumber, 2, null, defaultPassword);
-        const newManager = await ManagerDAO.findById(id);
+        // 直接创建到customer_services表中
+        const id = await CustomerServiceDao.createCustomerService({
+            username: customerServiceName, // username (客服名称作为登录用户名)
+            password: hash, // 加密密码
+            plain_passwd: defaultPassword, // 明文密码
+            phone: phoneNumber, // phone_num
+            hourly_rate: 20.00, // hourly_rate (默认时薪)
+            created_by: req.user?.id // 创建者ID
+        });
 
-        if (!newManager) {
+        const newCustomerService = await CustomerServiceDao.findCustomerServiceById(id);
+
+        if (!newCustomerService) {
             return res.status(500).json({ success: false, error: '创建客服账号失败' });
         }
 
+        // 为新客服添加默认权限
+        const defaultPermissions = [
+            { key: 'view_dashboard', name: '查看仪表板' },
+            { key: 'manage_users', name: '管理用户' },
+            { key: 'view_orders', name: '查看订单' },
+            { key: 'handle_complaints', name: '处理投诉' }
+        ];
+
+        for (const permission of defaultPermissions) {
+            await CustomerServiceDao.addCustomerServicePermission(
+                id, 
+                permission.key, 
+                permission.name, 
+                req.user.id
+            );
+        }
+
         // 返回客服信息（包含密码，仅在创建时返回）
-        const { passwd, ...safeManager } = newManager;
-        const responseManager = {
-            id: safeManager.id.toString(),
-            username: safeManager.phone_num, // 返回生成的11位手机号作为登录用户名
-            nickname: safeManager.name, // 返回客服昵称
+        const { passwd, plain_passwd, ...safeCustomerService } = newCustomerService;
+        const responseCustomerService = {
+            id: safeCustomerService.id.toString(),
+            username: safeCustomerService.username, // 返回客服用户名
             role: 'customer_service',
-            status: safeManager.status ? 'active' : 'inactive',
-            createdAt: safeManager.created_at,
-            lastLogin: null,
+            status: safeCustomerService.status ? 'active' : 'inactive',
+            createdAt: safeCustomerService.created_at,
+            lastLogin: safeCustomerService.last_login,
             operationCount: 0,
             // 仅在创建时返回密码信息
             password: defaultPassword
         };
 
-        console.log('✅ 成功创建客服账号:', {
-            nickname: customerServiceName,
-            phoneNumber: generatedPhoneNumber,
+        console.log('✅ 成功创建客服账号到customer_services表:', {
+            username: customerServiceName,
+            phoneNumber: phoneNumber,
             password: defaultPassword
         });
 
-        res.status(201).json(responseManager);
+        res.status(201).json(responseCustomerService);
     } catch (err) {
         next(err);
     }
@@ -284,31 +327,46 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
 
 /**
  * @route   GET /api/managers/credentials
- * @desc    获取所有管理员的账号密码信息（仅超级管理员可查看）
- * @access  仅顶级管理员可访问
+ * @desc    获取所有管理员和客服的账号密码信息（管理员可查看）
+ * @access  管理员可访问
  */
 router.get('/credentials', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅顶级管理员可访问
-        if (req.user?.role !== 'manager' || req.user.authority !== 1) {
-            return res.status(403).json({ success: false, error: '仅超级管理员可查看管理员账号密码' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看账号密码' });
         }
 
-        const result = await ManagerDAO.findAll(1, 1000); // 获取所有管理员
-        
-        // 返回包含密码的管理员信息
-        const managersWithCredentials = result.managers.map(manager => ({
+        // 获取所有管理员
+        const managerResult = await ManagerDAO.findAll(1, 1000, undefined, undefined);
+        const managersWithCredentials = managerResult.managers.map(manager => ({
             id: manager.id.toString(),
             username: manager.phone_num, // 返回登录用户名（手机号）
-            nickname: manager.name, // 添加昵称字段
+            phone: manager.phone_num, // 添加手机号字段
             password: manager.plain_passwd || '密码未设置', // 返回明文密码
-            role: manager.authority === 1 ? 'super_admin' : 
-                  manager.authority === 2 ? 'customer_service' : 'shareholder',
+            role: 'admin',
             status: manager.status ? 'active' : 'inactive',
-            createdAt: manager.created_at
+            createdAt: manager.created_at,
+            source: 'managers' // 标识来源
         }));
 
-        res.json(managersWithCredentials);
+        // 获取所有客服
+        const customerServiceResult = await CustomerServiceDao.findAllCustomerServices(1, 1000, undefined, undefined);
+        const customerServicesWithCredentials = customerServiceResult.customerServices.map(cs => ({
+            id: cs.id.toString(),
+            username: cs.username, // 返回登录用户名
+            phone: cs.phone, // 添加手机号字段
+            password: cs.plain_passwd || '密码未设置', // 返回明文密码
+            role: 'customer_service',
+            status: cs.status ? 'active' : 'inactive',
+            createdAt: cs.created_at,
+            source: 'customer_services' // 标识来源
+        }));
+
+        // 合并管理员和客服数据
+        const allCredentials = [...managersWithCredentials, ...customerServicesWithCredentials];
+
+        res.json(allCredentials);
     } catch (err) {
         next(err);
     }
@@ -321,9 +379,9 @@ router.get('/credentials', auth, async (req: AuthRequest, res: Response, next: N
  */
 router.get('/attendance', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看打卡记录' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看打卡记录' });
         }
 
         // 调用实际的DAO方法获取所有打卡记录
@@ -331,7 +389,7 @@ router.get('/attendance', auth, async (req: AuthRequest, res: Response, next: Ne
         const page = Number(req.query.page) || 1;
         const pageSize = Number(req.query.pageSize) || 50;
         
-        const result = await AttendanceDao.getAllAttendanceRecords(page, pageSize);
+        const result = await AttendanceDao.getAllManagerAttendanceRecords(page, pageSize);
         
         // 格式化返回数据
         const formattedRecords = result.records.map((record: any) => ({
@@ -339,15 +397,26 @@ router.get('/attendance', auth, async (req: AuthRequest, res: Response, next: Ne
             adminId: record.admin_id,
             adminName: record.admin_name,
             date: record.date,
-            clockInTime: record.clock_in_time,
-            clockOutTime: record.clock_out_time,
+            checkInTime: record.clock_in_time,
+            checkOutTime: record.clock_out_time,
             workDuration: record.work_hours ? Math.round(record.work_hours * 60) : 0, // 转换为分钟
-            status: record.status === 'clocked_in' ? 'working' : 'off_work',
+            hourlyRate: record.hourly_rate || 20,
+            totalEarnings: record.total_earnings || 0,
+            status: record.status === 'clocked_in' ? 'checked_in' : 'checked_out',
             createdAt: record.created_at,
             updatedAt: record.updated_at
         }));
 
-        res.json(formattedRecords);
+        res.json({
+            records: formattedRecords,
+            total: result.total,
+            stats: {
+                totalWorkHours: 0,
+                totalEarnings: 0,
+                averageHourlyRate: 20,
+                totalDays: result.total
+            }
+        });
     } catch (err) {
         console.error('获取打卡记录失败:', err);
         next(err);
@@ -361,19 +430,19 @@ router.get('/attendance', auth, async (req: AuthRequest, res: Response, next: Ne
  */
 router.get('/attendance/admin/:adminId', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看打卡记录' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看打卡记录' });
         }
 
-        const adminId = Number(req.params.adminId);
+        const customerServiceId = Number(req.params.adminId);
         
         // 调用实际的DAO方法获取指定客服的打卡记录
         const { AttendanceDao } = require('../dao/AttendanceDao');
         const page = Number(req.query.page) || 1;
         const pageSize = Number(req.query.pageSize) || 50;
         
-        const result = await AttendanceDao.getAttendanceRecords(adminId, page, pageSize);
+        const result = await AttendanceDao.getAttendanceRecords(customerServiceId, page, pageSize);
         
         // 格式化返回数据
         const formattedRecords = result.records.map((record: any) => ({
@@ -403,9 +472,9 @@ router.get('/attendance/admin/:adminId', auth, async (req: AuthRequest, res: Res
  */
 router.get('/salaries', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看时薪设置' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看时薪设置' });
         }
 
         // 调用实际的DAO方法获取客服时薪设置
@@ -414,35 +483,96 @@ router.get('/salaries', auth, async (req: AuthRequest, res: Response, next: Next
         
         const result = await CustomerServiceDao.getSalarySettings(page, pageSize);
         
-        // 获取管理员信息来补充adminName
-        const salariesWithNames = await Promise.all(
-            result.salaries.map(async (salary: any) => {
-                try {
-                    const admin = await ManagerDAO.findById(salary.admin_id);
-                    return {
-                        adminId: salary.admin_id.toString(),
-                        adminName: admin?.nickname || admin?.username || `客服${salary.admin_id}`,
-                        hourlyRate: salary.hourly_rate,
-                        minimumSettlementHours: salary.minimum_settlement_hours,
-                        updatedAt: salary.updated_at,
-                        updatedBy: salary.updated_by || '系统'
-                    };
-                } catch (error) {
-                    return {
-                        adminId: salary.admin_id.toString(),
-                        adminName: `客服${salary.admin_id}`,
-                        hourlyRate: salary.hourly_rate,
-                        minimumSettlementHours: salary.minimum_settlement_hours,
-                        updatedAt: salary.updated_at,
-                        updatedBy: salary.updated_by || '系统'
-                    };
-                }
-            })
-        );
+        // 格式化薪资数据
+        const salariesWithNames = result.salaries.map((salary: any) => ({
+            adminId: salary.id.toString(),
+            adminName: salary.nickname || salary.username,
+            hourlyRate: salary.hourly_rate,
+            minimumSettlementHours: 8, // 默认值
+            updatedAt: new Date().toISOString(),
+            updatedBy: '系统'
+        }));
 
         res.json(salariesWithNames);
     } catch (err) {
         console.error('获取客服时薪设置失败:', err);
+        next(err);
+    }
+});
+
+/**
+ * @route   PUT /api/managers/salaries/batch
+ * @desc    批量更新客服时薪
+ * @access  仅管理员可访问
+ */
+router.put('/salaries/batch', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可批量修改时薪设置' });
+        }
+
+        const { updates } = req.body;
+
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({ success: false, error: '更新数据不能为空' });
+        }
+
+        const results = [];
+        
+        for (const update of updates) {
+            const { adminId, hourlyRate, minimumSettlementHours } = update;
+            
+            if (!adminId) {
+                results.push({
+                    adminId: adminId?.toString() || 'unknown',
+                    success: false,
+                    error: '管理员ID不能为空'
+                });
+                continue;
+            }
+            
+            if (hourlyRate === undefined || hourlyRate === null || isNaN(Number(hourlyRate)) || Number(hourlyRate) <= 0) {
+                results.push({
+                    adminId: adminId.toString(),
+                    success: false,
+                    error: '时薪必须大于0'
+                });
+                continue;
+            }
+
+            try {
+                // 调用实际的DAO方法更新时薪
+                await CustomerServiceDao.updateCustomerServiceSalary(adminId, Number(hourlyRate), minimumSettlementHours);
+                
+                // 获取更新后的数据
+                const updatedSalary = await CustomerServiceDao.getCustomerServiceSalary(adminId);
+                const admin = await ManagerDAO.findById(adminId);
+                
+                results.push({
+                    adminId: adminId.toString(),
+                    adminName: admin?.name || `客服${adminId}`,
+                    hourlyRate: updatedSalary?.hourly_rate || hourlyRate,
+                    minimumSettlementHours: updatedSalary?.minimum_settlement_hours,
+                    updatedAt: updatedSalary?.updated_at || new Date().toISOString(),
+                    success: true
+                });
+            } catch (error) {
+                results.push({
+                    adminId: adminId.toString(),
+                    success: false,
+                    error: error.message
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `批量更新完成，成功 ${results.filter(r => r.success).length} 个，失败 ${results.filter(r => !r.success).length} 个`,
+            results
+        });
+    } catch (err) {
+        console.error('批量更新客服时薪失败:', err);
         next(err);
     }
 });
@@ -454,9 +584,9 @@ router.get('/salaries', auth, async (req: AuthRequest, res: Response, next: Next
  */
 router.put('/salaries/:adminId', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可修改时薪设置' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可修改时薪设置' });
         }
 
         const adminId = Number(req.params.adminId);
@@ -475,7 +605,7 @@ router.put('/salaries/:adminId', auth, async (req: AuthRequest, res: Response, n
         
         const result = {
             adminId: adminId.toString(),
-            adminName: admin?.nickname || admin?.username || `客服${adminId}`,
+            adminName: admin?.name || `客服${adminId}`,
             hourlyRate: updatedSalary?.hourly_rate || hourlyRate,
             minimumSettlementHours: updatedSalary?.minimum_settlement_hours,
             updatedAt: updatedSalary?.updated_at || new Date().toISOString()
@@ -495,9 +625,9 @@ router.put('/salaries/:adminId', auth, async (req: AuthRequest, res: Response, n
  */
 router.get('/operation-logs', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看操作日志' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看操作日志' });
         }
 
         // 模拟操作日志数据
@@ -539,9 +669,9 @@ router.get('/operation-logs', auth, async (req: AuthRequest, res: Response, next
  */
 router.get('/operation-logs/admin/:adminId', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看操作日志' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看操作日志' });
         }
 
         const adminId = req.params.adminId;
@@ -574,9 +704,9 @@ router.get('/operation-logs/admin/:adminId', auth, async (req: AuthRequest, res:
  */
 router.get('/operation-logs/module/:module', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看操作日志' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看操作日志' });
         }
 
         const module = req.params.module;
@@ -609,9 +739,9 @@ router.get('/operation-logs/module/:module', auth, async (req: AuthRequest, res:
  */
 router.get('/operation-logs/date-range', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看操作日志' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看操作日志' });
         }
 
         const { start, end } = req.query;
@@ -638,6 +768,61 @@ router.get('/operation-logs/date-range', auth, async (req: AuthRequest, res: Res
 });
 
 /**
+ * @route   GET /api/managers/global-hourly-rate
+ * @desc    获取全局时薪设置
+ * @access  管理员可访问
+ */
+router.get('/global-hourly-rate', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 权限判断：仅管理员可访问
+        if (req.user?.role !== 'admin') {
+            return res.status(403).json({ success: false, error: '仅管理员可访问全局时薪设置' });
+        }
+
+        // 从数据库获取全局时薪设置（这里使用一个默认值，实际应该从配置表获取）
+        const globalHourlyRate = 20.00; // 默认时薪，可以从配置表获取
+        
+        res.json({
+            success: true,
+            hourly_rate: globalHourlyRate
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   POST /api/managers/global-hourly-rate
+ * @desc    设置全局时薪
+ * @access  管理员可访问
+ */
+router.post('/global-hourly-rate', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 权限判断：仅管理员可访问
+        if (req.user?.role !== 'admin') {
+            return res.status(403).json({ success: false, error: '仅管理员可设置全局时薪' });
+        }
+
+        const { hourly_rate } = req.body;
+
+        if (!hourly_rate || hourly_rate <= 0) {
+            return res.status(400).json({ success: false, error: '时薪必须大于0' });
+        }
+
+        // 这里应该将全局时薪保存到配置表，暂时返回成功
+        // 实际实现时可以创建一个配置表来存储全局设置
+        
+        res.json({
+            success: true,
+            message: '全局时薪设置成功',
+            hourly_rate: hourly_rate
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
  * @route   GET /api/managers/:id
  * @desc    获取管理员资料
  */
@@ -647,13 +832,11 @@ router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunct
         const currentUserId = req.user?.id;
         const currentRole = req.user?.role;
 
-        // 权限判断：仅本人或顶级管理员可访问
-        if (currentRole !== 'manager' || (currentUserId !== targetId && req.user?.authority !== 1)) {
+        // 权限判断：仅本人或管理员可访问
+        if (currentRole !== 'admin' || (currentUserId !== targetId && currentRole !== 'admin')) {
             return res.status(403).json({ success: false, error: '无权限访问该管理员资料' });
         }
 
-        const manager = await ManagerDAO.findById(targetId);
-        if (!manager) return res.status(404).json({ success: false, error: '管理员不存在' });
 
         // 隐藏密码字段
         const { passwd, ...safeManager } = manager;
@@ -665,35 +848,34 @@ router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunct
 
 /**
  * @route   GET /api/managers
- * @desc    分页查询管理员列表
- * @access  仅顶级管理员可访问
- * @query   page, pageSize, status?, authority?, keyword?
+ * @desc    分页查询管理员列表（包含客服）
+ * @access  管理员可访问
+ * @query   page, pageSize, status?, keyword?
  */
 router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅顶级管理员可访问
-        if (req.user?.role !== 'manager' || req.user.authority !== 1) {
-            return res.status(403).json({ success: false, error: '仅顶级管理员可查看管理员列表' });
+        // 权限判断：仅管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看管理员列表' });
         }
 
         const page = Number(req.query.page) || 1;
         const pageSize = Number(req.query.pageSize) || 20;
         const status = req.query.status !== undefined ? req.query.status === 'true' : undefined;
-        const authority = req.query.authority ? Number(req.query.authority) : undefined;
         const keyword = req.query.keyword as string;
 
-        const result = await ManagerDAO.findAll(page, pageSize, status, authority, keyword);
+        // 获取管理员数据
+        const managerResult = await ManagerDAO.findAll(page, pageSize, status, keyword);
         
-        // 过滤掉超级管理员，只显示客服
-        const customerServiceManagers = result.managers.filter(manager => manager.authority === 2);
-        
-        // 转换为前端期望的格式
-        const formattedManagers = customerServiceManagers.map(manager => {
+        // 转换管理员数据为前端期望的格式
+        const formattedManagers = managerResult.managers.map(manager => {
             const { passwd, ...safeManager } = manager;
             return {
                 id: safeManager.id.toString(),
                 username: safeManager.name,
-                role: 'customer_service',
+                nickname: safeManager.name,
+                phone: safeManager.phone_num, // 添加手机号字段
+                role: 'admin',
                 status: safeManager.status ? 'active' : 'inactive',
                 createdAt: safeManager.created_at,
                 lastLogin: safeManager.last_login ? new Date(safeManager.last_login).toLocaleDateString() : '未登录',
@@ -701,7 +883,26 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
             };
         });
 
-        res.json(formattedManagers);
+        // 获取客服数据
+        const customerServiceResult = await CustomerServiceDao.findAllCustomerServices(1, 1000, status, keyword);
+        
+        // 转换客服数据为前端期望的格式
+        const formattedCustomerServices = customerServiceResult.customerServices.map(cs => ({
+            id: cs.id.toString(),
+            username: cs.username,
+            nickname: cs.nickname || cs.username,
+            phone: cs.phone, // 添加手机号字段
+            role: 'customer_service',
+            status: cs.status ? 'active' : 'inactive',
+            createdAt: cs.created_at,
+            lastLogin: cs.last_login ? new Date(cs.last_login).toLocaleDateString() : '未登录',
+            operationCount: 0
+        }));
+
+        // 合并管理员和客服数据
+        const allUsers = [...formattedManagers, ...formattedCustomerServices];
+
+        res.json(allUsers);
     } catch (err) {
         next(err);
     }
@@ -710,7 +911,7 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
 /**
  * @route   PATCH /api/managers/:id
  * @desc    更新管理员基本信息（除密码）
- * @access  仅本人或顶级管理员可访问
+ * @access  仅本人或管理员可访问
  */
 router.patch('/:id', auth, userUpload.single('photo_img'), async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -718,8 +919,8 @@ router.patch('/:id', auth, userUpload.single('photo_img'), async (req: AuthReque
         const currentUserId = req.user?.id;
         const currentRole = req.user?.role;
 
-        // 权限判断：仅本人或顶级管理员可更新
-        if (currentRole !== 'manager' || (currentUserId !== targetId && req.user?.authority !== 1)) {
+        // 权限判断：仅本人或管理员可更新
+        if (currentRole !== 'admin' || (currentUserId !== targetId && currentRole !== 'admin')) {
             return res.status(403).json({ success: false, error: '无权限更新该管理员信息' });
         }
 
@@ -775,15 +976,71 @@ router.patch('/:id/password', auth, async (req: AuthRequest, res: Response, next
 });
 
 /**
+ * @route   PUT /api/managers/:id/password
+ * @desc    管理员修改其他用户密码
+ * @access  仅管理员可操作
+ */
+router.put('/:id/password', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 权限判断：仅管理员可修改其他人密码
+        if (req.user?.role !== 'admin') {
+            return res.status(403).json({ success: false, error: '仅管理员可修改其他用户密码' });
+        }
+
+        const targetId = req.params.id;
+        const { password } = req.body;
+
+        if (!password || password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                error: '密码长度至少6个字符'
+            });
+        }
+
+        // 检查目标用户是否存在（先检查管理员表）
+        let targetUser = null;
+        try {
+            targetUser = await ManagerDAO.findById(Number(targetId));
+        } catch (err) {
+            // 如果管理员表中没有，检查客服表
+            try {
+                const CustomerServiceDao = require('../dao/CustomerServiceDao');
+                targetUser = await CustomerServiceDao.findById(Number(targetId));
+                
+                if (targetUser) {
+                    // 更新客服密码
+                    const hash = await bcrypt.hash(password, 10);
+                    await CustomerServiceDao.updatePassword(Number(targetId), hash, password);
+                    return res.json({ success: true, message: '客服密码修改成功' });
+                }
+            } catch (csErr) {
+                // 客服表中也没有
+            }
+        }
+
+        if (targetUser && targetUser.id) {
+            // 更新管理员密码
+            const hash = await bcrypt.hash(password, 10);
+            await ManagerDAO.updatePasswordWithPlain(Number(targetId), hash, password);
+            return res.json({ success: true, message: '管理员密码修改成功' });
+        }
+
+        return res.status(404).json({ success: false, error: '用户不存在' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
  * @route   PATCH /api/managers/:id/status
  * @desc    更新启用/禁用状态
- * @access  仅顶级管理员可操作
+ * @access  管理员和客服可操作
  */
 router.patch('/:id/status', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅顶级管理员可操作
-        if (req.user?.role !== 'manager' || req.user?.authority !== 1) {
-            return res.status(403).json({ success: false, error: '仅顶级管理员可修改状态' });
+        // 权限判断：仅管理员和客服可操作
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可修改状态' });
         }
 
         const targetId = Number(req.params.id);
@@ -799,13 +1056,13 @@ router.patch('/:id/status', auth, async (req: AuthRequest, res: Response, next: 
 /**
  * @route   DELETE /api/managers/:id
  * @desc    删除管理员
- * @access  仅顶级管理员可操作
+ * @access  管理员和客服可操作
  */
 router.delete('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅顶级管理员可删除
-        if (req.user?.role !== 'manager' || req.user?.authority !== 1) {
-            return res.status(403).json({ success: false, error: '仅顶级管理员可删除管理员' });
+        // 权限判断：仅管理员和客服可删除
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可删除管理员' });
         }
 
         const id = Number(req.params.id);

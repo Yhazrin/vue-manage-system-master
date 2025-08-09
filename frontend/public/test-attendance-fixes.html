@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客服打卡功能修复测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .title {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background-color: #0056b3;
+        }
+        .test-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .status-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 10px 0;
+        }
+        .status-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .attendance-record {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .record-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .record-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">客服打卡功能修复测试</h1>
+        <p><strong>修复内容：</strong></p>
+        <ul>
+            <li>✅ 修复下班打卡后间隔时间异常增加的问题（精确到分钟级别计算）</li>
+            <li>✅ 修复工作台收益统计未正确加载时薪的问题</li>
+            <li>✅ 添加考勤记录今日收入的计算公式悬浮提示</li>
+            <li>✅ 修复上下班打卡创建两条记录的问题（现在一条记录包含完整信息）</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2 class="title">当前状态</h2>
+        <div class="status-display" id="statusDisplay">
+            <!-- 状态卡片将在这里动态生成 -->
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 class="title">打卡测试</h2>
+        <div class="test-section">
+            <h3>基础打卡功能</h3>
+            <button class="test-button" onclick="testClockIn()">上班打卡</button>
+            <button class="test-button" onclick="testClockOut()">下班打卡</button>
+            <button class="test-button" onclick="refreshStatus()">刷新状态</button>
+            <div id="clockResult" class="result"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 class="title">考勤记录</h2>
+        <div class="test-section">
+            <button class="test-button" onclick="loadAttendanceRecords()">加载考勤记录</button>
+            <div id="attendanceRecords"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 class="title">收益数据测试</h2>
+        <div class="test-section">
+            <button class="test-button" onclick="testEarningsCalculation()">测试收益计算</button>
+            <div id="earningsResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let currentStatus = null;
+
+        // 获取认证头
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        // 获取当前客服ID
+        function getCurrentCustomerId() {
+            const userInfo = localStorage.getItem('user');
+            if (userInfo) {
+                try {
+                    const parsed = JSON.parse(userInfo);
+                    return parsed.id;
+                } catch (error) {
+                    console.error('解析用户信息失败:', error);
+                }
+            }
+            
+            const userId = localStorage.getItem('userId');
+            if (userId) {
+                const id = parseInt(userId, 10);
+                if (!isNaN(id)) {
+                    return id;
+                }
+            }
+            
+            // 默认使用客服ID 1 进行测试
+            return 1;
+        }
+
+        // 刷新状态显示
+        async function refreshStatus() {
+            try {
+                const customerId = getCurrentCustomerId();
+                const response = await fetch(`${API_BASE}/super-unified/customer-service/${customerId}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    currentStatus = data.data;
+                    updateStatusDisplay(currentStatus);
+                } else {
+                    throw new Error(data.message || '获取状态失败');
+                }
+            } catch (error) {
+                console.error('刷新状态失败:', error);
+                document.getElementById('statusDisplay').innerHTML = `
+                    <div class="error">获取状态失败: ${error.message}</div>
+                `;
+            }
+        }
+
+        // 更新状态显示
+        function updateStatusDisplay(status) {
+            const statusDisplay = document.getElementById('statusDisplay');
+            
+            // 计算实时工作时长
+            let currentWorkTime = '未工作';
+            if (status.today_status === 'clocked_in' && status.today_clock_in_time) {
+                const clockInTime = new Date(status.today_clock_in_time);
+                const now = new Date();
+                const workingMilliseconds = now.getTime() - clockInTime.getTime();
+                const workingHours = Math.round(workingMilliseconds / (1000 * 60)) / 60;
+                const hours = Math.floor(workingHours);
+                const minutes = Math.round((workingHours - hours) * 60);
+                currentWorkTime = `${hours}小时${minutes}分钟`;
+            }
+            
+            statusDisplay.innerHTML = `
+                <div class="status-card">
+                    <div class="status-label">当前状态</div>
+                    <div class="status-value">${getStatusText(status.today_status)}</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">时薪</div>
+                    <div class="status-value">¥${status.hourly_rate || 0}/小时</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">今日工作时长</div>
+                    <div class="status-value">${status.today_work_hours ? formatWorkHours(status.today_work_hours) : currentWorkTime}</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">今日收益</div>
+                    <div class="status-value">¥${(parseFloat(status.today_total_earnings) || 0).toFixed(2)}</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">可用余额</div>
+                    <div class="status-value">¥${(parseFloat(status.available_balance) || 0).toFixed(2)}</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">总收益</div>
+                    <div class="status-value">¥${(parseFloat(status.total_earnings) || 0).toFixed(2)}</div>
+                </div>
+            `;
+        }
+
+        // 状态文本转换
+        function getStatusText(status) {
+            switch (status) {
+                case 'not_clocked': return '未打卡';
+                case 'clocked_in': return '工作中';
+                case 'clocked_out': return '已下班';
+                default: return '未知状态';
+            }
+        }
+
+        // 格式化工作时长
+        function formatWorkHours(hours) {
+            if (!hours || hours <= 0) return '00:00:00';
+            const totalMinutes = Math.round(hours * 60);
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
+        }
+
+        // 测试上班打卡
+        async function testClockIn() {
+            const resultDiv = document.getElementById('clockResult');
+            resultDiv.innerHTML = '<div class="info">正在上班打卡...</div>';
+            
+            try {
+                const customerId = getCurrentCustomerId();
+                const response = await fetch(`${API_BASE}/super-unified/clock-in`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ customerId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ 上班打卡成功！
+                            打卡时间: ${new Date(data.data.clockInTime).toLocaleString()}
+                        </div>
+                    `;
+                    await refreshStatus();
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ 上班打卡失败: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 上班打卡失败: ${error.message}</div>`;
+            }
+        }
+
+        // 测试下班打卡
+        async function testClockOut() {
+            const resultDiv = document.getElementById('clockResult');
+            resultDiv.innerHTML = '<div class="info">正在下班打卡...</div>';
+            
+            try {
+                const customerId = getCurrentCustomerId();
+                const response = await fetch(`${API_BASE}/super-unified/clock-out`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ customerId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const result = data.data;
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ 下班打卡成功！
+                            工作时长: <span class="highlight">${result.workHours.toFixed(2)}小时</span>
+                            时薪: <span class="highlight">¥${result.hourlyRate}/小时</span>
+                            收益: <span class="highlight">¥${result.totalEarnings.toFixed(2)}</span>
+                            新余额: <span class="highlight">¥${result.newBalance.toFixed(2)}</span>
+                        </div>
+                    `;
+                    await refreshStatus();
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ 下班打卡失败: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ 下班打卡失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载考勤记录
+        async function loadAttendanceRecords() {
+            const recordsDiv = document.getElementById('attendanceRecords');
+            recordsDiv.innerHTML = '<div class="info">正在加载考勤记录...</div>';
+            
+            try {
+                const customerId = getCurrentCustomerId();
+                const response = await fetch(`${API_BASE}/super-unified/customer-service/${customerId}/history?limit=10`, {
+                    headers: getAuthHeaders()
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const records = data.data.filter(record => 
+                        record.action_type === 'clock_in' || record.action_type === 'clock_out'
+                    );
+                    
+                    if (records.length === 0) {
+                        recordsDiv.innerHTML = '<div class="info">暂无考勤记录</div>';
+                        return;
+                    }
+                    
+                    let html = '<h4>最近考勤记录：</h4>';
+                    records.forEach(record => {
+                        const clockInTime = record.clock_in_time ? new Date(record.clock_in_time).toLocaleString() : '--';
+                        const clockOutTime = record.clock_out_time ? new Date(record.clock_out_time).toLocaleString() : '--';
+                        const workHours = record.work_hours || 0;
+                        const earnings = record.total_earnings || 0;
+                        const hourlyRate = record.hourly_rate || 0;
+                        
+                        // 计算公式
+                        const formula = record.clock_out_time ? 
+                            `${workHours.toFixed(2)}小时 × ¥${hourlyRate}/小时 = ¥${earnings.toFixed(2)}` : 
+                            '工作中...';
+                        
+                        html += `
+                            <div class="attendance-record">
+                                <div class="record-header">
+                                    ${new Date(record.action_date).toLocaleDateString()} - ${record.description}
+                                </div>
+                                <div class="record-details">
+                                    <div><strong>上班时间:</strong> ${clockInTime}</div>
+                                    <div><strong>下班时间:</strong> ${clockOutTime}</div>
+                                    <div><strong>工作时长:</strong> ${formatWorkHours(workHours)}</div>
+                                    <div><strong>收益计算:</strong> <span class="highlight" title="计算公式">${formula}</span></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    recordsDiv.innerHTML = html;
+                } else {
+                    recordsDiv.innerHTML = `<div class="error">加载考勤记录失败: ${data.message || '未知错误'}</div>`;
+                }
+            } catch (error) {
+                recordsDiv.innerHTML = `<div class="error">加载考勤记录失败: ${error.message}</div>`;
+            }
+        }
+
+        // 测试收益计算
+        async function testEarningsCalculation() {
+            const resultDiv = document.getElementById('earningsResult');
+            
+            if (!currentStatus) {
+                resultDiv.innerHTML = '<div class="error">请先刷新状态</div>';
+                return;
+            }
+            
+            const hourlyRate = currentStatus.hourly_rate || 20;
+            const todayWorkHours = currentStatus.today_work_hours || 0;
+            const calculatedEarnings = Math.round(todayWorkHours * hourlyRate * 100) / 100;
+            const actualEarnings = currentStatus.today_total_earnings || 0;
+            
+            resultDiv.innerHTML = `
+                <div class="info">
+                    <strong>收益计算验证：</strong><br>
+                    时薪: ¥${hourlyRate}/小时<br>
+                    今日工作时长: ${todayWorkHours.toFixed(2)}小时<br>
+                    计算收益: ¥${calculatedEarnings.toFixed(2)}<br>
+                    实际收益: ¥${actualEarnings.toFixed(2)}<br>
+                    <strong>计算公式:</strong> ${todayWorkHours.toFixed(2)} × ${hourlyRate} = ${calculatedEarnings.toFixed(2)}<br>
+                    <strong>结果:</strong> ${Math.abs(calculatedEarnings - actualEarnings) < 0.01 ? '✅ 计算正确' : '❌ 计算有误差'}
+                </div>
+            `;
+        }
+
+        // 页面加载时自动刷新状态
+        window.onload = function() {
+            refreshStatus();
+        };
+
+        // 每30秒自动刷新状态（如果正在工作中）
+        setInterval(() => {
+            if (currentStatus && currentStatus.today_status === 'clocked_in') {
+                refreshStatus();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

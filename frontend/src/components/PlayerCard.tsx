@@ -7,8 +7,6 @@ import { Heart } from "lucide-react";
 import { toast } from "sonner";
 import { buildAvatarUrl } from '@/utils/imageUtils';
 import { getPlayerRatingSummary, PlayerRatingSummary, formatRating } from '@/services/ratingService';
-import RatingDetail from './RatingDetail';
-
 interface PlayerCardProps {
   player: Player;
   className?: string;
@@ -20,7 +18,6 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
   const [isLocalFavorite, setIsLocalFavorite] = useState(isFavorite);
   const [isLoading, setIsLoading] = useState(false);
   const [ratingData, setRatingData] = useState<PlayerRatingSummary | null>(null);
-  const [showRatingDetail, setShowRatingDetail] = useState(false);
 
   useEffect(() => {
     setIsLocalFavorite(isFavorite);
@@ -149,18 +146,6 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
               : (player.reviews || 0)
             }条评价)
           </span>
-          {ratingData && ratingData.success && ratingData.totalReviews > 0 && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowRatingDetail(true);
-              }}
-              className="ml-1 text-theme-primary hover:underline"
-            >
-              详情
-            </button>
-          )}
         </div>
           </div>
         </div>
@@ -244,13 +229,6 @@ export default function PlayerCard({ player, className, isFavorite = false, onFa
           </div>
         </div>
       </div>
-      
-      {/* 评分详情弹窗 */}
-      <RatingDetail
-        playerId={player.id}
-        isOpen={showRatingDetail}
-        onClose={() => setShowRatingDetail(false)}
-      />
     </Link>
   );
 }

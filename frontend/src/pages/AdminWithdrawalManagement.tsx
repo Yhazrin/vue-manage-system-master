@@ -137,9 +137,23 @@ const getStatusStyle = (status: WithdrawalRequest['status']) => {
   }, [selectedWithdrawal, fetchProcessRecords]);
   
   // 筛选提现申请
-  const filteredWithdrawals = activeFilter === 'all' 
-    ? withdrawalRequests 
-    : withdrawalRequests.filter(request => request.status === activeFilter);
+  const filteredWithdrawals = (() => {
+    if (activeFilter === 'all') {
+      return withdrawalRequests;
+    }
+    
+    // 按类型筛选
+    if (activeFilter === 'player') {
+      return withdrawalRequests.filter(request => request.type === 'player');
+    }
+    
+    if (activeFilter === 'customer_service') {
+      return withdrawalRequests.filter(request => request.type === 'customer_service');
+    }
+    
+    // 按状态筛选
+    return withdrawalRequests.filter(request => request.status === activeFilter);
+  })();
   
   // 批准提现申请并完成打款
   const handleApproveWithdrawal = async () => {
@@ -218,12 +232,13 @@ const getStatusStyle = (status: WithdrawalRequest['status']) => {
               <i className="fa-solid fa-arrow-left mr-1"></i> 返回概览
             </button>
           </div>
-          <p className="text-theme-text/70">审核陪玩者提现申请并处理打款</p>
+          <p className="text-theme-text/70">审核陪玩者和客服提现申请并处理打款</p>
         </div>
         
         {/* 筛选器 */}
         <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-4 mb-6">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-3">
+            <span className="text-sm font-medium text-theme-text mr-2">按状态筛选:</span>
             <button 
               onClick={() => setActiveFilter('all')}
               className={`py-1.5 px-4 rounded-lg text-sm font-medium transition-colors ${
@@ -265,6 +280,29 @@ const getStatusStyle = (status: WithdrawalRequest['status']) => {
               已拒绝
             </button>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="text-sm font-medium text-theme-text mr-2">按类型筛选:</span>
+            <button 
+              onClick={() => setActiveFilter('player')}
+              className={`py-1.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                activeFilter === 'player' 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-theme-background text-theme-text hover:bg-green-100 border border-theme-border'
+              }`}
+            >
+              陪玩提现
+            </button>
+            <button 
+              onClick={() => setActiveFilter('customer_service')}
+              className={`py-1.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                activeFilter === 'customer_service' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-theme-background text-theme-text hover:bg-blue-100 border border-theme-border'
+              }`}
+            >
+              客服提现
+            </button>
+          </div>
         </div>
         
         {/* 提现申请列表 */}
@@ -295,7 +333,8 @@ const getStatusStyle = (status: WithdrawalRequest['status']) => {
                 <thead>
                   <tr className="bg-theme-background">
                     <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">申请ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">陪玩信息</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">类型</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">用户信息</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">提现金额 (元)</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">申请时间</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-theme-text/70 uppercase tracking-wider">状态</th>
@@ -307,12 +346,23 @@ const getStatusStyle = (status: WithdrawalRequest['status']) => {
                     filteredWithdrawals.map(withdrawal => {
                       const statusInfo = getStatusStyle(withdrawal.status);
                       return (
-                        <tr key={withdrawal.id} className="hover:bg-theme-background">
+                        <tr key={withdrawal.id} className="hover:bg-theme-surface/20 transition-all duration-300">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{withdrawal.id}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              withdrawal.type === 'customer_service' 
+                                ? 'bg-blue-100 text-blue-800' 
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {withdrawal.type === 'customer_service' ? '客服' : '陪玩'}
+                            </span>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="font-medium text-theme-text text-sm">{withdrawal.playerName}</div>
-                              <div className="text-xs text-theme-text/70">{withdrawal.playerUid}</div>
+                              <div className="text-xs text-theme-text/70">
+                                {withdrawal.type === 'customer_service' ? `手机: ${withdrawal.playerUid}` : `UID: ${withdrawal.playerUid}`}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">¥{(withdrawal.amount || 0).toFixed(2)}</td>
@@ -335,7 +385,7 @@ const getStatusStyle = (status: WithdrawalRequest['status']) => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-theme-text/70">
+                      <td colSpan={7} className="px-6 py-10 text-center text-theme-text/70">
                         <div className="flex flex-col items-center">
                           <i className="fa-solid fa-file-invoice text-2xl mb-2"></i>
                           <p>没有找到符合条件的提现申请</p>
@@ -369,15 +419,31 @@ const getStatusStyle = (status: WithdrawalRequest['status']) => {
               <div className="p-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <h4 className="text-sm font-medium text-theme-text mb-3">陪玩信息</h4>
+                    <h4 className="text-sm font-medium text-theme-text mb-3">
+                      {selectedWithdrawal.type === 'customer_service' ? '客服信息' : '陪玩信息'}
+                    </h4>
                     <div className="bg-theme-background p-4 rounded-lg">
                       <div className="mb-2">
-                        <p className="text-xs text-theme-text/70">陪玩昵称</p>
+                        <p className="text-xs text-theme-text/70">
+                          {selectedWithdrawal.type === 'customer_service' ? '客服姓名' : '陪玩昵称'}
+                        </p>
                         <p className="font-medium text-theme-text">{selectedWithdrawal.playerName}</p>
                       </div>
-                      <div>
-                        <p className="text-xs text-theme-text/70">陪玩UID</p>
+                      <div className="mb-2">
+                        <p className="text-xs text-theme-text/70">
+                          {selectedWithdrawal.type === 'customer_service' ? '手机号码' : '陪玩UID'}
+                        </p>
                         <p className="font-medium text-theme-text">{selectedWithdrawal.playerUid}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-theme-text/70">用户类型</p>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          selectedWithdrawal.type === 'customer_service' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {selectedWithdrawal.type === 'customer_service' ? '客服' : '陪玩'}
+                        </span>
                       </div>
                     </div>
                   </div>

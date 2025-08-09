@@ -1,6 +1,6 @@
 // 提现相关的API服务
 import { API_BASE_URL } from '@/config/api';
-import { get, put } from './api';
+import { get, put, post } from './api';
 
 // 提现记录接口定义
 export interface WithdrawalRecord {
@@ -40,6 +40,7 @@ export interface WithdrawalRequest {
   processedBy?: string;
   notes?: string;
   qrCodeUrl: string;
+  type?: 'player' | 'customer_service'; // 区分陪玩和客服提现
 }
 
 // 处理记录接口
@@ -72,8 +73,8 @@ export const getWithdrawals = async (): Promise<WithdrawalRecord[]> => {
   }
 };
 
-// 获取所有提现申请
-export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
+// 获取陪玩提现申请
+export const getPlayerWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
   try {
     const data = await get<any>('/withdrawals');
     
@@ -92,13 +93,100 @@ export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
         processedAt: item.updated_at,
         processedBy: item.processed_by,
         notes: item.notes,
-        qrCodeUrl: '' // 暂时为空，后续可以添加
+        qrCodeUrl: '', // 暂时为空，后续可以添加
+        type: 'player' // 标记为陪玩提现
       }));
     }
     
     return [];
   } catch (error) {
-    console.error('Error fetching withdrawal requests:', error);
+    console.error('Error fetching player withdrawal requests:', error);
+    // 开发环境下返回空数组
+    if (process.env.NODE_ENV === 'development') {
+      return [];
+    }
+    throw error;
+  }
+};
+
+// 获取客服提现申请
+export const getCustomerServiceWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
+  try {
+    const data = await get<any>('/customer-service/withdrawals');
+    
+    // 处理后端返回的数据格式
+    if (data.success && data.withdrawals) {
+      return data.withdrawals.map((item: any) => ({
+        id: item.id,
+        playerUid: item.cs_phone || '',
+        playerName: item.cs_name || `客服${item.cs_phone}`,
+        amount: Number(item.amount || 0),
+        status: item.status === 'pending' ? 'pending' : 
+                item.status === 'approved' ? 'approved' : 
+                item.status === 'rejected' ? 'rejected' : 
+                item.status === 'completed' ? 'paid' : 'pending',
+        createdAt: item.created_at,
+        processedAt: item.updated_at,
+        processedBy: item.processed_by,
+        notes: item.description,
+        qrCodeUrl: '', // 暂时为空，后续可以添加
+        type: 'customer_service' // 标记为客服提现
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error fetching customer service withdrawal requests:', error);
+    // 开发环境下返回空数组
+    if (process.env.NODE_ENV === 'development') {
+      return [];
+    }
+    throw error;
+  }
+};
+
+// 获取所有提现申请（陪玩 + 客服）
+export const getWithdrawalRequests = async (): Promise<WithdrawalRequest[]> => {
+  try {
+    // 检查用户角色
+    const userRole = localStorage.getItem('userRole');
+    
+    if (userRole === 'admin') {
+      // 管理员直接调用 /withdrawals API，它会返回所有记录（陪玩+客服）
+      const data = await get<any>('/withdrawals');
+      
+      if (data.success && data.withdrawals) {
+        return data.withdrawals.map((item: any) => ({
+          id: item.withdrawal_id,
+          playerUid: item.user_type === 'customer_service' ? (item.customer_service_phone || item.customer_service_id?.toString() || '') : (item.player_id?.toString() || ''),
+          playerName: item.user_type === 'customer_service' ? (item.customer_service_name || `客服${item.customer_service_id}`) : (item.player_name || `玩家${item.player_id}`),
+          amount: Number(item.amount || 0),
+          status: item.status === '待审核' ? 'pending' : 
+                  item.status === '已批准' ? 'approved' : 
+                  item.status === '已拒绝' ? 'rejected' : 
+                  item.status === '已打款' || item.status === '已完成' ? 'paid' : 'pending',
+          createdAt: item.created_at,
+          processedAt: item.updated_at,
+          processedBy: item.processed_by,
+          notes: item.notes,
+          qrCodeUrl: '',
+          type: item.user_type === 'customer_service' ? 'customer_service' : 'player'
+        }));
+      }
+      return [];
+    } else {
+      // 非管理员用户分别获取陪玩和客服提现记录
+      const [playerWithdrawals, csWithdrawals] = await Promise.all([
+        getPlayerWithdrawalRequests(),
+        getCustomerServiceWithdrawalRequests()
+      ]);
+      
+      // 合并两种类型的提现申请，按创建时间排序
+      const allWithdrawals = [...playerWithdrawals, ...csWithdrawals];
+      return allWithdrawals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+  } catch (error) {
+    console.error('Error fetching all withdrawal requests:', error);
     // 开发环境下返回空数组
     if (process.env.NODE_ENV === 'development') {
       return [];
@@ -231,5 +319,157 @@ export const getWithdrawalStats = async () => {
       };
     }
     throw error;
+  }
+};
+
+// 客服提现相关接口定义
+export interface CustomerServiceWithdrawalRequest {
+  amount: number;
+  description?: string;
+}
+
+export interface CustomerServiceWithdrawalRecord {
+  id: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  description: string;
+  created_at: string;
+  updated_at: string;
+  processed_at?: string;
+  processed_by_name?: string;
+  reject_reason?: string;
+  approval_notes?: string;
+}
+
+export interface CustomerServiceEarningsData {
+  totalEarnings: number;
+  availableBalance: number;
+  todayEarnings: number;
+  monthEarnings: number;
+  todayWorkHours: number;
+  processedOrders: number;
+  hourlyRate?: number;
+}
+
+// 获取客服收益数据
+export const getCustomerServiceEarnings = async (): Promise<CustomerServiceEarningsData> => {
+  try {
+    const data = await get<any>('/customer-service/dashboard');
+    
+    if (data.success) {
+      return {
+        totalEarnings: data.earnings?.totalEarnings || 0,
+        availableBalance: data.earnings?.availableBalance || 0,
+        todayEarnings: data.earnings?.todayEarnings || 0,
+        monthEarnings: data.earnings?.monthEarnings || 0,
+        todayWorkHours: data.earnings?.todayWorkHours || 0,
+        processedOrders: data.earnings?.processedOrders || 0,
+        hourlyRate: data.earnings?.hourlyRate || 20
+      };
+    }
+    
+    // 返回默认数据
+    return {
+      totalEarnings: 0,
+      availableBalance: 0,
+      todayEarnings: 0,
+      monthEarnings: 0,
+      todayWorkHours: 0,
+      processedOrders: 0,
+      hourlyRate: 20
+    };
+  } catch (error) {
+    console.error('Error fetching customer service earnings:', error);
+    // 开发环境下返回默认数据
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        totalEarnings: 0,
+        availableBalance: 0,
+        todayEarnings: 0,
+        monthEarnings: 0,
+        todayWorkHours: 0,
+        processedOrders: 0,
+        hourlyRate: 20
+      };
+    }
+    throw error;
+  }
+};
+
+// 获取客服提现记录
+export const getCustomerServiceWithdrawals = async (): Promise<{ success: boolean; data: CustomerServiceWithdrawalRecord[] }> => {
+  try {
+    const data = await get<any>('/customer-service/withdrawal/records');
+    
+    if (data.success && data.data) {
+      const withdrawals = data.data.map((item: any) => ({
+        id: item.id,
+        amount: Number(item.amount || 0),
+        status: item.status || 'pending',
+        description: item.description || '',
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        processed_at: item.processed_at,
+        processed_by_name: item.processed_by_name,
+        reject_reason: item.reject_reason,
+        approval_notes: item.approval_notes
+      }));
+      
+      // 前端额外去重保护：按金额、状态、创建时间去重
+      const uniqueWithdrawals = withdrawals.filter((record, index, self) => {
+        return index === self.findIndex(r => 
+          r.amount === record.amount && 
+          r.status === record.status && 
+          r.created_at === record.created_at
+        );
+      });
+      
+      return {
+        success: true,
+        data: uniqueWithdrawals
+      };
+    }
+    
+    return {
+      success: true,
+      data: []
+    };
+  } catch (error) {
+    console.error('Error fetching customer service withdrawals:', error);
+    // 开发环境下返回空数组
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        success: true,
+        data: []
+      };
+    }
+    throw error;
+  }
+};
+
+// 创建客服提现申请
+export const createCustomerServiceWithdrawal = async (
+  request: CustomerServiceWithdrawalRequest
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const data = await post<any>('/customer-service/withdrawal', request);
+    
+    if (data.success) {
+      return {
+        success: true,
+        data: data.withdrawal
+      };
+    } else {
+      return {
+        success: false,
+        error: data.error || '提现申请失败'
+      };
+    }
+  } catch (error) {
+    console.error('Error creating customer service withdrawal:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '提现申请失败，请重试'
+    };
   }
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
+
 import { toast } from 'sonner';
 import { API_BASE_URL } from '@/config/api';
 import { AuthContext } from '@/contexts/authContext';
@@ -29,6 +30,7 @@ interface User {
 export default function AdminUserManagement() {
   const { isAuthenticated, userRole } = useContext(AuthContext);
   const navigate = useNavigate();
+
   // 所有状态和钩子移到组件内部
   const [activeTab, setActiveTab] = useState<'users' | 'players'>('users');
   const [searchTerm, setSearchTerm] = useState("");
@@ -48,57 +50,36 @@ export default function AdminUserManagement() {
     const token = localStorage.getItem('token');
     const storedRole = localStorage.getItem('userRole');
     
-    if (!isAuthenticated || !token || userRole !== 'admin' || storedRole !== 'admin') {
-      toast.error('请先以管理员身份登录');
+    if (!isAuthenticated || !token || (userRole !== 'admin' && userRole !== 'customer_service') || (storedRole !== 'admin' && storedRole !== 'customer_service')) {
+      toast.error('请先以管理员或客服身份登录');
       navigate('/login');
       return;
     }
   }, [isAuthenticated, userRole, navigate]);
   
-  // Fetch users on component mount（移到组件内部）
+  // 获取数据
   useEffect(() => {
-    const fetchUsers = async () => {
+    const loadAllData = async () => {
       try {
-        setLoading(true);
-        // 调用真实API获取用户数据
-        const data = await fetchJson(`${API_BASE_URL}/users?page=1&pageSize=100`);
+        const [usersData, playersData] = await Promise.all([
+          fetchJson(`${API_BASE_URL}/users?page=1&pageSize=100`),
+          fetchJson(`${API_BASE_URL}/players?page=1&pageSize=100`)
+        ]);
         
-        // 确保data.users是数组，如果不是则使用空数组
-        setUsers(Array.isArray(data.users) ? data.users : []);
+        setUsers(Array.isArray(usersData.users) ? usersData.users : []);
+        setPlayers(Array.isArray(playersData.players) ? playersData.players : []);
       } catch (error) {
-        console.error('Failed to fetch users:', error);
-        toast.error('获取用户列表失败');
-        // 确保在错误情况下设置空数组
+        console.error('Failed to fetch data:', error);
+        toast.error('获取数据失败');
         setUsers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUsers();
-  }, []);
-  
-  // Fetch players on component mount
-  useEffect(() => {
-    const fetchPlayers = async () => {
-        try {
-            setPlayersLoading(true);
-            // 调用真实API获取陪玩数据
-        const data = await fetchJson(`${API_BASE_URL}/players?page=1&pageSize=100`);
-        
-        // 确保data.players是数组，如果不是则使用空数组
-         setPlayers(Array.isArray(data.players) ? data.players : []);
-      } catch (error) {
-        console.error('Failed to fetch players:', error);
-        toast.error('获取陪玩列表失败');
-        // 确保在错误情况下设置空数组
         setPlayers([]);
       } finally {
+        setLoading(false);
         setPlayersLoading(false);
       }
     };
-    
-    fetchPlayers();
+
+    loadAllData();
   }, []);
   
   // 切换用户状态
@@ -147,6 +128,29 @@ export default function AdminUserManagement() {
     } catch (error) {
       console.error(`Failed to toggle ${role} status:`, error);
       toast.error(`${role === 'user' ? '用户' : '陪玩'}状态更新失败`);
+    }
+  };
+
+  // 删除用户
+  const deleteUser = async (id: number) => {
+    if (!confirm('确定要注销这个用户吗？此操作不可撤销。')) {
+      return;
+    }
+
+    try {
+      await fetchJson(`${API_BASE_URL}/users/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // 从列表中移除已删除的用户
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== id));
+      toast.success('用户注销成功');
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      toast.error('注销用户失败');
     }
   };
 
@@ -211,16 +215,21 @@ export default function AdminUserManagement() {
     toast.success("陪玩添加成功");
   };
   
-  // 加载状态显示
+  // 显示页面加载状态
   if (loading || playersLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full border-theme-primary" role="status">
-            <span className="visually-hidden">加载中...</span>
+      <div className="bg-theme-background min-h-screen text-theme-text">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <div className="flex justify-center items-center py-12">
+            <div className="text-center">
+              <div className="animate-spin inline-block w-8 h-8 border-4 border-theme-primary border-t-transparent rounded-full" role="status">
+                <span className="sr-only">加载中...</span>
+              </div>
+              <p className="mt-2 text-theme-text/70 text-sm">正在加载用户数据...</p>
+            </div>
           </div>
-          <p className="mt-2 text-theme-text/70">正在加载用户数据...</p>
-        </div>
+        </main>
       </div>
     );
   }
@@ -306,7 +315,7 @@ export default function AdminUserManagement() {
                 {activeTab === 'users' ? (
                   filteredUsers.length > 0 ? (
                     filteredUsers.map(user => (
-                      <tr key={user.id} className="hover:bg-theme-background">
+                      <tr key={user.id} className="hover:bg-theme-surface/50 hover:border-theme-accent/30 transition-all duration-200">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{user.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -315,7 +324,7 @@ export default function AdminUserManagement() {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-theme-text">{user.name}</div>
-                              <div className="text-xs text-theme-text/70">{user.phone_num}</div>
+                              <div className="text-xs text-theme-text/70">ID: {user.id}</div>
                             </div>
                           </div>
                         </td>
@@ -337,15 +346,24 @@ export default function AdminUserManagement() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button 
-                            onClick={() => toggleUserStatus(user.id, 'user')}
-                            className={user.status 
-                              ? 'text-theme-error hover:text-theme-error/80' 
-                              : 'text-theme-success hover:text-theme-success/80'
-                            }
-                          >
-                            {user.status ? '封禁' : '解封'}
-                          </button>
+                          <div className="flex space-x-2">
+                            <button 
+                              onClick={() => toggleUserStatus(user.id, 'user')}
+                              className={user.status 
+                                ? 'text-theme-error hover:text-theme-error/80' 
+                                : 'text-theme-success hover:text-theme-success/80'
+                              }
+                            >
+                              {user.status ? '封禁' : '解封'}
+                            </button>
+                            <button 
+                              onClick={() => deleteUser(user.id)}
+                              className="text-theme-error hover:text-theme-error/80 ml-2"
+                              title="注销用户"
+                            >
+                              注销
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -362,7 +380,7 @@ export default function AdminUserManagement() {
                 ) : (
                   filteredPlayers.length > 0 ? (
                     filteredPlayers.map(player => (
-                      <tr key={player.id} className="hover:bg-theme-background">
+                      <tr key={player.id} className="hover:bg-theme-surface/50 hover:border-theme-accent/30 transition-all duration-200">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{player.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">

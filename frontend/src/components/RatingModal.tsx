@@ -99,26 +99,26 @@ export const RatingModal: React.FC<RatingModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-theme-surface rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-theme-border">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">评价服务</h2>
+            <h2 className="text-xl font-bold text-theme-text">评价服务</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-theme-text/70 hover:text-theme-text transition-colors"
             >
               <i className="fa-solid fa-times text-xl"></i>
             </button>
           </div>
 
           <div className="mb-6">
-            <p className="text-sm text-gray-600 mb-2">陪玩师：{playerName}</p>
-            <p className="text-xs text-gray-500">订单号：{orderId}</p>
+            <p className="text-sm text-theme-text/70 mb-2">陪玩师：{playerName}</p>
+            <p className="text-xs text-theme-text/50">订单号：{orderId}</p>
           </div>
 
           <form onSubmit={handleSubmit}>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-medium text-theme-text mb-3">
                 服务评分
               </label>
               <div className="flex items-center gap-2">
@@ -128,13 +128,13 @@ export const RatingModal: React.FC<RatingModalProps> = ({
                     type="button"
                     onClick={() => setRating(star)}
                     className={`text-2xl transition-colors ${
-                      star <= rating ? 'text-yellow-400' : 'text-gray-300'
+                      star <= rating ? 'text-yellow-400' : 'text-theme-text/30'
                     } hover:text-yellow-400`}
                   >
                     <i className="fa-solid fa-star"></i>
                   </button>
                 ))}
-                <span className="ml-2 text-sm text-gray-600">
+                <span className="ml-2 text-sm text-theme-text/70">
                   {rating === 1 && '很差'}
                   {rating === 2 && '较差'}
                   {rating === 3 && '一般'}
@@ -145,19 +145,19 @@ export const RatingModal: React.FC<RatingModalProps> = ({
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-theme-text mb-2">
                 评价内容 <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="请分享您对本次服务的感受..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 border border-theme-border rounded-lg focus:ring-2 focus:ring-theme-primary focus:border-transparent resize-none bg-theme-background text-theme-text"
                 rows={4}
                 maxLength={500}
                 required
               />
-              <div className="text-xs text-gray-500 mt-1 text-right">
+              <div className="text-xs text-theme-text/50 mt-1 text-right">
                 {comment.length}/500
               </div>
             </div>
@@ -165,32 +165,32 @@ export const RatingModal: React.FC<RatingModalProps> = ({
             {/* 礼物选择部分 */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-theme-text">
                   赠送礼物 (可选)
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowGiftSection(!showGiftSection)}
-                  className="text-sm text-purple-600 hover:text-purple-800"
+                  className="text-sm text-theme-primary hover:text-theme-primary/80"
                 >
                   {showGiftSection ? '收起' : '选择礼物'}
                 </button>
               </div>
 
               {showGiftSection && (
-                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="border border-theme-border rounded-lg p-4 bg-theme-background">
                   {loadingGifts ? (
                     <div className="text-center py-4">
-                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                      <p className="mt-2 text-sm text-gray-600">加载礼物列表中...</p>
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-theme-primary"></div>
+                      <p className="mt-2 text-sm text-theme-text/70">加载礼物列表中...</p>
                     </div>
                   ) : gifts.length === 0 ? (
-                    <p className="text-center text-gray-500 py-4">暂无可选礼物</p>
+                    <p className="text-center text-theme-text/50 py-4">暂无可选礼物</p>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-sm text-gray-600 mb-3">选择要赠送的礼物和数量：</p>
+                      <p className="text-sm text-theme-text/70 mb-3">选择要赠送的礼物和数量：</p>
                       {gifts.map((gift) => (
-                        <div key={gift.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <div key={gift.id} className="flex items-center justify-between p-3 bg-theme-surface rounded-lg border border-theme-border">
                           <div className="flex items-center space-x-3">
                             {gift.imageUrl && (
                               <img 
@@ -200,26 +200,26 @@ export const RatingModal: React.FC<RatingModalProps> = ({
                               />
                             )}
                             <div>
-                              <p className="font-medium text-gray-900">{gift.name}</p>
-                              <p className="text-sm text-gray-500">¥{gift.price}</p>
+                              <p className="font-medium text-theme-text">{gift.name}</p>
+                              <p className="text-sm text-theme-text/70">¥{gift.price}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <button
                               type="button"
                               onClick={() => handleGiftQuantityChange(gift.id, getSelectedQuantity(gift.id) - 1)}
-                              className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100"
+                              className="w-8 h-8 rounded-full border border-theme-border flex items-center justify-center hover:bg-theme-background text-theme-text"
                               disabled={getSelectedQuantity(gift.id) === 0}
                             >
                               -
                             </button>
-                            <span className="w-8 text-center font-medium">
+                            <span className="w-8 text-center font-medium text-theme-text">
                               {getSelectedQuantity(gift.id)}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleGiftQuantityChange(gift.id, getSelectedQuantity(gift.id) + 1)}
-                              className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100"
+                              className="w-8 h-8 rounded-full border border-theme-border flex items-center justify-center hover:bg-theme-background text-theme-text"
                             >
                               +
                             </button>
@@ -228,20 +228,20 @@ export const RatingModal: React.FC<RatingModalProps> = ({
                       ))}
                       
                       {selectedGifts.length > 0 && (
-                        <div className="mt-4 p-3 bg-purple-50 rounded-lg">
-                          <p className="text-sm font-medium text-purple-900 mb-2">已选择的礼物：</p>
+                        <div className="mt-4 p-3 bg-theme-primary/10 rounded-lg border border-theme-primary/20">
+                          <p className="text-sm font-medium text-theme-text mb-2">已选择的礼物：</p>
                           <div className="space-y-1">
                             {selectedGifts.map((selectedGift) => {
                               const gift = gifts.find(g => g.id === selectedGift.giftId);
                               return gift ? (
-                                <div key={selectedGift.giftId} className="flex justify-between text-sm">
+                                <div key={selectedGift.giftId} className="flex justify-between text-sm text-theme-text/80">
                                   <span>{gift.name} x {selectedGift.quantity}</span>
                                   <span className="font-medium">¥{(gift.price * selectedGift.quantity).toFixed(2)}</span>
                                 </div>
                               ) : null;
                             })}
-                            <div className="border-t border-purple-200 pt-2 mt-2">
-                              <div className="flex justify-between font-medium text-purple-900">
+                            <div className="border-t border-theme-primary/20 pt-2 mt-2">
+                              <div className="flex justify-between font-medium text-theme-text">
                                 <span>总计：</span>
                                 <span>
                                   ¥{selectedGifts.reduce((total, selectedGift) => {
@@ -260,28 +260,24 @@ export const RatingModal: React.FC<RatingModalProps> = ({
               )}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex justify-end space-x-3 pt-4 border-t border-theme-border">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-theme-text/70 border border-theme-border rounded-lg hover:bg-theme-background"
                 disabled={isSubmitting}
               >
                 取消
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !comment.trim()}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSubmitting || rating === 0}
+                className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                {isSubmitting ? (
-                  <>
-                    <i className="fa-solid fa-spinner fa-spin mr-2"></i>
-                    提交中...
-                  </>
-                ) : (
-                  '提交评价'
+                {isSubmitting && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 )}
+                <span>{isSubmitting ? '提交中...' : '提交评价'}</span>
               </button>
             </div>
           </form>

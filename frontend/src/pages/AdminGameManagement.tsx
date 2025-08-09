@@ -119,8 +119,8 @@ export default function AdminGameManagement() {
     const token = localStorage.getItem('token');
     const storedUserRole = localStorage.getItem('userRole');
     
-    if (!isAuthenticated || !token || storedUserRole !== 'admin') {
-      toast.error('请先以管理员身份登录');
+    if (!isAuthenticated || !token || (storedUserRole !== 'admin' && storedUserRole !== 'customer_service')) {
+      toast.error('请先以管理员或客服身份登录');
       navigate('/login');
       return;
     }
@@ -674,7 +674,7 @@ export default function AdminGameManagement() {
                 </thead>
                 <tbody className="divide-y divide-theme-border">
                   {games.map(game => (
-                    <tr key={game.id} className="hover:bg-theme-background">
+                    <tr key={game.id} className="hover:bg-theme-surface/50 hover:border-theme-accent/30 transition-all duration-200">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text">{game.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {game.image_url ? (

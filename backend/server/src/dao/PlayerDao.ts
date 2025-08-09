@@ -52,7 +52,14 @@ export class PlayerDAO {
     static async findById(id: number): Promise<Player | null> {
         const sql = `SELECT * FROM players WHERE id = ? LIMIT 1`;
         const [rows]: any = await pool.execute(sql, [id]);
-        return rows[0] ?? null;
+        if (!rows[0]) return null;
+        const player = rows[0];
+        // 转换status和online_status字段为boolean类型
+        return {
+            ...player,
+            status: Boolean(player.status),
+            online_status: Boolean(player.online_status)
+        } as Player;
     }
 
     /** 根据 game_id 查询所有玩家 */

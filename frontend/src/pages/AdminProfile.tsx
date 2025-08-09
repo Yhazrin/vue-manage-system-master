@@ -101,21 +101,18 @@ export default function AdminProfile() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-theme-text">
-                {userInfo?.authority === 2 ? '客服个人主页' : '管理员个人主页'}
+                管理员个人主页
               </h1>
               <p className="text-theme-text/70 mt-1">
-                {userInfo?.authority === 2 
-                  ? '查看您的客服账户信息和工作状态' 
-                  : '管理您的管理员账户信息和权限'
-                }
+                管理您的管理员账户信息和权限
               </p>
             </div>
             <button 
-              onClick={() => navigate(userInfo?.authority === 2 ? '/admin/attendance' : '/admin/dashboard')}
+              onClick={() => navigate('/admin/overview')}
               className="py-2 px-4 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/80 transition-colors flex items-center"
             >
               <i className="fa-solid fa-arrow-left mr-2"></i> 
-              {userInfo?.authority === 2 ? '返回工作台' : '返回控制台'}
+              返回控制台
             </button>
           </div>
         </div>
@@ -127,7 +124,7 @@ export default function AdminProfile() {
               <div className="relative">
                 <img 
                   src={buildAvatarUrl(profile.avatar)} 
-                  alt={profile.nickname}
+                  alt={profile.name}
                   className="w-24 h-24 rounded-full object-cover border-4 border-theme-surface shadow-lg"
                 />
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-theme-success rounded-full border-2 border-theme-surface flex items-center justify-center">
@@ -137,7 +134,7 @@ export default function AdminProfile() {
               
               <div className="text-center md:text-left flex-1">
                 <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                  <h2 className="text-2xl font-bold text-theme-text">{profile.nickname}</h2>
+                  <h2 className="text-2xl font-bold text-theme-text">{profile.name}</h2>
                   <span className="px-3 py-1 bg-theme-primary/10 text-theme-primary text-sm rounded-full font-medium">{profile.role}</span>
                 </div>
                 <p className="text-sm text-theme-text/60 mb-4">UID: {profile.uid}</p>
@@ -167,7 +164,7 @@ export default function AdminProfile() {
                     <i className="fa-solid fa-user-shield text-theme-primary"></i>
                   </div>
                   <h3 className="text-lg font-semibold text-theme-text">
-                    {userInfo?.authority === 2 ? '客服信息' : '管理员信息'}
+                    管理员信息
                   </h3>
                 </div>
                 <div className="space-y-4">
@@ -211,8 +208,8 @@ export default function AdminProfile() {
           </div>
         </div>
         
-        {/* 最近操作日志 - 仅管理员可见 */}
-        {userInfo?.authority !== 2 && (
+        {/* 最近操作日志 */}
+        {(
           <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -247,7 +244,7 @@ export default function AdminProfile() {
                     </thead>
                     <tbody className="divide-y divide-theme-border">
                       {operationLogs.map(log => (
-                        <tr key={log.id} className="hover:bg-theme-background transition-colors">
+                        <tr key={log.id} className="hover:bg-theme-surface/50 hover:border-theme-accent/30 transition-all duration-200">
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-theme-text font-medium">{log.operation}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-theme-text/70">{log.module}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-theme-text/70">{log.time}</td>

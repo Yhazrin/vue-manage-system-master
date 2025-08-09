@@ -12,6 +12,7 @@ import { fetchJson } from '@/utils/fetchWrapper';
 import RatingStats from '@/components/RatingStats';
 import { OrderAmountTooltip } from '@/components/OrderAmountTooltip';
 import { useOrderAutoRefresh } from '@/hooks/useAutoRefresh';
+import CreateCompletedOrder from '@/components/CreateCompletedOrder';
 
 interface DashboardStats {
   todayOrders: number;
@@ -33,6 +34,11 @@ const getStatusStyle = (status: Order['status']) => {
       return {
         className: 'bg-theme-primary/10 text-theme-primary', 
         label: '进行中' 
+      };
+    case 'pending_review':
+      return { 
+        className: 'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300', 
+        label: '待审核' 
       };
     case 'completed':
       return { 
@@ -62,6 +68,7 @@ export default function PlayerOrders() {
   });
   const [statsLoading, setStatsLoading] = useState<boolean>(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
   
   // 获取用户认证信息
   const { userRole, isAuthenticated } = useContext(AuthContext);
@@ -146,40 +153,29 @@ export default function PlayerOrders() {
   } = useOrderAutoRefresh(
     () => userRole === 'player' ? getPlayerOrders(activeFilter) : Promise.resolve([]),
     {
-      onDataUpdate: (newOrders, oldOrders) => {
+      onDataUpdate: (newOrders, hasChanged) => {
         // 如果是初始加载，不显示通知
         if (isInitialLoadRef.current) {
           isInitialLoadRef.current = false;
           return;
         }
         
-        // 确保 oldOrders 不为 null
-        const safeOldOrders = oldOrders || [];
+        // 只有在数据确实发生变化时才处理通知
+        if (!hasChanged) {
+          return;
+        }
         
-        // 检查是否有新订单（只有在有旧数据的情况下才检查）
-        if (safeOldOrders.length > 0) {
-          const newOrdersCount = newOrders.filter(order => 
-            !safeOldOrders.find(oldOrder => oldOrder.id === order.id)
-          ).length;
-          
-          if (newOrdersCount > 0) {
-            toast.success(`收到 ${newOrdersCount} 个新订单`, {
-              description: '请及时查看并处理',
+        // 简化通知逻辑，只在有新数据时显示通知
+        if (newOrders && Array.isArray(newOrders) && newOrders.length > 0) {
+          // 检查是否有待处理的订单
+          const pendingOrders = newOrders.filter(order => order.status === 'pending');
+          if (pendingOrders.length > 0) {
+            toast.info('订单数据已更新', {
+              description: `当前有 ${pendingOrders.length} 个待处理订单`,
               position: 'bottom-right',
             });
           }
         }
-
-        // 检查订单状态变化
-        newOrders.forEach(newOrder => {
-          const oldOrder = safeOldOrders.find(o => o.id === newOrder.id);
-          if (oldOrder && oldOrder.status !== newOrder.status) {
-            toast.info(`订单 #${newOrder.id} 状态更新`, {
-              description: `状态已从 ${getStatusStyle(oldOrder.status).label} 更新为 ${getStatusStyle(newOrder.status).label}`,
-              position: 'bottom-right',
-            });
-          }
-        });
       }
     }
   );
@@ -273,6 +269,11 @@ export default function PlayerOrders() {
       const errorMessage = err instanceof Error ? err.message : '确认结束服务失败';
       toast.error(errorMessage);
     }
+  };
+
+  const handleCreateOrderSuccess = () => {
+    loadOrders();
+    loadDashboardStats();
   };
   
   // 处理拒单操作
@@ -370,7 +371,7 @@ export default function PlayerOrders() {
               <div className="p-4 bg-theme-background rounded-lg">
                 <p className="text-sm text-theme-text/70 mb-1">本月收入</p>
                 <div className="flex items-end justify-between">
-                  <h3 className="text-2xl font-bold text-theme-text">¥{stats.monthlyIncome}</h3>
+                  <h3 className="text-2xl font-bold text-theme-text">¥{Number(stats.monthlyIncome || 0).toFixed(1)}</h3>
                   <span className="text-xs text-theme-success flex items-center">
                     <i className="fa-solid fa-arrow-up mr-1"></i> 本月
                   </span>
@@ -430,63 +431,74 @@ export default function PlayerOrders() {
            </div>
          )}
         
-        {/* 订单筛选 */}
+        {/* 订单筛选和操作 */}
         <div className="bg-theme-surface rounded-xl shadow-sm border border-theme-border p-4 mb-6">
-          <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={() => setActiveFilter('all')}
-              className={cn(
-                "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
-                activeFilter === 'all' 
-                  ? "bg-theme-primary text-white" 
-                  : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
-              )}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-2">
+              <button 
+                onClick={() => setActiveFilter('all')}
+                className={cn(
+                  "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
+                  activeFilter === 'all' 
+                    ? "bg-theme-primary text-white" 
+                    : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
+                )}
+              >
+                全部订单
+              </button>
+              <button 
+                onClick={() => setActiveFilter('pending')}
+                className={cn(
+                  "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
+                  activeFilter === 'pending' 
+                    ? "bg-theme-primary text-white" 
+                    : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
+                )}
+              >
+                待接单
+              </button>
+              <button 
+                onClick={() => setActiveFilter('in_progress')}
+                className={cn(
+                  "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
+                  activeFilter === 'in_progress' 
+                    ? "bg-theme-primary text-white" 
+                    : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
+                )}
+              >
+                进行中
+              </button>
+              <button 
+                onClick={() => setActiveFilter('completed')}
+                className={cn(
+                  "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
+                  activeFilter === 'completed' 
+                    ? "bg-theme-primary text-white" 
+                    : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
+                )}
+              >
+                已完成
+              </button>
+              <button 
+                onClick={() => setActiveFilter('cancelled')}
+                className={cn(
+                  "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
+                  activeFilter === 'cancelled' 
+                    ? "bg-theme-primary text-white" 
+                    : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
+                )}
+              >
+                已取消
+              </button>
+            </div>
+            
+            {/* 创建订单按钮 */}
+            <button
+              onClick={() => setShowCreateOrderModal(true)}
+              className="py-1.5 px-4 bg-theme-success text-white text-sm font-medium rounded-lg hover:bg-theme-success/90 transition-colors flex items-center gap-2"
             >
-              全部订单
-            </button>
-            <button 
-              onClick={() => setActiveFilter('pending')}
-              className={cn(
-                "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
-                activeFilter === 'pending' 
-                  ? "bg-theme-primary text-white" 
-                  : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
-              )}
-            >
-              待接单
-            </button>
-            <button 
-              onClick={() => setActiveFilter('in_progress')}
-              className={cn(
-                "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
-                activeFilter === 'in_progress' 
-                  ? "bg-theme-primary text-white" 
-                  : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
-              )}
-            >
-              进行中
-            </button>
-            <button 
-              onClick={() => setActiveFilter('completed')}
-              className={cn(
-                "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
-                activeFilter === 'completed' 
-                  ? "bg-theme-primary text-white" 
-                  : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
-              )}
-            >
-              已完成
-            </button>
-            <button 
-              onClick={() => setActiveFilter('cancelled')}
-              className={cn(
-                "py-1.5 px-4 rounded-lg text-sm font-medium transition-colors",
-                activeFilter === 'cancelled' 
-                  ? "bg-theme-primary text-white" 
-                  : "bg-theme-background text-theme-text hover:bg-theme-primary/10"
-              )}
-            >
-              已取消
+              <i className="fa-solid fa-plus"></i>
+              创建已完成订单
             </button>
           </div>
         </div>
@@ -503,11 +515,11 @@ export default function PlayerOrders() {
                       <div className="flex items-center gap-3">
                         <img 
                           src={buildAvatarUrl(order.user.avatar)} 
-                          alt={order.user.nickname}
+                          alt={order.user.name}
                           className="w-10 h-10 rounded-full object-cover"
                         />
                         <div>
-                          <h3 className="font-medium text-theme-text">{order.user.nickname}</h3>
+                          <h3 className="font-medium text-theme-text">{order.user.name}</h3>
                           <p className="text-xs text-theme-text/70">订单号: {order.id}</p>
                         </div>
                       </div>
@@ -526,7 +538,7 @@ export default function PlayerOrders() {
                              totalAmount={(typeof order.price === 'number' ? order.price : parseFloat(order.price || '0')) + (typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total || '0'))}
                            >
                              <p className="font-medium text-theme-text cursor-help">
-                               ¥{((typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0) + (typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total) || 0)).toFixed(2)}
+                               ¥{((typeof order.price === 'number' ? order.price : parseFloat(order.price) || 0) + (typeof order.gift_total === 'number' ? order.gift_total : parseFloat(order.gift_total) || 0)).toFixed(1)}
                              </p>
                            </OrderAmountTooltip>
                         </div>
@@ -621,6 +633,13 @@ export default function PlayerOrders() {
             </div>
           )}
         </div>
+        
+        {/* 创建已完成订单模态框 */}
+        <CreateCompletedOrder
+          isOpen={showCreateOrderModal}
+          onClose={() => setShowCreateOrderModal(false)}
+          onSuccess={handleCreateOrderSuccess}
+        />
       </main>
     </div>
   );

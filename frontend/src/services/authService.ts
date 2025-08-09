@@ -5,7 +5,7 @@ import { buildAvatarUrl } from '@/utils/imageUtils';
 export interface LoginRequest {
   identifier: string; // 邮箱或手机号
   password: string;
-  role: 'user' | 'player' | 'admin';
+  role: 'user' | 'player' | 'admin' | 'customer_service';
 }
 
 export interface RegisterRequest {
@@ -26,7 +26,7 @@ export interface LoginResponse {
     token: string;
     user: {
       id: string;
-      nickname: string;
+      name: string;
       email: string;
       phone: string;
       role: string;
@@ -66,6 +66,12 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
         phone_num: request.identifier,
         passwd: request.password
       };
+    } else if (request.role === 'customer_service') {
+      endpoint = `${API_BASE_URL}/customer-service/login`;
+      requestBody = {
+        phone_num: request.identifier, // 前端输入的用户名实际是手机号
+        password: request.password
+      };
     } else if (request.role === 'player') {
       endpoint = `${API_BASE_URL}/players/login`;
       requestBody = {
@@ -98,8 +104,11 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
       // 角色映射：将后端的管理员角色统一映射为前端的 admin
       let mappedRole = request.role;
       if (request.role === 'admin') {
-        // 对于管理员登录，无论后端返回什么角色（super_admin, customer_service等），都映射为 admin
+        // 对于管理员登录，无论后端返回什么角色（super_admin等），都映射为 admin
         mappedRole = 'admin';
+      } else if (request.role === 'customer_service') {
+        // 客服保持独立角色
+        mappedRole = 'customer_service';
       }
       
       return {
@@ -109,11 +118,11 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
           token: result.token,
           user: {
             id: result.user?.id || result.user?.user_id || 'unknown',
-            nickname: result.user?.name || result.user?.nickname || '用户',
+            name: result.user?.name || result.user?.username || '用户',
             email: result.user?.email || '',
             phone: result.user?.phone_num || request.identifier,
             role: mappedRole, // 使用映射后的角色
-            authority: result.user?.authority, // 添加权限等级字段
+
             avatar: buildAvatarUrl(result.user?.photo_img || result.user?.avatar),
           },
         },
@@ -128,7 +137,7 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
     console.error('Login API error:', error);
     
     // 开发环境下的模拟数据（作为后备）
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       // 模拟API延迟
       await new Promise(resolve => setTimeout(resolve, 800));
       
@@ -162,7 +171,7 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
             token: 'mock_jwt_token_' + Date.now(),
             user: {
               id: mockUserId,
-              nickname: request.role === 'admin' ? '系统管理员' : request.role === 'player' ? '游戏陪玩' : '普通用户',
+              name: request.role === 'admin' ? '系统管理员' : request.role === 'player' ? '游戏陪玩' : '普通用户',
               email: request.identifier.includes('@') ? request.identifier : 'user@example.com',
               phone: request.identifier.includes('@') ? '13800138000' : request.identifier,
               role: request.role,

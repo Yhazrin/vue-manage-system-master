@@ -3,6 +3,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { WithdrawalDAO } from '../dao/WithdrawalDao';
 import { auth, AuthRequest } from '../middleware/auth';
 import { body, param, query, validationResult } from 'express-validator';
+import WebSocketService from '../services/websocketService';
 
 console.log('🔥🔥🔥 withdrawal.route.ts 文件被加载了！🔥🔥🔥 - 完整版本');
 
@@ -32,8 +33,19 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
                 pageSize
             });
         } 
+        // 如果是客服，只能查看自己的提现记录
+        else if (req.user?.role === 'customer_service') {
+            result = await WithdrawalDAO.findByCustomerServiceId(req.user.id, page, pageSize, status);
+            res.json({
+                success: true,
+                withdrawals: result.list,
+                total: result.total,
+                page,
+                pageSize
+            });
+        }
         // 如果是管理员，可以查看所有提现记录
-        else if (req.user?.role === 'manager') {
+        else if (req.user?.role === 'admin') {
             result = await WithdrawalDAO.findAll(page, pageSize, status as any);
             res.json({
                 success: true,
@@ -81,23 +93,46 @@ router.post('/',
                 });
             }
 
-            // 只有陪玩可以申请提现
-            if (req.user?.role !== 'player') {
-                return res.status(403).json({ success: false, error: '仅陪玩可申请提现' });
+            // 只有陪玩和客服可以申请提现
+            if (req.user?.role !== 'player' && req.user?.role !== 'customer_service') {
+                return res.status(403).json({ success: false, error: '仅陪玩和客服可申请提现' });
             }
 
-            const { withdrawal_id, amount } = req.body;
-            const player_id = req.user.id;
+            const { withdrawal_id, amount, notes, alipay_account, user_type } = req.body;
+            const userId = req.user.id;
+            const userType = req.user.role === 'customer_service' ? 'customer_service' : 'player';
 
             // 创建提现记录
-            await WithdrawalDAO.create({
-                withdrawal_id,
-                player_id,
-                amount: parseFloat(amount)
-            });
+            if (userType === 'customer_service') {
+                await WithdrawalDAO.createCustomerServiceWithdrawal({
+                    withdrawal_id,
+                    customer_service_id: userId,
+                    amount: parseFloat(amount),
+                    notes,
+                    alipay_account
+                });
+            } else {
+                await WithdrawalDAO.create({
+                    withdrawal_id,
+                    player_id: userId,
+                    amount: parseFloat(amount)
+                });
+            }
 
             // 获取创建的记录
             const withdrawal = await WithdrawalDAO.findById(withdrawal_id);
+
+            // 发送WebSocket通知给管理员
+            const wsService = req.app.get('wsService') as WebSocketService;
+            if (wsService) {
+                wsService.notifyNewWithdrawalRequest({
+                    withdrawalId: withdrawal_id,
+                    userType: userType,
+                    userId: userId.toString(),
+                    amount: parseFloat(amount),
+                    requestedAt: new Date().toISOString()
+                });
+            }
 
             res.json({
                 success: true,
@@ -120,7 +155,7 @@ router.put('/:id/status',
     auth,
     [
         param('id').notEmpty().withMessage('提现ID不能为空'),
-        body('status').isIn(['已批准', '已拒绝', '已打款']).withMessage('状态值无效'),
+        body('status').isIn(['已批准', '已拒绝', '已完成']).withMessage('状态值无效'),
         body('notes').optional().isString().withMessage('备注必须是字符串')
     ],
     async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -135,9 +170,9 @@ router.put('/:id/status',
                 });
             }
 
-            // 只有管理员可以更新提现状态
-            if (req.user?.role !== 'manager') {
-                return res.status(403).json({ success: false, error: '仅管理员可操作' });
+            // 只有管理员和客服可以更新提现状态
+            if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+                return res.status(403).json({ success: false, error: '仅管理员和客服可操作' });
             }
 
             const { id } = req.params;
@@ -158,6 +193,36 @@ router.put('/:id/status',
             // 获取更新后的记录
             const updatedWithdrawal = await WithdrawalDAO.findById(id);
 
+            // 发送WebSocket通知
+            const wsService = req.app.get('wsService') as WebSocketService;
+            if (wsService && updatedWithdrawal) {
+                // 将中文状态转换为英文状态
+                let englishStatus: 'pending' | 'approved' | 'rejected' | 'completed';
+                switch (status) {
+                    case '已批准':
+                        englishStatus = 'approved';
+                        break;
+                    case '已拒绝':
+                        englishStatus = 'rejected';
+                        break;
+                    case '已完成':
+                        englishStatus = 'completed';
+                        break;
+                    default:
+                        englishStatus = 'pending';
+                }
+
+                wsService.notifyWithdrawalStatusUpdate({
+                    withdrawalId: id,
+                    status: englishStatus,
+                    processedBy: req.user?.username || req.user?.id?.toString(),
+                    processedAt: new Date().toISOString(),
+                    amount: updatedWithdrawal.amount,
+                    userType: 'player',
+                    userId: updatedWithdrawal.player_id?.toString()
+                });
+            }
+
             res.json({
                 success: true,
                 message: `提现申请已${status}`,
@@ -177,9 +242,9 @@ router.put('/:id/status',
  */
 router.get('/stats', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 只有管理员可以查看统计信息
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可访问' });
+        // 只有管理员和客服可以查看统计信息
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可访问' });
         }
 
         // 这里可以添加统计查询逻辑

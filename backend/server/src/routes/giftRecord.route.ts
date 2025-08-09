@@ -40,14 +40,38 @@ router.post(
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
         try {
-            // 只允许普通用户打赏
-            if (req.user?.role !== 'user') {
+            // 允许普通用户打赏，也允许陪玩在创建已完成订单时添加礼品记录
+            if (req.user?.role !== 'user' && req.user?.role !== 'player') {
                 return res.status(403).json({ success: false, error: '无权限执行此操作' });
             }
 
-            // 从 token 中获取 user_id，避免前端伪造
-            const user_id = req.user.id;
-            const { player_id, gift_id, quantity } = req.body;
+            const { player_id, gift_id, quantity, order_id } = req.body;
+            let user_id: number | null;
+
+            if (req.user.role === 'user') {
+                // 普通用户打赏，使用自己的ID
+                user_id = req.user.id;
+            } else if (req.user.role === 'player') {
+                // 陪玩创建已完成订单时的礼品记录，需要从订单中获取用户ID
+                if (!order_id) {
+                    return res.status(400).json({ success: false, error: '陪玩创建礼品记录时必须提供order_id' });
+                }
+                
+                // 从订单中获取用户ID
+                const { OrderDAO } = require('../dao/OrderDao');
+                const order = await OrderDAO.findByOrderId(order_id);
+                if (!order) {
+                    return res.status(400).json({ success: false, error: '订单不存在' });
+                }
+                
+                // 验证陪玩只能为自己的订单创建礼品记录
+                if (order.player_id !== req.user.id) {
+                    return res.status(403).json({ success: false, error: '只能为自己的订单创建礼品记录' });
+                }
+                
+                // 支持匿名用户订单的礼品记录，user_id可以为null
+                user_id = order.user_id || null;
+            }
 
             // 简单校验必填项
             if (!player_id || !gift_id || !quantity) {
@@ -59,6 +83,7 @@ router.post(
             const id = await GiftRecordDAO.create({
                 user_id,
                 player_id: Number(player_id),
+                order_id,
                 gift_id: Number(gift_id),
                 quantity: Number(quantity)
             });
@@ -88,8 +113,12 @@ router.get(
             if (!record) {
                 return res.status(404).json({ success: false, error: '记录不存在' });
             }
-            // 只有打赏发起者或管理员可以查看详情
+            // 只有打赏发起者、管理员或客服可以查看详情
             if (req.user?.role === 'user' && record.user_id !== req.user.id) {
+                return res.status(403).json({ success: false, error: '无权限查看此记录' });
+            }
+            if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service' && 
+                !(req.user?.role === 'user' && record.user_id === req.user.id)) {
                 return res.status(403).json({ success: false, error: '无权限查看此记录' });
             }
             res.json({ success: true, record });
@@ -109,8 +138,8 @@ router.get(
     auth,
     async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
-            // 仅管理员可查看所有记录
-            if (req.user?.role !== 'manager') {
+            // 仅管理员和客服可查看所有记录
+            if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
                 return res.status(403).json({ success: false, error: '无权限查看所有礼物记录' });
             }
             
@@ -154,9 +183,10 @@ router.get(
             if (isNaN(userId)) {
                 return res.status(400).json({ success: false, error: '无效的用户ID' });
             }
-            // 仅本人或顶级管理员可查
+            // 仅本人、管理员或客服可查
             if (
-                !(req.user?.role === 'manager') &&
+                !(req.user?.role === 'admin') &&
+                !(req.user?.role === 'customer_service') &&
                 !(req.user?.role === 'user' && req.user.id === userId)
             ) {
                 return res.status(403).json({ success: false, error: '无权限查看此用户的打赏记录' });
@@ -188,9 +218,10 @@ router.get(
                 return res.status(400).json({ success: false, error: '无效的陪玩ID' });
             }
             
-            // 仅陪玩本人或管理员可查
+            // 仅陪玩本人、管理员或客服可查
             if (
-                !(req.user?.role === 'manager') &&
+                !(req.user?.role === 'admin') &&
+                !(req.user?.role === 'customer_service') &&
                 !(req.user?.role === 'player' && req.user.id === playerId)
             ) {
                 return res.status(403).json({ success: false, error: '无权限查看此陪玩的礼物记录' });

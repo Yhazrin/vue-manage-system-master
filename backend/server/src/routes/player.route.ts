@@ -176,7 +176,7 @@ router.get('/', auth, async (req: AuthRequest, res: Response, next: NextFunction
         });
         
         // 如果是普通用户或陪玩，重定向到公开接口
-        if (req.user?.role !== 'manager' && req.user?.role !== 'admin') {
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
             // 解析分页参数
             const page = Number(req.query.page) || 1;
             const pageSize = Number(req.query.pageSize) || 20;
@@ -320,8 +320,8 @@ router.get('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunct
         const currentUserId = req.user?.id;
         const currentRole = req.user?.role;
 
-        // 权限判断：仅本人或管理员可访问
-        if (currentRole !== 'manager' && currentRole !== 'admin' && currentUserId !== targetId) {
+        // 权限判断：仅本人、管理员或客服可访问
+        if (currentRole !== 'admin' && currentRole !== 'customer_service' && currentUserId !== targetId) {
             return res.status(403).json({ success: false, error: '无权限访问该玩家资料' });
         }
 
@@ -531,6 +531,14 @@ router.post('/change-password', auth, async (req: AuthRequest, res: Response, ne
             });
         }
 
+        // 验证用户ID
+        if (!playerId) {
+            return res.status(401).json({
+                success: false,
+                message: '用户未登录'
+            });
+        }
+
         // 获取陪玩信息
         const player = await PlayerDAO.findById(playerId);
         if (!player) {
@@ -656,9 +664,9 @@ router.delete('/:id/voice', auth, async (req: AuthRequest, res: Response, next: 
  */
 router.patch('/:id/admin-status', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可操作
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可修改陪玩状态' });
+        // 权限判断：仅管理员和客服可操作
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可修改陪玩状态' });
         }
 
         const targetId = Number(req.params.id);
@@ -678,8 +686,8 @@ router.patch('/:id/admin-status', auth, async (req: AuthRequest, res: Response, 
  */
 router.delete('/:id', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可删除玩家' });
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可删除玩家' });
         }
 
         const id = Number(req.params.id);
@@ -697,8 +705,8 @@ router.delete('/:id', auth, async (req: AuthRequest, res: Response, next: NextFu
  */
 router.get('/count', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看玩家总数' });
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看玩家总数' });
         }
 
         const count = await PlayerDAO.countAll();

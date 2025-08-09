@@ -7,12 +7,12 @@ import { ConfigDAO } from '../dao/ConfigDao';
 
 const router = Router();
 
-// 权限中间件：仅允许 authority 为 1 的管理员访问
-const requireTopManager = (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (req.user?.role !== 'manager' || req.user.authority !== 1) {
+// 权限中间件：仅允许管理员和客服访问
+const requireManager = (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
         return res.status(403).json({
             success: false,
-            error: '仅顶级管理员可访问此统计数据'
+            error: '仅管理员和客服可访问此功能'
         });
     }
     next();
@@ -26,7 +26,7 @@ const requireTopManager = (req: AuthRequest, res: Response, next: NextFunction) 
 router.get(
     '/commission',
     auth,
-    requireTopManager,
+    requireManager,
     async (req: any, res, next) => {
         try {
             const commission_rate = await ConfigDAO.getCommissionRate();
@@ -45,7 +45,7 @@ router.get(
 router.get(
     '/commission-rates',
     auth,
-    requireTopManager,
+    requireManager,
     async (req: any, res, next) => {
         try {
             const rates = await ConfigDAO.getCommissionRates();
@@ -65,7 +65,7 @@ router.get(
 router.patch(
     '/commission',
     auth,
-    requireTopManager,
+    requireManager,
     body('commission_rate').isFloat({ min: 0, max: 100 }),
     async (req: any, res, next) => {
         const errors = validationResult(req);
@@ -91,7 +91,7 @@ router.patch(
 router.patch(
     '/commission-rates',
     auth,
-    requireTopManager,
+    requireManager,
     body('order_commission_rate').optional().isFloat({ min: 0, max: 100 }),
     body('gift_commission_rate').optional().isFloat({ min: 0, max: 100 }),
     async (req: any, res, next) => {

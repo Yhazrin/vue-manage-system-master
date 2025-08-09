@@ -8,7 +8,8 @@ import { AuthContext } from '@/contexts/authContext';
 import { cn } from '@/lib/utils';
 import { login, LoginRequest } from '@/services/authService';
 
-type Role = 'user' | 'player' | 'admin';
+type Role = 'user' | 'player' | 'admin' | 'customer_service';
+type LoginMode = 'user' | 'admin'; // 用户端模式 vs 管理端模式
 
 // 角色主题配置
 const roleThemes = {
@@ -35,15 +36,26 @@ const roleThemes = {
     gradientTo: '#06b6d4'
   },
   admin: {
-    primary: '#a855f7',
-    secondary: '#ec4899',
-    accent: '#10b981',
-    background: '#fefefe', 
-    surface: '#f9fafb',
-    text: '#374151',
-    border: '#d1d5db',
-    gradientFrom: '#a855f7',
-    gradientTo: '#ec4899'
+    primary: '#4f46e5',
+    secondary: '#6366f1',
+    accent: '#8b5cf6',
+    background: '#0f172a', 
+    surface: '#1e293b',
+    text: '#f1f5f9',
+    border: '#334155',
+    gradientFrom: '#4f46e5',
+    gradientTo: '#6366f1'
+  },
+  customer_service: {
+    primary: '#059669',
+    secondary: '#0891b2',
+    accent: '#0d9488',
+    background: '#0f1419',
+    surface: '#1f2937',
+    text: '#f9fafb',
+    border: '#374151',
+    gradientFrom: '#059669',
+    gradientTo: '#0891b2'
   }
 };
 
@@ -51,7 +63,7 @@ const roleThemes = {
 const loginSchema = z.object({
   identifier: z.string().refine(
     (val) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val) || /^1[3-9]\d{9}$/.test(val),
-    { message: '请输入有效的邮箱或手机号' }
+    { message: '请输入有效的手机号' }
   ),
   password: z.string().min(6, { message: '密码至少6个字符' }),
 });
@@ -60,11 +72,30 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [activeRole, setActiveRole] = useState<Role>('user');
+  const [loginMode, setLoginMode] = useState<LoginMode>('user'); // 用户端 vs 管理端
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const navigate = useNavigate();
   const { setIsAuthenticated } = useContext(AuthContext);
+
+  // 根据登录模式获取可用角色
+  const getAvailableRoles = (mode: LoginMode): Role[] => {
+    return mode === 'user' ? ['user', 'player'] : ['admin', 'customer_service'];
+  };
+
+  // 切换登录模式
+  const toggleLoginMode = () => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      const newMode = loginMode === 'user' ? 'admin' : 'user';
+      setLoginMode(newMode);
+      const availableRoles = getAvailableRoles(newMode);
+      setActiveRole(availableRoles[0]); // 设置为新模式的第一个角色
+      setIsTransitioning(false);
+    }, 150);
+  };
 
   // 鼠标位置追踪
   useEffect(() => {
@@ -83,6 +114,12 @@ export default function Login() {
   useEffect(() => {
     const theme = roleThemes[activeRole];
     
+    // 安全检查，确保theme存在
+    if (!theme) {
+      console.warn(`Theme not found for role: ${activeRole}`);
+      return;
+    }
+    
     // 设置CSS变量
     Object.entries(theme).forEach(([key, value]) => {
       if (key !== 'gradientFrom' && key !== 'gradientTo') {
@@ -95,8 +132,8 @@ export default function Login() {
     document.documentElement.style.setProperty('--gradient-to', theme.gradientTo);
     
     // 添加角色类到body
-    document.body.className = `theme-${activeRole}`;
-  }, [activeRole]);
+    document.body.className = `theme-${activeRole} mode-${loginMode}`;
+  }, [activeRole, loginMode]);
 
   const {
     register,
@@ -132,7 +169,8 @@ export default function Login() {
         const welcomeMessages = {
           user: "欢迎来到游戏陪玩平台！开始寻找您喜爱的游戏陪玩吧！",
           player: "欢迎回来，陪玩！查看您的工作台和最新订单。",
-          admin: "欢迎回来，管理员！查看平台数据和管理控制台。"
+          admin: "欢迎回来，管理员！查看平台数据和管理控制台。",
+          customer_service: "欢迎回来，客服！查看客户服务工作台。"
         };
         
         toast.success("登录成功", {
@@ -145,17 +183,14 @@ export default function Login() {
         setTimeout(() => {
           switch(activeRole) {
             case 'admin':
-              // 根据管理员权限等级进行不同的重定向
-              if (response.data.user.authority === 2) {
-                // 客服重定向到订单管理页面
-                navigate('/admin/orders');
-              } else {
-                // 超级管理员和股东重定向到概览页面
-                navigate('/admin/overview');
-              }
+              // 所有管理员都重定向到概览页面
+              navigate('/admin/overview');
               break;
             case 'player':
               navigate('/player/orders');
+              break;
+            case 'customer_service':
+              navigate('/customer-service/dashboard');
               break;
             default:
               navigate('/user/dashboard');
@@ -224,7 +259,7 @@ export default function Login() {
             const mouseInfluence = 0.005;
             return (
               <div
-                key={i}
+                key={`login-particle-${i}`}
                 className="absolute w-1.5 h-1.5 rounded-full opacity-10 animate-float transition-transform duration-1000 ease-out"
                 style={{
                   backgroundColor: i % 2 === 0 ? 'var(--gradient-from)' : 'var(--gradient-to)',
@@ -262,7 +297,8 @@ export default function Login() {
           <p className="text-theme-text/70">请选择身份并登录您的账号</p>
         </div>
         
-        <div className="bg-theme-surface/80 backdrop-blur-lg rounded-xl shadow-2xl border border-theme-border/50 overflow-hidden transition-all duration-300 hover:shadow-3xl">
+        <div className={`bg-theme-surface/80 backdrop-blur-lg rounded-xl shadow-2xl border border-theme-border/50 overflow-hidden transition-all duration-500 hover:shadow-3xl relative ${isTransitioning ? 'scale-98 opacity-90' : 'scale-100 opacity-100'}`}>
+
           {/* Role Tabs */}
           <div className="border-b border-theme-border relative role-tab-container">
             <div className="flex relative">
@@ -270,11 +306,10 @@ export default function Login() {
               <div 
                 className="absolute bottom-0 h-0.5 bg-theme-primary transition-all duration-700 ease-out rounded-full"
                 style={{
-                  width: '33.333%',
+                  width: '50%',
                   transform: `translateX(${
-                    activeRole === 'user' ? '0%' : 
-                    activeRole === 'player' ? '100%' : '200%'
-                  })`,
+                    getAvailableRoles(loginMode).indexOf(activeRole) * 100
+                  }%)`,
                   boxShadow: '0 0 3px var(--theme-primary)'
                 }}
               ></div>
@@ -283,46 +318,39 @@ export default function Login() {
               <div 
                 className="absolute inset-y-0 bg-theme-primary/8 transition-all duration-700 ease-out rounded-t-lg"
                 style={{
-                  width: '33.333%',
+                  width: '50%',
                   transform: `translateX(${
-                    activeRole === 'user' ? '0%' : 
-                    activeRole === 'player' ? '100%' : '200%'
-                  })`,
+                    getAvailableRoles(loginMode).indexOf(activeRole) * 100
+                  }%)`,
                   backdropFilter: 'blur(4px)',
                   border: '1px solid rgba(255, 255, 255, 0.05)'
                 }}
               ></div>
               
-              <button
-                onClick={() => setActiveRole('user')}
-                className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 role-tab-button ${
-                  activeRole === 'user' 
-                    ? 'text-theme-primary' 
-                    : 'text-theme-text/70 hover:text-theme-text'
-                }`}
-              >
-                用户
-              </button>
-              <button
-                onClick={() => setActiveRole('player')}
-                className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 role-tab-button ${
-                  activeRole === 'player' 
-                    ? 'text-theme-primary' 
-                    : 'text-theme-text/70 hover:text-theme-text'
-                }`}
-              >
-                游戏陪玩
-              </button>
-              <button
-                onClick={() => setActiveRole('admin')}
-                className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 role-tab-button ${
-                  activeRole === 'admin' 
-                    ? 'text-theme-primary' 
-                    : 'text-theme-text/70 hover:text-theme-text'
-                }`}
-              >
-                管理员
-              </button>
+              {/* 动态渲染角色标签 */}
+              {getAvailableRoles(loginMode).map((role) => {
+                const roleLabels = {
+                  user: '用户',
+                  player: '游戏陪玩',
+                  admin: '管理员',
+                  customer_service: '客服'
+                };
+                
+                return (
+                  <button
+                    key={role}
+                    onClick={() => setActiveRole(role)}
+                    disabled={isTransitioning}
+                    className={`flex-1 py-3 text-sm font-medium transition-all duration-300 relative z-10 role-tab-button disabled:opacity-50 ${
+                      activeRole === role 
+                        ? 'text-theme-primary' 
+                        : 'text-theme-text/70 hover:text-theme-text'
+                    }`}
+                  >
+                    {roleLabels[role]}
+                  </button>
+                );
+              })}
             </div>
           </div>
           
@@ -337,7 +365,7 @@ export default function Login() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-theme-text mb-1">
-                  邮箱/手机号
+                  手机号
                 </label>
                 <input
                   type="text"
@@ -346,7 +374,7 @@ export default function Login() {
                     "w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary bg-theme-surface text-theme-text",
                     errors.identifier ? "border-red-300" : "border-theme-border"
                   )}
-                  placeholder="请输入邮箱或手机号"
+                  placeholder="手机号"
                 />
                 {errors.identifier && (
                   <p className="mt-1 text-sm text-red-600">{errors.identifier.message}</p>
@@ -400,7 +428,14 @@ export default function Login() {
               </button>
             </form>
             
-            <div className="mt-6 text-center text-sm text-theme-text/70">
+            {/* 注册链接 - 在管理端模式时淡出 */}
+            <div 
+              className={`mt-6 text-center text-sm text-theme-text/70 transition-all duration-500 ease-in-out ${
+                loginMode === 'admin' 
+                  ? 'opacity-0 transform translate-y-2 pointer-events-none' 
+                  : 'opacity-100 transform translate-y-0 pointer-events-auto'
+              }`}
+            >
               <p>
                 还没有账号?{' '}
                 <Link
@@ -411,6 +446,17 @@ export default function Login() {
                 </Link>
               </p>
             </div>
+          </div>
+          
+          {/* 模式切换按钮 - 放在卡片右下角 */}
+          <div className="absolute bottom-4 right-4 z-20">
+            <button
+              onClick={toggleLoginMode}
+              disabled={isTransitioning}
+              className="mode-toggle-btn px-3 py-1.5 text-xs font-medium rounded-full bg-theme-primary/10 text-theme-primary border border-theme-primary/20 hover:bg-theme-primary/20 transition-all duration-300 disabled:opacity-50"
+            >
+              {loginMode === 'user' ? '管理端' : '用户端'}
+            </button>
           </div>
         </div>
       </div>

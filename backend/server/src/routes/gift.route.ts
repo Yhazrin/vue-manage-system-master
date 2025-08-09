@@ -56,9 +56,9 @@ router.post(
             return res.status(400).json({ success: false, errors: errors.array() });
         }
 
-        if (req.user?.role !== 'manager') {
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
             console.log('❌ 权限不足，用户角色:', req.user?.role);
-            return res.status(403).json({ success: false, error: '仅管理员可创建礼物' });
+            return res.status(403).json({ success: false, error: '仅管理员和客服可创建礼物' });
         }
 
         try {
@@ -188,9 +188,9 @@ router.put(
             return res.status(400).json({ success: false, errors: errors.array() });
         }
 
-        if (req.user?.role !== 'manager') {
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
             console.log('❌ 权限不足，用户角色:', req.user?.role);
-            return res.status(403).json({ success: false, error: '仅管理员可更新礼物' });
+            return res.status(403).json({ success: false, error: '仅管理员和客服可更新礼物' });
         }
 
         try {
@@ -277,9 +277,9 @@ router.delete(
             return res.status(400).json({ success: false, errors: errors.array() });
         }
 
-        if (req.user?.role !== 'manager') {
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
             console.log('❌ 权限不足，用户角色:', req.user?.role);
-            return res.status(403).json({ success: false, error: '仅管理员可删除礼物' });
+            return res.status(403).json({ success: false, error: '仅管理员和客服可删除礼物' });
         }
 
         try {

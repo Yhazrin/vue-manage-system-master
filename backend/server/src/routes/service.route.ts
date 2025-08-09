@@ -69,9 +69,9 @@ router.get(
         const errors = validationResult(req);
         if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
-        // 只有管理员才能查询服务列表
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查询服务列表' });
+        // 只有管理员和客服才能查询服务列表
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查询服务列表' });
         }
 
         try {
@@ -169,8 +169,8 @@ router.put(
                 return res.status(404).json({ success: false, error: '服务不存在' });
             }
 
-            // 检查权限：管理员可以更新任何服务，陪玩只能更新自己的服务
-            if (req.user?.role !== 'manager' && 
+            // 检查权限：管理员和客服可以更新任何服务，陪玩只能更新自己的服务
+            if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service' && 
                 (req.user?.role !== 'player' || service.player_id !== req.user.id)) {
                 return res.status(403).json({ success: false, error: '无权限更新此服务' });
             }
@@ -205,8 +205,8 @@ router.delete(
                 return res.status(404).json({ success: false, error: '服务不存在' });
             }
 
-            // 检查权限：管理员可以删除任何服务，陪玩只能删除自己的服务
-            if (req.user?.role !== 'manager' && 
+            // 检查权限：管理员和客服可以删除任何服务，陪玩只能删除自己的服务
+            if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service' && 
                 (req.user?.role !== 'player' || service.player_id !== req.user.id)) {
                 return res.status(403).json({ success: false, error: '无权限删除此服务' });
             }

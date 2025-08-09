@@ -8,7 +8,6 @@ export interface Manager {
     plain_passwd?: string | null; // 明文密码字段
     phone_num: string;
     status: boolean;
-    authority: number;
     photo_img: string | null;
     created_at: string;
     last_login: string | null;
@@ -22,21 +21,19 @@ export class ManagerDAO {
         name: string,
         passwd: string,
         phone_num: string,
-        authority: number,
         photo_img?: string | null,
         plain_passwd?: string | null
     ): Promise<number> {
         const sql = `
             INSERT INTO managers
-                (name, passwd, phone_num, status, authority, photo_img, plain_passwd)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (name, passwd, phone_num, status, photo_img, plain_passwd)
+            VALUES (?, ?, ?, ?, ?, ?)
         `;
         const [result]: any = await pool.execute(sql, [
             name,
             passwd,
             phone_num,
             1,
-            authority,
             photo_img || null,
             plain_passwd || null
         ]);
@@ -75,13 +72,12 @@ export class ManagerDAO {
     }
 
     /**
-     * 分页查询管理员列表，可选按状态、权限和关键字过滤
+     * 分页查询管理员列表，可选按状态和关键字过滤
      */
     static async findAll(
         page = 1,
         pageSize = 20,
         status?: boolean,
-        authority?: number,
         keyword?: string
     ): Promise<{ total: number; managers: Manager[] }> {
         const offset = (page - 1) * pageSize;
@@ -92,10 +88,6 @@ export class ManagerDAO {
             where += ' AND status = ?';
             params.push(status ? 1 : 0);
         }
-        if (authority !== undefined) {
-            where += ' AND authority = ?';
-            params.push(authority);
-        }
         if (keyword) {
             where += ' AND (name LIKE ? OR phone_num LIKE ?)';
             params.push(`%${keyword}%`, `%${keyword}%`);
@@ -105,11 +97,11 @@ export class ManagerDAO {
         const countSql = `SELECT COUNT(*) as cnt FROM managers${where}`;
         const [[{ cnt }]]: any = await pool.execute(countSql, params);
 
-        // 查询数据
+        // 查询数据 - 使用参数绑定而不是字符串拼接
         const dataSql = `
       SELECT * FROM managers${where}
       ORDER BY created_at DESC
-      LIMIT ${offset}, ${pageSize}
+      LIMIT ${pageSize} OFFSET ${offset}
     `;
         const [rows]: any = await pool.execute(dataSql, params);
         const managers = rows.map((m: any) => ({ ...m, status: Boolean(m.status) }));
@@ -118,11 +110,11 @@ export class ManagerDAO {
     }
 
     /**
-     * 更新管理员基本信息（name, phone_num, status, authority, photo_img）
+     * 更新管理员基本信息（name, phone_num, status, photo_img）
      */
     static async updateById(
         id: number,
-        data: Partial<Pick<Manager, 'name' | 'phone_num' | 'status' | 'authority' | 'photo_img'>>
+        data: Partial<Pick<Manager, 'name' | 'phone_num' | 'status' | 'photo_img'>>
     ): Promise<void> {
         const keys = Object.keys(data);
         if (!keys.length) return;
@@ -139,14 +131,6 @@ export class ManagerDAO {
     static async updateStatus(id: number, status: boolean): Promise<void> {
         const sql = `UPDATE managers SET status = ? WHERE id = ?`;
         await pool.execute(sql, [status ? 1 : 0, id]);
-    }
-
-    /**
-     * 更新权限等级
-     */
-    static async updateAuthority(id: number, authority: number): Promise<void> {
-        const sql = `UPDATE managers SET authority = ? WHERE id = ?`;
-        await pool.execute(sql, [authority, id]);
     }
 
     /**

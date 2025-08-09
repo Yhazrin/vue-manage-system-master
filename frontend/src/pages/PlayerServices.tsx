@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Header from "@/components/Header";
 import { toast } from "sonner";
 import { fetchJson } from '@/utils/fetchWrapper';
+import { API_BASE_URL } from '@/config/api';
 
 interface Game {
   id: number;
@@ -35,7 +36,7 @@ export default function PlayerServices() {
   // 获取游戏列表
   const fetchGames = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/games', {
+      const response = await fetch(`${API_BASE_URL}/games`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -53,7 +54,7 @@ export default function PlayerServices() {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const data = await fetchJson('http://localhost:3000/api/services/my');
+      const data = await fetchJson(`${API_BASE_URL}/services/my`);
       if (data.success) {
         setServices(data.services || []);
       } else {
@@ -77,7 +78,7 @@ export default function PlayerServices() {
     }
 
     try {
-      const data = await fetchJson('http://localhost:3000/api/services', {
+      const data = await fetchJson(`${API_BASE_URL}/services`, {
         method: 'POST',
         body: JSON.stringify({
           game_id: parseInt(formData.game_id),
@@ -110,7 +111,7 @@ export default function PlayerServices() {
     }
 
     try {
-      const data = await fetchJson(`http://localhost:3000/api/services/${editingService.id}`, {
+      const data = await fetchJson(`${API_BASE_URL}/services/${editingService.id}`, {
         method: 'PUT',
         body: JSON.stringify({
           game_id: parseInt(formData.game_id),
@@ -140,7 +141,7 @@ export default function PlayerServices() {
     }
 
     try {
-      const data = await fetchJson(`http://localhost:3000/api/services/${serviceId}`, {
+      const data = await fetchJson(`${API_BASE_URL}/services/${serviceId}`, {
         method: 'DELETE'
       });
 
@@ -230,7 +231,7 @@ export default function PlayerServices() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-theme-text mb-2">
-                    游戏类型 <span className="text-red-500">*</span>
+                    游戏类型 <span className="text-red-500 dark:text-red-400">*</span>
                   </label>
                   <select
                     value={formData.game_id}
@@ -246,7 +247,7 @@ export default function PlayerServices() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-theme-text mb-2">
-                    服务价格 (元/小时) <span className="text-red-500">*</span>
+                    服务价格 (元/小时) <span className="text-red-500 dark:text-red-400">*</span>
                   </label>
                   <input
                     type="number"
@@ -324,7 +325,7 @@ export default function PlayerServices() {
                           </button>
                           <button
                             onClick={() => handleDeleteService(service.id)}
-                            className="text-red-500 hover:text-red-700 text-sm"
+                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm"
                           >
                             <i className="fa-solid fa-trash"></i>
                           </button>
@@ -355,12 +356,12 @@ export default function PlayerServices() {
         </div>
 
         {/* 提示信息 */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <i className="fa-solid fa-info-circle text-blue-600 mt-1 mr-3"></i>
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 dark:bg-blue-900/20 dark:border-blue-700/30">
+          <div className="flex">
+            <i className="fa-solid fa-info-circle text-blue-600 dark:text-blue-400 mt-1 mr-3"></i>
             <div>
-              <h3 className="text-sm font-medium text-blue-900 mb-1">服务设置提示</h3>
-              <ul className="text-sm text-blue-700 space-y-1">
+              <h3 className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-1">服务设置提示</h3>
+              <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
                 <li>• 设置合理的价格有助于获得更多订单</li>
                 <li>• 您可以为不同游戏设置不同的价格</li>
                 <li>• 最少服务时长建议设置为1-2小时</li>

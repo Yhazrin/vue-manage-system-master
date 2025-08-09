@@ -4,7 +4,7 @@ import { get, post, put, del } from '@/services/api';
 export interface Admin {
   id: string;
   username: string;
-  nickname?: string;
+  phone?: string;
   password?: string;
   role: 'super_admin' | 'shareholder' | 'customer_service';
   status: 'active' | 'inactive';
@@ -17,7 +17,8 @@ export interface Admin {
 export interface AdminCredentials {
   id: string;
   username: string;
-  nickname?: string; // 添加昵称字段
+  name?: string; // 添加姓名字段
+  phone?: string;
   password: string;
   role: 'super_admin' | 'shareholder' | 'customer_service';
   status: 'active' | 'inactive';
@@ -40,6 +41,7 @@ export interface OperationLog {
 // 创建管理员请求接口
 export interface CreateAdminRequest {
   username: string;
+  phone?: string;
   role: 'customer_service';
   password?: string;
 }
@@ -160,8 +162,8 @@ export const updateCustomerServiceSalary = async (adminId: string, hourlyRate: n
 // 获取全局时薪设置
 export const getGlobalHourlyRate = async (): Promise<GlobalHourlyRateSetting | null> => {
   try {
-    const response = await get('/customer-service/global-hourly-rate');
-    return (response as { data: GlobalHourlyRateSetting }).data;
+    const response = await get('/managers/global-hourly-rate');
+    return response as GlobalHourlyRateSetting;
   } catch (error) {
     console.error('获取全局时薪设置失败:', error);
     return null;
@@ -170,5 +172,10 @@ export const getGlobalHourlyRate = async (): Promise<GlobalHourlyRateSetting | n
 
 // 设置全局时薪
 export const setGlobalHourlyRate = async (hourlyRate: number): Promise<void> => {
-  return await post('/customer-service/global-hourly-rate', { hourly_rate: hourlyRate });
+  return await post('/managers/global-hourly-rate', { hourly_rate: hourlyRate });
+};
+
+// 修改管理员密码（管理员管理页面使用）
+export const updateAdminPassword = async (adminId: string, newPassword: string): Promise<void> => {
+  return await put(`/managers/${adminId}/password`, { password: newPassword });
 };

@@ -2,13 +2,33 @@ import { get, post, put, patch } from '@/services/api';
 import WebSocketService from './websocketService';
 import { buildAvatarUrl } from '@/utils/imageUtils';
 
+// 格式化服务时长
+const formatServiceTime = (hours: number): string => {
+  if (hours === Math.floor(hours)) {
+    // 整数小时
+    return `${hours}小时`;
+  } else {
+    // 小数小时，转换为小时分钟格式
+    const wholeHours = Math.floor(hours);
+    const minutes = Math.round((hours - wholeHours) * 60);
+    
+    if (wholeHours === 0) {
+      return `${minutes}分钟`;
+    } else if (minutes === 0) {
+      return `${wholeHours}小时`;
+    } else {
+      return `${wholeHours}小时${minutes}分钟`;
+    }
+  }
+};
+
 // 定义订单类型接口
 export interface Order {
   id: string;
   gameType: string;
   price: number;
   orderTime: string;
-  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'in_progress' | 'pending_review' | 'completed' | 'cancelled';
   serviceTime: string;
   description?: string;
   isRated?: boolean; // 添加评价状态字段
@@ -19,13 +39,13 @@ export interface Order {
   gift_details?: string;
   user: {
     id: string;
-    nickname: string;
-    avatar: string;
+    name: string;
+    avatar?: string;
   };
   player: {
     id: string;
-    nickname: string;
-    avatar: string;
+    name: string;
+    avatar?: string;
   };
 }
 
@@ -39,9 +59,10 @@ export const getUserOrders = async (status?: string): Promise<Order[]> => {
     id: order.order_id || order.id,
     gameType: order.game_name || order.gameType || '未知游戏',
     price: Number(order.amount || order.price || 0),
-    orderTime: order.created_at || order.orderTime,
+    orderTime: order.orderTime || order.created_at,
     status: mapOrderStatus(order.status),
-    serviceTime: order.hours ? `${order.hours}小时` : (order.serviceTime || '未知'),
+    serviceTime: order.service_hours ? formatServiceTime(order.service_hours) : 
+                        (order.serviceTime || formatServiceTime(order.hours) || formatServiceTime(order.minimum_hours) || '未知'),
     description: order.description,
     isRated: Boolean(order.is_rated), // 添加评价状态
     user_confirmed_end: Boolean(order.user_confirmed_end), // 用户确认结束状态
@@ -51,12 +72,12 @@ export const getUserOrders = async (status?: string): Promise<Order[]> => {
     gift_details: order.gift_details || '',
     user: {
       id: order.user_id?.toString() || order.user?.id || '',
-      nickname: order.user_name || order.user?.nickname || '用户',
+      name: order.user_name || order.user?.name || '用户',
       avatar: buildAvatarUrl(order.user_avatar || order.user?.avatar)
     },
     player: {
       id: order.player_id?.toString() || order.player?.id || '',
-      nickname: order.player_name || order.player?.nickname || '陪玩',
+      name: order.player_name || order.player?.name || '陪玩',
       avatar: buildAvatarUrl(order.player_avatar || order.player?.avatar)
     }
   }));
@@ -73,6 +94,8 @@ const mapOrderStatus = (status: string): Order['status'] => {
       return 'accepted';
     case 'in_progress':
       return 'in_progress';
+    case 'pending_review':
+      return 'pending_review';
     case 'completed':
       return 'completed';
     case 'cancelled':
@@ -98,9 +121,10 @@ export const getPlayerOrders = async (status?: string): Promise<Order[]> => {
     id: order.order_id || order.id,
     gameType: order.game_name || order.gameType || '未知游戏',
     price: Number(order.amount || order.price || 0),
-    orderTime: order.created_at || order.orderTime,
+    orderTime: order.orderTime || order.created_at,
     status: mapOrderStatus(order.status),
-    serviceTime: order.hours ? `${order.hours}小时` : (order.serviceTime || '未知'),
+    serviceTime: order.service_hours ? formatServiceTime(order.service_hours) : 
+                        (order.serviceTime || formatServiceTime(order.hours) || formatServiceTime(order.minimum_hours) || '未知'),
     description: order.description,
     user_confirmed_end: Boolean(order.user_confirmed_end), // 用户确认结束状态
     player_confirmed_end: Boolean(order.player_confirmed_end), // 陪玩确认结束状态
@@ -109,12 +133,12 @@ export const getPlayerOrders = async (status?: string): Promise<Order[]> => {
     gift_details: order.gift_details || '',
     user: {
       id: order.user_id?.toString() || order.user?.id || '',
-      nickname: order.user_name || order.user?.nickname || '用户',
+      name: order.user_name || order.user?.name || '用户',
       avatar: buildAvatarUrl(order.user_avatar || order.user?.avatar)
     },
     player: {
       id: order.player_id?.toString() || order.player?.id || '',
-      nickname: order.player_name || order.player?.nickname || '陪玩',
+      name: order.player_name || order.player?.name || '陪玩',
       avatar: buildAvatarUrl(order.player_avatar || order.player?.avatar)
     }
   }));
@@ -155,6 +179,11 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
 // 取消订单
 export const cancelOrder = async (orderId: string): Promise<Order> => {
   return put<Order>(`/orders/${orderId}/cancel`, {});
+};
+
+// 审核订单
+export const reviewOrder = async (orderId: string, approved: boolean, note?: string): Promise<void> => {
+  return patch<void>(`/orders/${orderId}/review`, { approved, note });
 };
 
 // 完成订单

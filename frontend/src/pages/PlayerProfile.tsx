@@ -16,6 +16,7 @@ import {
 } from '@/services/playerProfileService';
 import { buildAvatarUrl, buildVoiceUrl } from '@/utils/imageUtils';
 import { fetchJson } from '@/utils/fetchWrapper';
+import { API_BASE_URL } from '@/config/api';
 
 interface Service {
   id: number;
@@ -47,7 +48,7 @@ export default function PlayerProfile() {
   // 获取服务列表
   const fetchServices = async () => {
     try {
-      const data = await fetchJson('http://localhost:3000/api/services/my');
+      const data = await fetchJson(`${API_BASE_URL}/services/my`);
       if (data.success) {
         setServices(data.services || []);
       }
@@ -169,7 +170,7 @@ export default function PlayerProfile() {
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-20">
-            <p className="text-red-500 mb-4">{error?.message || String(error)}</p>
+            <p className="text-red-500 dark:text-red-400 mb-4">{String(error)}</p>
             <button 
               onClick={fetchProfile}
               className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-theme-primary/90 transition-colors"
@@ -290,11 +291,11 @@ export default function PlayerProfile() {
                 
                 <div className="flex flex-wrap justify-center md:justify-start gap-6">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-theme-text">¥{profile.money || 0}</p>
+                    <p className="text-lg font-bold text-theme-text">¥{Number(profile.money || 0).toFixed(1)}</p>
                     <p className="text-xs text-theme-text/70">账户余额</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-theme-text">¥{profile.profit || 0}</p>
+                    <p className="text-lg font-bold text-theme-text">¥{Number(profile.profit || 0).toFixed(1)}</p>
                     <p className="text-xs text-theme-text/70">累计收益</p>
                   </div>
                   <div className="text-center">
@@ -312,7 +313,7 @@ export default function PlayerProfile() {
             {/* 个人信息编辑表单或显示 */}
             {isEditing ? (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">编辑个人信息</h3>
+                <h3 className="text-lg font-semibold text-theme-text mb-4">编辑个人信息</h3>
                 <ProfileEditForm
                   fields={profileFields}
                   onSave={handleProfileSave}
@@ -354,15 +355,15 @@ export default function PlayerProfile() {
                     <div>
                       <p className="text-xs text-theme-text/70 mb-1">在线状态</p>
                       <div className="flex items-center gap-2">
-                        <p className={`text-sm ${profile.online_status ? 'text-green-600' : 'text-theme-text/70'}`}>
+                        <p className={`text-sm ${profile.online_status ? 'text-green-600 dark:text-green-400' : 'text-theme-text/70'}`}>
                           {profile.online_status ? '在线' : '离线'}
                         </p>
                         <button
                           onClick={handleOnlineStatusToggle}
                           className={`px-2 py-1 text-xs rounded-md transition-colors ${
                             profile.online_status 
-                              ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                              : 'bg-green-100 text-green-600 hover:bg-green-200'
+                              ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30' 
+                              : 'bg-green-100 text-green-600 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30'
                           }`}
                         >
                           {profile.online_status ? '下线' : '上线'}
@@ -373,8 +374,8 @@ export default function PlayerProfile() {
                       <p className="text-xs text-theme-text/70 mb-1">基础小时单价</p>
                       <div className="flex items-center gap-2">
                         <p className="text-sm text-theme-text">
-                          {profile.hourlyRate && profile.hourlyRate > 0 
-                            ? `¥${profile.hourlyRate.toFixed(2)}/小时` 
+                          {profile.hourlyRate && Number(profile.hourlyRate) > 0 
+                            ? `¥${Number(profile.hourlyRate).toFixed(1)}/小时` 
                             : '未设置'}
                         </p>
                         <button
@@ -424,7 +425,7 @@ export default function PlayerProfile() {
                             className="hidden"
                             disabled={uploadingVoice}
                           />
-                          <span className="block w-full py-2 px-3 bg-blue-500 text-white text-sm text-center rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
+                          <span className="block w-full py-2 px-3 bg-blue-500 dark:bg-blue-600 text-white text-sm text-center rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors cursor-pointer">
                             {uploadingVoice ? '上传中...' : '更换录音'}
                           </span>
                         </label>
@@ -442,7 +443,7 @@ export default function PlayerProfile() {
                             className="hidden"
                             disabled={uploadingVoice}
                           />
-                          <span className="inline-block py-2 px-4 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">
+                          <span className="inline-block py-2 px-4 bg-blue-500 dark:bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors cursor-pointer">
                             {uploadingVoice ? '上传中...' : '上传录音'}
                           </span>
                         </label>

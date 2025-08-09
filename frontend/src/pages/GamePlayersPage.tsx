@@ -56,12 +56,12 @@ export default function GamePlayersPage() {
   // 显示游戏加载状态
   if (gameLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-theme-background">
         <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">加载游戏信息中...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-primary mx-auto"></div>
+            <p className="text-theme-text/70 mt-4">加载游戏信息中...</p>
           </div>
         </div>
       </div>
@@ -71,28 +71,28 @@ export default function GamePlayersPage() {
   // 显示游戏错误状态
   if (gameError || !game) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-theme-background">
         <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2 className="text-2xl font-bold text-theme-text mb-4">
               {gameError ? '加载失败' : '游戏未找到'}
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-theme-text/70 mb-6">
               {gameError || '抱歉，找不到您要查看的游戏。'}
             </p>
             <div className="flex gap-4 justify-center">
               {gameError && (
                 <button
                   onClick={fetchGame}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="bg-theme-primary text-white px-6 py-2 rounded-lg hover:bg-theme-primary/90 transition-colors"
                 >
                   重试
                 </button>
               )}
               <button
                 onClick={() => navigate('/')}
-                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                className="bg-theme-text/60 text-white px-6 py-2 rounded-lg hover:bg-theme-text/70 transition-colors"
               >
                 返回首页
               </button>
@@ -104,11 +104,11 @@ export default function GamePlayersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-theme-background">
       <Header />
       <div className="container mx-auto px-4 py-8">
         {/* Game Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-theme-surface rounded-lg shadow-sm border border-theme-border p-6 mb-6">
           <div className="flex items-center gap-4">
             <img
                 src={buildGameImageUrl(game.image_url)}
@@ -116,10 +116,10 @@ export default function GamePlayersPage() {
                 className="w-16 h-16 rounded-lg object-cover"
               />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{game.name}</h1>
-              <p className="text-gray-600">{game.description || ''}</p>
+              <h1 className="text-2xl font-bold text-theme-text">{game.name}</h1>
+              <p className="text-theme-text/70">{game.description || ''}</p>
               <div className="flex items-center gap-4 mt-2">
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-theme-text/60">
                   {filteredPlayers.length} 位陪玩可选
                 </span>
               </div>
@@ -149,24 +149,24 @@ export default function GamePlayersPage() {
         {/* Players List */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">加载中...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-theme-primary mx-auto"></div>
+            <p className="text-theme-text/70 mt-4">加载中...</p>
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">加载失败</h3>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <h3 className="text-lg font-semibold text-theme-text mb-2">加载失败</h3>
+            <p className="text-theme-text/70 mb-4">{error}</p>
             <button
               onClick={() => fetchPlayers()}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-theme-primary text-white px-6 py-2 rounded-lg hover:bg-theme-primary/90 transition-colors"
             >
               重试
             </button>
           </div>
         ) : filteredPlayers.length === 0 ? (
           <div className="text-center py-12">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">暂无陪玩</h3>
-            <p className="text-gray-600">该游戏暂时没有可用的陪玩，请稍后再试。</p>
+            <h3 className="text-lg font-semibold text-theme-text mb-2">暂无陪玩</h3>
+            <p className="text-theme-text/70">该游戏暂时没有可用的陪玩，请稍后再试。</p>
           </div>
         ) : (          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">            {filteredPlayers.map(player => (              <div key={player.id} className="bg-theme-surface rounded-xl shadow-sm border border-theme-border overflow-hidden hover:shadow-md transition-shadow">                <div className="p-6">                  <div className="flex items-center space-x-4 mb-4">                    <img                      src={player.avatar || '/default-avatar.png'}                      alt={player.username}                      className="w-16 h-16 rounded-full object-cover"                    />                    <div className="flex-1">                      <h3 className="font-semibold text-theme-text">{player.username}</h3>                      <div className="flex items-center space-x-2 mt-1">                        <div className="flex items-center">                          {[...Array(5)].map((_, i) => (                            <i                              key={i}                              className={`fa-solid fa-star text-sm ${                                i < Math.floor(player.rating) ? 'text-yellow-400' : 'text-theme-text/30'                              }`}                            />                          ))}                        </div>                        <span className="text-sm text-theme-text/70">({player.rating})</span>                      </div>                      <p className="text-sm text-theme-text/70 mt-1">{player.orderCount} 单完成</p>                    </div>                  </div>                                    <div className="space-y-2 mb-4">                    <div className="flex justify-between">                      <span className="text-sm text-theme-text/70">价格:</span>                      <span className="font-medium text-theme-primary">¥{player.price}/小时</span>                    </div>                    <div className="flex justify-between">                      <span className="text-sm text-theme-text/70">最少时长:</span>                      <span className="text-sm text-theme-text">{player.hours}小时</span>                    </div>                  </div>                                    <div className="flex space-x-2">                    <button                      onClick={() => handleViewProfile(player.id)}                      className="flex-1 px-4 py-2 bg-theme-background text-theme-text text-sm font-medium rounded-lg hover:bg-theme-primary/10 transition-colors border border-theme-border"                    >                      查看详情                    </button>                    <button                      onClick={() => handleBookPlayer(player)}                      className="flex-1 px-4 py-2 bg-theme-primary text-white text-sm font-medium rounded-lg hover:bg-theme-primary/90 transition-colors"                    >                      立即预约                    </button>                  </div>                </div>              </div>            ))}          </div>        )}
       </div>

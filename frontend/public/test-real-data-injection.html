@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客服提现页面 - 真实数据注入测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-approved { background-color: #d1fae5; color: #065f46; }
+        .status-completed { background-color: #dbeafe; color: #1e40af; }
+        .status-rejected { background-color: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- 页面标题 -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">客服提现管理 - 真实数据展示</h1>
+            <p class="mt-2 text-gray-600">展示注入真实模拟数据后的客服提现页面效果</p>
+            <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-sm text-blue-800">
+                    <strong>数据说明：</strong>此页面展示的是注入到前端的真实模拟数据，包括收益统计、工作时长、提现记录等信息。
+                </p>
+            </div>
+        </div>
+
+        <!-- 收益数据展示 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">总收益</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalEarnings">¥3,250.75</p>
+                    </div>
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">可用余额</p>
+                        <p class="text-2xl font-bold text-green-600" id="availableBalance">¥2,180.50</p>
+                    </div>
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">今日收益</p>
+                        <p class="text-2xl font-bold text-orange-600" id="todayEarnings">¥160.00</p>
+                    </div>
+                    <div class="p-3 bg-orange-100 rounded-full">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">本月收益</p>
+                        <p class="text-2xl font-bold text-purple-600" id="monthEarnings">¥1,850.25</p>
+                    </div>
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 工作统计 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">总工作时长</p>
+                        <p class="text-2xl font-bold text-indigo-600" id="totalWorkHours">186.5h</p>
+                    </div>
+                    <div class="p-3 bg-indigo-100 rounded-full">
+                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">今日工作时长</p>
+                        <p class="text-2xl font-bold text-teal-600" id="todayWorkHours">8.0h</p>
+                    </div>
+                    <div class="p-3 bg-teal-100 rounded-full">
+                        <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">处理订单数</p>
+                        <p class="text-2xl font-bold text-pink-600" id="processedOrders">67</p>
+                    </div>
+                    <div class="p-3 bg-pink-100 rounded-full">
+                        <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- 提现申请表单 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        申请提现
+                    </h2>
+                </div>
+                
+                <form id="withdrawalForm" class="p-6 space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            提现金额 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">¥</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="1"
+                                max="2180.50"
+                                id="withdrawalAmount"
+                                class="w-full pl-8 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg transition-colors"
+                                placeholder="请输入提现金额"
+                                required
+                            />
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <p class="text-xs text-gray-500">
+                                可用余额：¥2,180.50
+                            </p>
+                            <button
+                                type="button"
+                                id="maxWithdrawBtn"
+                                class="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                            >
+                                全部提现
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            申请说明
+                        </label>
+                        <textarea
+                            id="description"
+                            class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-colors"
+                            rows="3"
+                            placeholder="请输入提现说明（可选）"
+                        ></textarea>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-blue-800 mb-2">提现须知</h4>
+                        <ul class="text-xs text-blue-700 space-y-1">
+                            <li>• 最低提现金额为1元</li>
+                            <li>• 提现申请提交后需要管理员审核</li>
+                            <li>• 审核通过后将在1-3个工作日内到账</li>
+                            <li>• 如有疑问请联系管理员</li>
+                        </ul>
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="submitBtn"
+                        class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        提交申请
+                    </button>
+                </form>
+            </div>
+
+            <!-- 提现记录 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                        提现记录
+                    </h2>
+                </div>
+                
+                <div class="p-6">
+                    <div id="withdrawalRecords" class="space-y-4">
+                        <!-- 提现记录将通过JavaScript动态加载 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据对比说明 -->
+        <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">真实数据注入效果说明</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-medium text-gray-800 mb-2">注入前（空数据）</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• 总收益：¥0.00</li>
+                        <li>• 可用余额：¥0.00</li>
+                        <li>• 今日收益：¥0.00</li>
+                        <li>• 本月收益：¥0.00</li>
+                        <li>• 工作时长：0h</li>
+                        <li>• 处理订单：0</li>
+                        <li>• 提现记录：无</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800 mb-2">注入后（真实模拟数据）</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• 总收益：¥3,250.75</li>
+                        <li>• 可用余额：¥2,180.50</li>
+                        <li>• 今日收益：¥160.00</li>
+                        <li>• 本月收益：¥1,850.25</li>
+                        <li>• 总工作时长：186.5h</li>
+                        <li>• 今日工作时长：8.0h</li>
+                        <li>• 处理订单：67</li>
+                        <li>• 提现记录：4条（包含各种状态）</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟提现记录数据
+        const mockWithdrawalRecords = [
+            {
+                id: "1",
+                amount: 500.00,
+                status: "completed",
+                description: "月度收益提现",
+                created_at: "2024-01-15T10:30:00Z",
+                updated_at: "2024-01-15T15:20:00Z",
+                processed_at: "2024-01-15T15:20:00Z",
+                processed_by_name: "管理员张三"
+            },
+            {
+                id: "2", 
+                amount: 300.00,
+                status: "approved",
+                description: "工作收益提现",
+                created_at: "2024-01-12T14:20:00Z",
+                updated_at: "2024-01-12T16:45:00Z",
+                processed_at: "2024-01-12T16:45:00Z",
+                processed_by_name: "管理员李四"
+            },
+            {
+                id: "3",
+                amount: 200.00,
+                status: "pending", 
+                description: "周收益提现",
+                created_at: "2024-01-10T09:15:00Z",
+                updated_at: "2024-01-10T09:15:00Z"
+            },
+            {
+                id: "4",
+                amount: 150.00,
+                status: "rejected",
+                description: "临时提现申请",
+                created_at: "2024-01-08T11:30:00Z",
+                updated_at: "2024-01-08T14:20:00Z",
+                processed_at: "2024-01-08T14:20:00Z",
+                processed_by_name: "管理员王五",
+                rejection_reason: "提现金额过小，建议累积后再申请"
+            }
+        ];
+
+        // 格式化日期
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 获取状态显示文本和样式
+        function getStatusInfo(status) {
+            const statusMap = {
+                'pending': { text: '待审核', class: 'status-pending' },
+                'approved': { text: '已批准', class: 'status-approved' },
+                'completed': { text: '已完成', class: 'status-completed' },
+                'rejected': { text: '已拒绝', class: 'status-rejected' }
+            };
+            return statusMap[status] || { text: '未知', class: 'status-pending' };
+        }
+
+        // 渲染提现记录
+        function renderWithdrawalRecords() {
+            const container = document.getElementById('withdrawalRecords');
+            
+            if (mockWithdrawalRecords.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                        <p>暂无提现记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = mockWithdrawalRecords.map(record => {
+                const statusInfo = getStatusInfo(record.status);
+                return `
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-medium text-gray-900">¥${record.amount.toFixed(2)}</span>
+                                    <span class="status-badge ${statusInfo.class}">${statusInfo.text}</span>
+                                </div>
+                                <p class="text-sm text-gray-600">${record.description}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="text-xs text-gray-500 space-y-1">
+                            <div>申请时间：${formatDate(record.created_at)}</div>
+                            ${record.processed_at ? `<div>处理时间：${formatDate(record.processed_at)}</div>` : ''}
+                            ${record.processed_by_name ? `<div>处理人：${record.processed_by_name}</div>` : ''}
+                            ${record.rejection_reason ? `<div class="text-red-600">拒绝原因：${record.rejection_reason}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 渲染提现记录
+            renderWithdrawalRecords();
+
+            // 全部提现按钮事件
+            document.getElementById('maxWithdrawBtn').addEventListener('click', function() {
+                document.getElementById('withdrawalAmount').value = '2180.50';
+            });
+
+            // 提现表单提交事件
+            document.getElementById('withdrawalForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const amount = parseFloat(document.getElementById('withdrawalAmount').value);
+                const description = document.getElementById('description').value;
+                const submitBtn = document.getElementById('submitBtn');
+                
+                if (!amount || amount <= 0) {
+                    alert('请输入有效的提现金额');
+                    return;
+                }
+                
+                if (amount > 2180.50) {
+                    alert('提现金额不能超过可用余额');
+                    return;
+                }
+                
+                // 模拟提交过程
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <span class="flex items-center justify-center">
+                        <div class="loading-spinner mr-2"></div>
+                        提交中...
+                    </span>
+                `;
+                
+                setTimeout(() => {
+                    alert(`提现申请已提交！\n金额：¥${amount.toFixed(2)}\n说明：${description || '无'}`);
+                    
+                    // 重置表单
+                    document.getElementById('withdrawalForm').reset();
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '提交申请';
+                    
+                    // 添加新记录到列表顶部
+                    const newRecord = {
+                        id: Date.now().toString(),
+                        amount: amount,
+                        status: "pending",
+                        description: description || '客服提现申请',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    mockWithdrawalRecords.unshift(newRecord);
+                    renderWithdrawalRecords();
+                }, 1500);
+            });
+        });
+    </script>
+</body>
+</html>

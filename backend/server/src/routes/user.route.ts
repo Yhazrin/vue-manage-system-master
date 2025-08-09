@@ -101,12 +101,12 @@ router.post(
 /**
  * @route   GET /api/users/count
  * @desc    获取用户总数
- * @access  仅管理员可访问
+ * @access  管理员和客服可访问
  */
 router.get('/count', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看用户总数' });
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看用户总数' });
         }
 
         const count = await UserDAO.countAll();
@@ -119,14 +119,14 @@ router.get('/count', auth, async (req: Request & { user?: any }, res: Response, 
 /**
  * @route   GET /api/users
  * @desc    分页查询用户列表
- * @access  仅管理员可访问
+ * @access  管理员和客服可访问
  * @query   page, pageSize, status?, keyword?
  */
 router.get('/', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可访问
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可查看用户列表' });
+        // 权限判断：管理员和客服可访问
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可查看用户列表' });
         }
 
         const page = Number(req.query.page) || 1;
@@ -180,8 +180,8 @@ router.get('/:id', auth, async (req: Request & {user?: any}, res: Response, next
         const currentUserId = req.user?.id;
         const currentRole = req.user?.role;
 
-        // 权限判断：仅本人或管理员可访问
-        if (currentRole !== 'manager' && currentUserId !== targetId) {
+        // 权限判断：仅本人、管理员或客服可访问
+        if (currentRole !== 'admin' && currentRole !== 'customer_service' && currentUserId !== targetId) {
             console.log('权限验证失败');
             return res.status(403).json({ success: false, error: '无权限访问该用户资料' });
         }
@@ -407,9 +407,9 @@ router.patch('/:id/password', auth, async (req: Request & { user?: any }, res: R
  */
 router.patch('/:id/admin-status', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可操作
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可修改用户状态' });
+        // 权限判断：仅管理员和客服可操作
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可修改用户状态' });
         }
 
         const targetId = Number(req.params.id);
@@ -429,9 +429,9 @@ router.patch('/:id/admin-status', auth, async (req: Request & { user?: any }, re
  */
 router.delete('/:id', auth, async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     try {
-        // 权限判断：仅管理员可删除
-        if (req.user?.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '仅管理员可删除用户' });
+        // 权限判断：仅管理员和客服可删除
+        if (req.user?.role !== 'admin' && req.user?.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '仅管理员和客服可删除用户' });
         }
 
         const id = Number(req.params.id);

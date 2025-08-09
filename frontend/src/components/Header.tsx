@@ -54,32 +54,28 @@ export default function Header() {
            { label: '陪玩指导', path: '/player/guide', icon: '📋' },
          ];
            case 'admin':
-              // 检查是否为客服（authority = 2）
-              if (userInfo && userInfo.authority === 2) {
-                // 客服只能访问这些页面，屏蔽提现管理
-                return [
-                  { label: '订单管理', path: '/admin/orders', icon: '📋' },
-                  { label: '用户/陪玩管理', path: '/admin/users', icon: '👥' },
-                  { label: '礼物管理', path: '/admin/gifts', icon: '🎁' },
-                  { label: '上下班打卡', path: '/admin/attendance', icon: '⏰' },
-                  { label: '收益提现', path: '/admin/customer-service-funds', icon: '💰' },
-                ];
-              } else {
-                // 超级管理员和股东可以访问所有页面
-                return [
-                  { label: '数据概览', path: '/admin/overview', icon: '📊' },
-                  { label: '订单管理', path: '/admin/orders', icon: '📋' },
-                  { label: '用户/陪玩管理', path: '/admin/users', icon: '👥' },
-                  { label: '礼物管理', path: '/admin/gifts', icon: '🎁' },
-                  { label: '游戏管理', path: '/admin/games', icon: '🎮' },
-                  { label: '提现管理', path: '/admin/withdrawals', icon: '💰' },
-                  { label: '客服管理', path: '/admin/permissions', icon: '🔑' },
-                //  { label: '通知管理', path: '/admin/notifications', icon: '🔔' },
-                //label: '数据管理', path: '/admin/data-management', icon: '🗄️' },
-                  { label: 'API监控', path: '/admin/api-monitor', icon: '📡' },
-                  { label: 'API状态', path: '/admin/api-status', icon: '🔍' },
-                ];
-              }
+              // 所有管理员都可以访问完整的管理功能
+              return [
+                { label: '数据概览', path: '/admin/overview', icon: '📊' },
+                { label: '订单管理', path: '/admin/orders', icon: '📋' },
+                { label: '用户/陪玩管理', path: '/admin/users', icon: '👥' },
+                { label: '礼物管理', path: '/admin/gifts', icon: '🎁' },
+                { label: '游戏管理', path: '/admin/games', icon: '🎮' },
+                { label: '提现管理', path: '/admin/withdrawals', icon: '💰' },
+                { label: '客服管理', path: '/admin/permissions', icon: '🔑' },
+              //  { label: '通知管理', path: '/admin/notifications', icon: '🔔' },
+              //label: '数据管理', path: '/admin/data-management', icon: '🗄️' },
+                { label: 'API监控', path: '/admin/api-monitor', icon: '📡' },
+                { label: 'API状态', path: '/admin/api-status', icon: '🔍' },
+              ];
+      case 'customer_service':
+              return [
+                { label: '工作台', path: '/customer-service/dashboard', icon: '🏠' },
+                { label: '订单管理', path: '/admin/orders', icon: '📋' },
+                { label: '用户/陪玩管理', path: '/admin/users', icon: '👥' },
+                { label: '礼物管理', path: '/admin/gifts', icon: '🎁' },
+                { label: '游戏管理', path: '/admin/games', icon: '🎮' },
+              ];
       default:
         return [];
     }
@@ -91,6 +87,7 @@ export default function Header() {
       case 'user': return '用';
       case 'player': return '陪';
       case 'admin': return '管';
+      case 'customer_service': return '客';
       default: return '未';
     }
   };
@@ -240,7 +237,7 @@ export default function Header() {
                   <div className="absolute right-0 mt-2 w-48 bg-theme-surface rounded-lg shadow-lg border border-theme-border z-20 animate-in fade-in slide-in-from-top-5 duration-150">
                     <div className="py-1">
                        <Link
-                         to={userRole === 'user' ? '/user/profile' : userRole === 'player' ? '/player/profile' : '/admin/profile'}
+                         to={userRole === 'user' ? '/user/profile' : userRole === 'player' ? '/player/profile' : userRole === 'customer_service' ? '/customer-service/profile' : '/admin/profile'}
                          className="block px-4 py-2 text-sm text-theme-text hover:bg-theme-primary/10 hover:text-theme-primary transition-colors"
                          onClick={() => setIsMenuOpen(false)}
                        >

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { OrderDAO } from '../dao/OrderDao';
 import { auth, AuthRequest } from '../middleware/auth';
 import { Response, NextFunction } from 'express';
+import { pool } from '../db';
 
 const router = Router();
 
@@ -89,6 +90,169 @@ router.post('/', auth, async (req: AuthRequest, res: Response, next: NextFunctio
 });
 
 /**
+ * @route   GET /api/orders/player/users
+ * @desc    陪玩获取用户列表（用于创建订单）
+ * @access  仅陪玩可访问
+ */
+router.get('/player/users', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        // 权限判断：仅陪玩可访问
+        if (req.user?.role !== 'player') {
+            return res.status(403).json({ success: false, error: '仅陪玩可访问此接口' });
+        }
+
+        // 获取所有普通用户
+        const [users]: any = await pool.execute(`
+            SELECT id, name, phone_num, photo_img
+            FROM users 
+            WHERE role = 'user' AND status = 1
+            ORDER BY name
+        `);
+
+        res.json({ success: true, users });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   POST /api/orders/player/create-completed
+ * @desc    陪玩创建已完成订单
+ * @body    { order_id, user_id, player_id, game_id, amount, status, service_hours, description }
+ */
+router.post('/player/create-completed', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        console.log('收到陪玩创建已完成订单请求:', req.body);
+        const { 
+            order_id, user_id, player_id, game_id, amount, status, service_hours, description,
+            is_anonymous, customer_name, customer_phone, customer_note 
+        } = req.body;
+        
+        if (!req.user?.id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
+        
+        if (req.user?.role !== 'player') {
+            return res.status(403).json({ success: false, error: '只有陪玩可以创建已完成订单' });
+        }
+        
+        if (req.user.id !== player_id) {
+            return res.status(403).json({ success: false, error: '只能为自己创建订单' });
+        }
+        
+        // 验证必填字段
+        if (!order_id || !player_id || !game_id || !amount || !service_hours) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '缺少必填字段：order_id, player_id, game_id, amount, service_hours' 
+            });
+        }
+        
+        // 验证用户信息并处理匿名用户自动注册
+        let finalUserId = user_id;
+        
+        if (is_anonymous) {
+            // 匿名用户验证
+            if (!customer_name || !customer_phone) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: '匿名用户需要提供客户姓名和电话' 
+                });
+            }
+            
+            // 检查是否已存在相同手机号的用户
+            const { UserDAO } = require('../dao/UserDao');
+            const existingUser = await UserDAO.findByPhone(customer_phone);
+            
+            if (existingUser) {
+                // 如果用户已存在，使用现有用户ID
+                finalUserId = existingUser.id;
+                console.log(`匿名用户手机号 ${customer_phone} 已存在，使用现有用户ID: ${finalUserId}`);
+            } else {
+                // 自动创建新用户账号
+                const bcrypt = require('bcrypt');
+                // 生成默认密码（手机号后6位）
+                const defaultPassword = customer_phone.slice(-6);
+                const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+                
+                finalUserId = await UserDAO.create(
+                    customer_name,
+                    hashedPassword,
+                    customer_phone,
+                    null, // photo_img
+                    'user', // role
+                    defaultPassword // plain_passwd
+                );
+                
+                console.log(`为匿名用户自动创建账号: ${customer_name} (${customer_phone}), 用户ID: ${finalUserId}, 默认密码: ${defaultPassword}`);
+            }
+        } else {
+            // 注册用户验证
+            if (!user_id) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: '注册用户需要提供user_id' 
+                });
+            }
+            
+            const { UserDAO } = require('../dao/UserDao');
+            const user = await UserDAO.findById(user_id);
+            if (!user) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: '指定的用户不存在' 
+                });
+            }
+            finalUserId = user_id;
+        }
+        
+        // 验证游戏是否存在
+        const { GameDAO } = require('../dao/GameDao');
+        const game = await GameDAO.findById(game_id);
+        if (!game) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '指定的游戏不存在' 
+            });
+        }
+        
+        // 检查订单ID是否已存在
+        const existingOrder = await OrderDAO.findByOrderId(order_id);
+        if (existingOrder) {
+            return res.status(400).json({ 
+                success: false, 
+                error: '订单ID已存在，请重试' 
+            });
+        }
+        
+        // 创建待审核订单
+        const orderId = await OrderDAO.createCompleted({
+            order_id,
+            user_id: finalUserId,
+            player_id,
+            game_id,
+            amount,
+            status: 'pending_review', // 修改为待审核状态
+            service_hours,
+            description: description || '陪玩服务已完成',
+            created_at: new Date(),
+            customer_name: is_anonymous ? customer_name : null,
+            customer_phone: is_anonymous ? customer_phone : null,
+            customer_note: is_anonymous ? customer_note : null
+        });
+        
+        res.status(201).json({ 
+            success: true, 
+            order_id: orderId, 
+            message: '订单创建成功，等待管理员审核' 
+        });
+    } catch (err) {
+        console.error('创建已完成订单失败:', err);
+        next(err);
+    }
+});
+
+/**
  * @route   GET /api/orders/player
  * @desc    获取陪玩的订单列表
  * @query   status?, playerId?
@@ -111,13 +275,13 @@ router.get('/player', auth, async (req: AuthRequest, res: Response, next: NextFu
         
         let player_id: number;
         
-        // 权限检查：陪玩只能查看自己的订单，管理员可以查看指定陪玩的订单
+        // 权限检查：陪玩只能查看自己的订单，管理员和客服可以查看指定陪玩的订单
         if (req.user.role === 'player') {
             player_id = req.user.id;
             console.log('✅ 陪玩用户查看自己的订单, playerId:', player_id);
-        } else if (req.user.role === 'manager' && queryPlayerId) {
+        } else if ((req.user.role === 'admin' || req.user.role === 'customer_service') && queryPlayerId) {
             player_id = parseInt(queryPlayerId);
-            console.log('✅ 管理员查看指定陪玩订单, playerId:', player_id);
+            console.log('✅ 管理员或客服查看指定陪玩订单, playerId:', player_id);
             if (isNaN(player_id)) {
                 console.log('❌ 无效的陪玩ID:', queryPlayerId);
                 return res.status(400).json({ success: false, error: '无效的陪玩ID' });
@@ -126,7 +290,7 @@ router.get('/player', auth, async (req: AuthRequest, res: Response, next: NextFu
             console.log('❌ 权限不足或参数缺失, role:', req.user.role, 'playerId:', queryPlayerId);
             return res.status(403).json({ 
                 success: false, 
-                error: '权限不足：只有陪玩可以查看自己的订单，管理员可以查看指定陪玩的订单' 
+                error: '权限不足：只有陪玩可以查看自己的订单，管理员和客服可以查看指定陪玩的订单' 
             });
         }
         
@@ -236,7 +400,7 @@ router.patch('/:order_id/status', auth, async (req: AuthRequest, res: Response, 
             if (order.user_id !== req.user.id) {
                 return res.status(403).json({ success: false, error: '只能操作自己的订单' });
             }
-        } else if (req.user.role !== 'manager') {
+        } else if (req.user.role !== 'admin' && req.user.role !== 'customer_service') {
             return res.status(403).json({ success: false, error: '权限不足' });
         }
         
@@ -266,9 +430,9 @@ router.patch('/:order_id/payment', auth, async (req: AuthRequest, res: Response,
             return res.status(401).json({ success: false, error: '用户未登录' });
         }
         
-        // 只有管理员可以更新打款状态
-        if (req.user.role !== 'manager') {
-            return res.status(403).json({ success: false, error: '只有管理员可以更新打款状态' });
+        // 只有管理员和客服可以更新打款状态
+        if (req.user.role !== 'admin' && req.user.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '只有管理员和客服可以更新打款状态' });
         }
         
         // 获取订单信息以验证订单存在
@@ -318,6 +482,95 @@ router.patch('/:order_id/confirm-end', auth, async (req: AuthRequest, res: Respo
         } else {
             return res.status(403).json({ success: false, error: '只能确认结束自己的订单' });
         }
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   PATCH /api/orders/:order_id/service-hours
+ * @desc    更新订单实际服务时长
+ * @body    { service_hours: number }
+ */
+router.patch('/:order_id/service-hours', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const { order_id } = req.params;
+        const { service_hours } = req.body;
+        
+        if (!req.user?.id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
+        
+        // 只有管理员、客服和相关陪玩可以更新服务时长
+        if (req.user.role !== 'admin' && req.user.role !== 'customer_service' && req.user.role !== 'player') {
+            return res.status(403).json({ success: false, error: '权限不足' });
+        }
+        
+        // 获取订单信息以验证权限
+        const order = await OrderDAO.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ success: false, error: '订单不存在' });
+        }
+        
+        // 如果是陪玩，只能更新自己的订单
+        if (req.user.role === 'player' && order.player_id !== req.user.id) {
+            return res.status(403).json({ success: false, error: '只能更新自己的订单服务时长' });
+        }
+        
+        // 验证服务时长
+        if (!service_hours || service_hours <= 0) {
+            return res.status(400).json({ success: false, error: '服务时长必须大于0' });
+        }
+        
+        await OrderDAO.updateServiceHours(order_id, service_hours);
+        res.json({ 
+            success: true, 
+            message: '服务时长更新成功',
+            service_hours
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @route   PATCH /api/orders/:order_id/review
+ * @desc    审核订单（管理员或客服）
+ * @body    { approved: boolean, note?: string }
+ */
+router.patch('/:order_id/review', auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+        const { order_id } = req.params;
+        const { approved, note } = req.body;
+        
+        if (!req.user?.id) {
+            return res.status(401).json({ success: false, error: '用户未登录' });
+        }
+        
+        // 只有管理员和客服可以审核订单
+        if (req.user.role !== 'admin' && req.user.role !== 'customer_service') {
+            return res.status(403).json({ success: false, error: '只有管理员和客服可以审核订单' });
+        }
+        
+        // 获取订单信息以验证订单存在
+        const order = await OrderDAO.findById(order_id);
+        if (!order) {
+            return res.status(404).json({ success: false, error: '订单不存在' });
+        }
+        
+        // 只有待审核的订单才能审核
+        if (order.status !== 'pending_review') {
+            return res.status(400).json({ success: false, error: '只有待审核的订单才能审核' });
+        }
+        
+        await OrderDAO.reviewOrder(order_id, approved, req.user.id, note);
+        
+        const action = approved ? '通过' : '拒绝';
+        res.json({ 
+            success: true, 
+            message: `订单审核${action}成功`,
+            newStatus: approved ? 'completed' : 'cancelled'
+        });
     } catch (err) {
         next(err);
     }
